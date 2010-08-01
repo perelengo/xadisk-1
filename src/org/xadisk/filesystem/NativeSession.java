@@ -174,6 +174,7 @@ public class NativeSession implements Session {
                 newLocks[0] = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
             }
             File parentFile = f.getParentFile();
+            checkValidParent(f);
             if (!alreadyHaveALock(parentFile, true)) {
                 newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, parentFile, fileLockWaitTimeout);
             }
@@ -211,6 +212,7 @@ public class NativeSession implements Session {
                 newLocks[0] = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
             }
             File parentFile = f.getParentFile();
+            checkValidParent(f);
             if (!alreadyHaveALock(parentFile, true)) {
                 newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, parentFile, fileLockWaitTimeout);
             }
@@ -251,7 +253,9 @@ public class NativeSession implements Session {
                 newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, dest, fileLockWaitTimeout);
             }
             File srcParentFile = src.getParentFile();
+            checkValidParent(src);
             File destParentFile = dest.getParentFile();
+            checkValidParent(dest);
             if (!alreadyHaveALock(srcParentFile, true)) {
                 newLocks[2] = xaFileSystem.acquireExclusiveLock(xid, srcParentFile, fileLockWaitTimeout);
             }
@@ -308,6 +312,8 @@ public class NativeSession implements Session {
                 newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, dest, fileLockWaitTimeout);
             }
             File destParentFile = dest.getParentFile();
+            checkValidParent(src);
+            checkValidParent(dest);
             if (!alreadyHaveALock(destParentFile, true)) {
                 newLocks[2] = xaFileSystem.acquireExclusiveLock(xid, destParentFile, fileLockWaitTimeout);
             }
@@ -344,10 +350,15 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             File parentDir = f.getParentFile();
-            newLock = acquireLockIfRequired(parentDir, lockExclusively);
-            addLocks(newLock);
-            success = true;
-            return view.fileExists(f);
+            if (parentDir != null) {
+                newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                addLocks(newLock);
+                success = true;
+                return view.fileExists(f);
+            } else {
+                //f is the root.
+                return f.exists();//yes, we do a physical file system check here, as no one including this txn deletes a root (/, or C:\ or D:\).
+            }
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -368,10 +379,15 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             File parentDir = f.getParentFile();
-            newLock = acquireLockIfRequired(parentDir, lockExclusively);
-            addLocks(newLock);
-            success = true;
-            return view.fileExistsAndIsDirectory(f);
+            if (parentDir != null) {
+                newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                addLocks(newLock);
+                success = true;
+                return view.fileExistsAndIsDirectory(f);
+            } else {
+                //f is the root.
+                return f.exists();//yes, we do a physical file system check here, as no one including this txn deletes a root (/, or C:\ or D:\).
+            }
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -520,7 +536,6 @@ public class NativeSession implements Session {
                 }
             }
             startedCommitting = true;
-            System.out.println("COMMITTING...");
             ArrayList<Long> logPositions;
             HashSet<File> filesDirectlyWrittenToDisk;
             HashMap<Integer, FileChannel> logReaderChannels = new HashMap<Integer, FileChannel>(2);
@@ -607,7 +622,6 @@ public class NativeSession implements Session {
             }
             cleanup();
             raiseFileStateChangeEvents();
-            System.out.println("COMMIT DONE.");
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
@@ -746,8 +760,7 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-
-            System.out.println("ROLLING BACK...");
+            
             releaseAllStreams();
 
             ArrayList<Long> logPositions;
@@ -820,7 +833,6 @@ public class NativeSession implements Session {
             }
 
             cleanup();
-            System.out.println("ROLLED BACK.");
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
@@ -931,6 +943,12 @@ public class NativeSession implements Session {
         }
 
         return false;
+    }
+
+    private void checkValidParent(File f) throws FileNotExistsException {
+        if (f.getParentFile() == null) {
+            throw new FileNotExistsException(f.getParentFile());
+        }
     }
 
     private void releaseLocks(Lock locks[]) {

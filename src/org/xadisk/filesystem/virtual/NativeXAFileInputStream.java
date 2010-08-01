@@ -95,17 +95,21 @@ public class NativeXAFileInputStream implements XAFileInputStream {
 
     public int read() throws ClosedStreamException, TransactionRolledbackException {
         try {
+            int eofMark;
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             if (!filledAtleastOnce) {
-                refillBuffer();
+                eofMark = refillBuffer();
+                if (eofMark == -1) {
+                    return -1;
+                }
             }
             int nextByte;
             try {
                 nextByte = byteBuffer.get();
             } catch (BufferUnderflowException bue) {
-                int numRead = refillBuffer();
-                if (numRead == -1) {
+                eofMark = refillBuffer();
+                if (eofMark == -1) {
                     return -1;
                 }
                 nextByte = byteBuffer.get();
@@ -122,15 +126,19 @@ public class NativeXAFileInputStream implements XAFileInputStream {
 
     public int read(byte[] b, int off, int len) throws ClosedStreamException, TransactionRolledbackException {
         try {
+            int eofMark;
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             if (!filledAtleastOnce) {
-                refillBuffer();
+                eofMark = refillBuffer();
+                if (eofMark == -1) {
+                    return -1;
+                }
             }
             int remaining = byteBuffer.remaining();
             if (remaining == 0) {
-                int numRead = refillBuffer();
-                if (numRead == -1) {
+                eofMark = refillBuffer();
+                if (eofMark == -1) {
                     return -1;
                 }
             }
@@ -170,15 +178,16 @@ public class NativeXAFileInputStream implements XAFileInputStream {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
 
-            if(!filledAtleastOnce) {
-                position = n;
-                return;
-            }
-            
             long filesize = vvf.getLength();
             if (n < 0 || n > filesize) {
                 throw new IllegalArgumentException("New position cannot be negative or more than file size.");
             }
+
+            if (!filledAtleastOnce) {
+                position = n;
+                return;
+            }
+
             long oldReadPosition = position - byteBuffer.remaining();
             boolean isAhead = n - oldReadPosition > 0;
             long amountOfMove = Math.abs(n - oldReadPosition);

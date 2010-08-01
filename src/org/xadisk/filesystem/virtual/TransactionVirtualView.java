@@ -149,24 +149,36 @@ public class TransactionVirtualView {
         }
 
         File srcPointingToPhysicalFile = srcParentVVD.pointsToPhysicalFile(src.getName());
-        
+
         VirtualViewFile vvfSource = (VirtualViewFile) srcParentVVD.removeVirtualViewFile(src.getName());
-        srcParentVVD.deleteFile(src.getName());
-        
+
         if (vvfSource != null) {
-            createFile(dest, false);
-            destParentVVD.addVirtualViewFile(dest.getName(), vvfSource);
-            vvfSource.propagatedMoveCall(dest);
-            if (vvfSource.isUsingHeavyWriteOptimization()) {
-                VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this);
-                sourceDummyVVF.markDeleted();
-                viewFilesWithLatestViewOnDisk.add(sourceDummyVVF);
-                filesWithLatestViewOnDisk.add(dest);
+            boolean success = false;
+            try {
+                createFile(dest, false);
+                destParentVVD.addVirtualViewFile(dest.getName(), vvfSource);
+                vvfSource.propagatedMoveCall(dest);
+                if (vvfSource.isUsingHeavyWriteOptimization()) {
+                    VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this);
+                    sourceDummyVVF.markDeleted();
+                    viewFilesWithLatestViewOnDisk.add(sourceDummyVVF);
+                    filesWithLatestViewOnDisk.add(dest);
+                }
+                success = true;
+            } finally {
+                if (!success) {
+                    //to rollback the remove operation.
+                    srcParentVVD.addVirtualViewFile(src.getName(), vvfSource);
+                } else {
+                    //we don't need to rollback this; this was never done in the first place.
+                    srcParentVVD.deleteFile(src.getName());
+                }
             }
         } else {
             viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(dest, 0, this));
             filesWithLatestViewOnDisk.remove(dest);
             destParentVVD.moveFileInto(dest.getName(), srcPointingToPhysicalFile);
+            srcParentVVD.deleteFile(src.getName());
         }
     }
 
