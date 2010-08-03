@@ -15,7 +15,7 @@ public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
     private volatile PrintWriter logWriter;
 
     public ManagedConnectionFactoryImpl() {
-        
+
     }
 
     public Object createConnectionFactory() throws ResourceException {
@@ -33,10 +33,15 @@ public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
 
     public ManagedConnection matchManagedConnections(Set candidates, Subject subject, ConnectionRequestInfo cri)
             throws ResourceException {
-        boolean glassFish = true;
+        boolean glassFish = false;
+        /*there was a bug with glassfish-2, throwing NSException was strange for the container.
+        But, with glassfish301, none of the following works (contrary to JCA spec). So, only workaround for
+        developers is to disable connection pooling when working with glassfish.*/
         if (glassFish) {
+            System.out.println("Please disable pooling for the XADisk connection pool.");
             return null;
         } else {
+            System.out.println("Please disable pooling for the XADisk connection pool.");
             throw new NotSupportedException("Please don't pool connections to this EIS");
         }
     }
