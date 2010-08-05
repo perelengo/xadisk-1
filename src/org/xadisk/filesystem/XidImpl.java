@@ -1,6 +1,7 @@
 package org.xadisk.filesystem;
 
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import javax.transaction.xa.Xid;
 import org.xadisk.filesystem.ResourceDependencyGraph.Node;

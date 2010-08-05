@@ -119,6 +119,7 @@ public class VirtualViewFile {
                 physicalFileNameInBackupDir = getBackupFileName();
                 FileIOUtility.createFile(physicalFileNameInBackupDir);
                 createdPhysicalFileInBackupDir = true;
+                transactionView.hasCreatedFileInBackDir(this);
                 submitRedoLogForMove(physicalFileNameInBackupDir, fileName);
             } else {
                 safePhysicalAppend();
@@ -127,6 +128,7 @@ public class VirtualViewFile {
             physicalFileNameInBackupDir = getBackupFileName();
             FileIOUtility.createFile(physicalFileNameInBackupDir);
             createdPhysicalFileInBackupDir = true;
+            transactionView.hasCreatedFileInBackDir(this);
             submitRedoLogForMove(physicalFileNameInBackupDir, fileName);
         }
     }
@@ -155,8 +157,8 @@ public class VirtualViewFile {
                 int logIndex = onDiskInfo.getLogIndex();
                 FileChannel logFileChannel = logChannels.get(logIndex);
                 if (logFileChannel == null) {
-                    logFileChannel = new FileInputStream(xaFileSystem.getTransactionLogFileBaseName() + "_" +
-                            srcClone.getOnDiskInfo().getLogIndex()).getChannel();
+                    logFileChannel = new FileInputStream(xaFileSystem.getTransactionLogFileBaseName() + "_"
+                            + srcClone.getOnDiskInfo().getLogIndex()).getChannel();
                     logChannels.put(logIndex, logFileChannel);
                 }
                 logFileChannel.position(onDiskInfo.getLocation() + srcClone.getHeaderLength());
@@ -305,7 +307,7 @@ public class VirtualViewFile {
             virtualCopy.setFileContentLength(effectiveContentLengthInBuffer);
             virtualViewContentBuffers.set(removeCompleteBuffersFromIndex - 1, virtualCopy);
         }
-        if(virtualViewContentBuffers.size() > 0) {
+        if (virtualViewContentBuffers.size() > 0) {
             for (int j = virtualViewContentBuffers.size() - 1; j >= removeCompleteBuffersFromIndex; j--) {
                 virtualViewContentBuffers.remove(j);
             }
@@ -365,6 +367,28 @@ public class VirtualViewFile {
         }
     }
 
+    public void freePhysicalChannel() {
+        try {
+            if (usingHeavyWriteOptimization && !hasBeenDeleted) {
+                fileViewChannel.close();
+            }
+        } catch (IOException ioe) {
+            //though, it is rollback, but such failures need to be notified and are signs of bug instead.
+            xaFileSystem.notifySystemFailure(ioe);
+        }
+    }
+
+    public void cleanupBackup() {
+        try {
+            if (createdPhysicalFileInBackupDir) {
+                fileViewChannel.close();
+                FileIOUtility.deleteFile(physicalFileNameInBackupDir);
+            }
+        } catch (IOException ioe) {
+            //no-op.
+        }
+    }
+
     void propagatedDeleteCall() {
         if (usingHeavyWriteOptimization) {
             try {
@@ -398,7 +422,6 @@ public class VirtualViewFile {
 
     private File getBackupFileName() throws IOException {
         File backFile = xaFileSystem.getNextBackupFileName();
-        this.transactionView.getOwningSession().addBackupFile(backFile);
         return backFile;
     }
 

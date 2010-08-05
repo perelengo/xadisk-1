@@ -18,6 +18,7 @@ public class TransactionVirtualView {
     private final XidImpl owningTransaction;
     private final HashSet<File> filesWithLatestViewOnDisk = new HashSet<File>(5);
     private final HashSet<VirtualViewFile> viewFilesWithLatestViewOnDisk = new HashSet<VirtualViewFile>(5);
+    private final HashSet<VirtualViewFile> viewFilesUsingBackupDir = new HashSet<VirtualViewFile>(5);
     private boolean transactionAlreadyDeclaredHeavyWrite = false;
     private final NativeSession owningSession;
     private final HashMap<File, VirtualViewDirectory> virtualViewDirs = new HashMap<File, VirtualViewDirectory>(10);
@@ -291,6 +292,14 @@ public class TransactionVirtualView {
 
         viewFilesWithLatestViewOnDisk.add(vvf);
         filesWithLatestViewOnDisk.add(vvf.getFileName());
+    }
+
+    void hasCreatedFileInBackDir(VirtualViewFile vvf) {
+        viewFilesUsingBackupDir.add(vvf);
+    }
+
+    public HashSet<VirtualViewFile> getViewFilesUsingBackupDir() {
+        return viewFilesUsingBackupDir;
     }
 
     public HashSet<File> getFilesWithLatestViewOnDisk() {

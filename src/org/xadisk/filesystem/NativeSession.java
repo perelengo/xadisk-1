@@ -49,7 +49,6 @@ public class NativeSession implements Session {
     private boolean createdForRecovery = false;
     private final ArrayList<FileStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileStateChangeEvent>(10);
     private final ArrayList<File> directoriesPinnedInThisSession = new ArrayList<File>(5);
-    private final ArrayList<File> backupFilesUsedInTxn = new ArrayList<File>(5);
     private final long timeOfEntryToTransaction;
     private final ReentrantLock asynchronousRollbackLock = new ReentrantLock(false);
     private final ArrayList<Long> transactionLogPositions = new ArrayList<Long>(25);
@@ -770,6 +769,10 @@ public class NativeSession implements Session {
             if (createdForRecovery) {
                 logPositions = xaFileSystem.getRecoveryWorker().getTransactionLogsPositions(xid);
             } else {
+                HashSet<VirtualViewFile> filesTouchedInPlace = view.getViewFilesWithLatestViewOnDisk();
+                for(VirtualViewFile vvf : filesTouchedInPlace) {
+                    vvf.freePhysicalChannel();
+                }
                 logPositions = this.transactionLogPositions;
             }
 
@@ -850,13 +853,12 @@ public class NativeSession implements Session {
 
         releaseAllLocks();
         xaFileSystem.removeTransactionSessionEntry(xid);
-        for (File backupFile : backupFilesUsedInTxn) {
-            try {
-                FileIOUtility.deleteFile(backupFile);
-            } catch (IOException ioe) {
-            }
-        }
 
+        Iterator<VirtualViewFile> vvfsInBackupDir = view.getViewFilesUsingBackupDir().iterator();
+        while (vvfsInBackupDir.hasNext()) {
+            vvfsInBackupDir.next().cleanupBackup();
+        }
+        
         xaFileSystem.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
 
         for (Buffer buffer : transactionInMemoryBuffers) {
@@ -1006,11 +1008,7 @@ public class NativeSession implements Session {
                 TransactionLogEntry.TXN_USES_UNDO_LOGS));
         xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }
-
-    public void addBackupFile(File buf) {
-        backupFilesUsedInTxn.add(buf);
-    }
-
+    
     public long getTimeOfEntryToTransaction() {
         return timeOfEntryToTransaction;
     }

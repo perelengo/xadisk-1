@@ -15,7 +15,7 @@ public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
     private volatile PrintWriter logWriter;
 
     public ManagedConnectionFactoryImpl() {
-
+        
     }
 
     public Object createConnectionFactory() throws ResourceException {

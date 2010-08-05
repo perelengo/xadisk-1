@@ -28,11 +28,21 @@ public class CoreXAFileSystemTests {
     private static Session ioOperationsSession;
     private static File ioOperationsRoot1;
     private static File ioOperationsRoot2;
+    private static File baseForRollbackRoot;
     public static int checkpointAt = -1;
     private static int currentCheckpoint = 0;
+    private static boolean checkRollback = false;
     public static Object namesake = new CoreXAFileSystemTests();
 
     public static void testIncrementalIOOperations(String testDirectory) throws Exception {
+        checkRollback = true;
+        for (int i = -1; i <= 40; i++) {
+            System.out.println("TestIOOperatios : Incremental Step # " + i);
+            checkpointAt = i;
+            currentCheckpoint = 1;
+            testIOOperations(testDirectory);
+        }
+        checkRollback = false;
         for (int i = -1; i <= 40; i++) {
             System.out.println("TestIOOperatios : Incremental Step # " + i);
             checkpointAt = i;
@@ -45,13 +55,17 @@ public class CoreXAFileSystemTests {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
+        String baseForRollback = testDirectory + SEPERATOR + "baseForRollback";
         ioOperationsRoot1 = new File(roots[0]);
         ioOperationsRoot2 = new File(roots[1]);
+        baseForRollbackRoot = new File(baseForRollback);
         TestUtility.cleanupDirectory(ioOperationsRoot1);
         TestUtility.cleanupDirectory(ioOperationsRoot2);
+        TestUtility.cleanupDirectory(baseForRollbackRoot);
         ioOperationsRoot1.mkdirs();
         ioOperationsRoot2.mkdirs();
-        byte chant[] = "HareRamaHareKrishna...".getBytes();
+        baseForRollbackRoot.mkdirs();
+        byte content[] = "TextContent...".getBytes();
         int smallFileSize = 100;
         int mediumFileSize = 1000;
         int largeFileSize = 200000;
@@ -72,11 +86,11 @@ public class CoreXAFileSystemTests {
         checkpoint();
         System.out.println("*******************");
 
-        TestUtility.writeDataToOutputStreams(chant, smallFileSize, "childDir1" + SEPERATOR + "small.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, smallFileSize, "childDir1" + SEPERATOR + "small.txt", ioOperationsSession, roots);
         checkpoint();
-        TestUtility.writeDataToOutputStreams(chant, mediumFileSize, "childDir1" + SEPERATOR + "medium.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, mediumFileSize, "childDir1" + SEPERATOR + "medium.txt", ioOperationsSession, roots);
         checkpoint();
-        TestUtility.writeDataToOutputStreams(chant, largeFileSize, "childDir1" + SEPERATOR + "large.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, largeFileSize, "childDir1" + SEPERATOR + "large.txt", ioOperationsSession, roots);
         checkpoint();
 
         TestUtility.moveFile("childDir1" + SEPERATOR + "medium.txt", "childDir2" + SEPERATOR + "medium.txt", ioOperationsSession, roots);
@@ -115,11 +129,11 @@ public class CoreXAFileSystemTests {
         TestUtility.truncateFile("childDir1" + SEPERATOR + "large.txt", largeFileSize / 2, ioOperationsSession, roots);
         checkpoint();
 
-        TestUtility.writeDataToOutputStreams(chant, smallFileSize / 2, "childDir1" + SEPERATOR + "small.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, smallFileSize / 2, "childDir1" + SEPERATOR + "small.txt", ioOperationsSession, roots);
         checkpoint();
-        TestUtility.writeDataToOutputStreams(chant, mediumFileSize / 2, "childDir1" + SEPERATOR + "medium.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, mediumFileSize / 2, "childDir1" + SEPERATOR + "medium.txt", ioOperationsSession, roots);
         checkpoint();
-        TestUtility.writeDataToOutputStreams(chant, largeFileSize / 2, "childDir1" + SEPERATOR + "large.txt", ioOperationsSession, roots);
+        TestUtility.writeDataToOutputStreams(content, largeFileSize / 2, "childDir1" + SEPERATOR + "large.txt", ioOperationsSession, roots);
         checkpoint();
 
         TestUtility.moveFile("childDir1", "childDir2" + SEPERATOR + "childDir1", ioOperationsSession, roots);
@@ -163,10 +177,22 @@ public class CoreXAFileSystemTests {
 
     private static void checkpoint() throws Exception {
         if (checkpointAt == -1 || currentCheckpoint == checkpointAt) {
-            TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
-            ioOperationsSession.commit(true);
-            resetIOOperationsSession();
-            TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
+            if(checkRollback) {
+                System.out.println("Rolling Back...");
+                ioOperationsSession.rollback();
+                resetIOOperationsSession();
+                TestUtility.compareDiskAndDisk(baseForRollbackRoot, ioOperationsRoot1);
+                TestUtility.cleanupDirectory(ioOperationsRoot1);
+                TestUtility.cleanupDirectory(baseForRollbackRoot);
+                TestUtility.copyDirectory(ioOperationsRoot2, baseForRollbackRoot);
+                TestUtility.copyDirectory(ioOperationsRoot2, ioOperationsRoot1);
+            } else {
+                TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
+                System.out.println("Committing...");
+                ioOperationsSession.commit(true);
+                resetIOOperationsSession();
+                TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
+            }
         }
         currentCheckpoint++;
     }

@@ -20,14 +20,13 @@ import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 public class TestUtility {
 
     public static boolean remoteXAFileSystem = false;
-
     private static Object namesake = new TestUtility();
-    
+
     public static XAFileSystem getXAFileSystemForTest() {
-        if(remoteXAFileSystem) {
+        if (remoteXAFileSystem) {
             try {
                 return new RemoteXAFileSystem("localhost", 9999);
-            } catch(Throwable t) {
+            } catch (Throwable t) {
                 t.printStackTrace();
                 return null;
             }
@@ -73,8 +72,8 @@ public class TestUtility {
                     buffer2.flip();
                     for (int i = 0; i < buffer1.limit(); i++) {
                         if (buffer1.get(i) != buffer2.get(i)) {
-                            throw new AssertionFailedException("File Content Mismatch@" + fc2.position() +
-                                    i + ": " + file1);
+                            throw new AssertionFailedException("File Content Mismatch@" + fc2.position()
+                                    + i + ": " + file1);
                         }
                     }
                 }
@@ -207,7 +206,7 @@ public class TestUtility {
             String root, String relativePath) {
         return new File(root + File.separator + relativePath);
     }
-    
+
     public static void waitForAllAtHeaven(ArrayList<Thread> threads) {
         for (Thread t : threads) {
             while (t.isAlive()) {
@@ -215,6 +214,40 @@ public class TestUtility {
                     t.join();
                 } catch (InterruptedException ie) {
                 }
+            }
+        }
+    }
+
+    public static void copyDirectory(File src, File dest) throws IOException {
+        File srcChildren[] = src.listFiles();
+        for (int i = 0; i < srcChildren.length; i++) {
+            try {
+                if (srcChildren[i].isFile()) {
+                    File destChild = new File(dest, srcChildren[i].getName());
+                    FileChannel srcChannel = new FileInputStream(srcChildren[i]).getChannel();
+                    FileChannel destChannel = new FileOutputStream(destChild).getChannel();
+                    long numTrans = 0;
+                    long srcLength = srcChannel.size();
+                    while (numTrans < srcLength) {
+                        /*java 5 was behaving strangely below when the 3rd argument was a fixed integer, say 4000.
+                        This error was seen:
+                         * java.io.IOException: Access is denied
+                        at sun.nio.ch.FileChannelImpl.truncate0(Native Method)
+                        at sun.nio.ch.FileChannelImpl.map(FileChannelImpl.java:731)
+                        at sun.nio.ch.FileChannelImpl.transferFromFileChannel(FileChannelImpl.java:540)
+                        at sun.nio.ch.FileChannelImpl.transferFrom(FileChannelImpl.java:603)
+                         */
+                        numTrans += destChannel.transferFrom(srcChannel, numTrans, srcLength - numTrans);
+                    }
+                    srcChannel.close();
+                    destChannel.close();
+                } else {
+                    File destChild = new File(dest, srcChildren[i].getName());
+                    FileIOUtility.createDirectory(destChild);
+                    copyDirectory(srcChildren[i], destChild);
+                }
+            } catch (IOException ioe) {
+                throw new IOException("IO error while copying file " + srcChildren[i] + " to directory " + dest);
             }
         }
     }
