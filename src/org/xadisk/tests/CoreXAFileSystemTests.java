@@ -15,8 +15,7 @@ import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 
 public class CoreXAFileSystemTests {
-
-    public static final String testIncrementalIOOperations = "testIncrementalIOOperations";
+    public static final String testIOOperations = "testIOOperations";
     public static final String testIOOperationsPostCrash = "testIOOperationsPostCrash";
     public static final String testDynamicReadWrite = "testDynamicReadWrite";
     public static final String testDynamicReadWritePostCrash = "testDynamicReadWritePostCrash";
@@ -29,29 +28,44 @@ public class CoreXAFileSystemTests {
     private static File ioOperationsRoot1;
     private static File ioOperationsRoot2;
     private static File baseForRollbackRoot;
-    public static int checkpointAt = -1;
+    private static int checkpointAt = -1;
     private static int currentCheckpoint = 0;
     private static boolean checkRollback = false;
     public static Object namesake = new CoreXAFileSystemTests();
+    public static boolean testProgressive = false;
+    public static boolean testHighNumber = false;
+    public static boolean usePessimisticLock = false;
+    public static int initialFileSize = 100000;
 
-    public static void testIncrementalIOOperations(String testDirectory) throws Exception {
-        checkRollback = true;
-        for (int i = -1; i <= 40; i++) {
-            System.out.println("TestIOOperatios : Incremental Step # " + i);
-            checkpointAt = i;
+    public static void testIOOperations(String testDirectory) throws Exception {
+        if (testProgressive) {
+            checkRollback = true;
+            for (int i = -1; i <= 40; i++) {
+                System.out.println("TestIOOperatios : Incremental Step # " + i);
+                checkpointAt = i;
+                currentCheckpoint = 1;
+                testIOOperationsOneRound(testDirectory, testHighNumber);
+            }
+            checkRollback = false;
+            for (int i = -1; i <= 40; i++) {
+                System.out.println("TestIOOperatios : Incremental Step # " + i);
+                checkpointAt = i;
+                currentCheckpoint = 1;
+                testIOOperationsOneRound(testDirectory, testHighNumber);
+            }
+        } else {
+            checkRollback = true;
+            checkpointAt = 100;
             currentCheckpoint = 1;
-            testIOOperations(testDirectory);
-        }
-        checkRollback = false;
-        for (int i = -1; i <= 40; i++) {
-            System.out.println("TestIOOperatios : Incremental Step # " + i);
-            checkpointAt = i;
+            testIOOperationsOneRound(testDirectory, testHighNumber);
+            checkRollback = false;
+            checkpointAt = 100;
             currentCheckpoint = 1;
-            testIOOperations(testDirectory);
+            testIOOperationsOneRound(testDirectory, testHighNumber);
         }
     }
 
-    public static void testIOOperations(String testDirectory) throws Exception {
+    private static void testIOOperationsOneRound(String testDirectory, boolean testHighNumber) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -72,15 +86,17 @@ public class CoreXAFileSystemTests {
 
         resetIOOperationsSession();
 
-        for (int i = 0; i < 1000; i++) {
-            String fileName = "small.txt" + i;
-            TestUtility.createFile(fileName, false, ioOperationsSession, roots);
-            TestUtility.writeDataToOutputStreams(content, smallFileSize, fileName, ioOperationsSession, roots);
-            fileName = "large.txt" + i;
-            TestUtility.createFile(fileName, false, ioOperationsSession, roots);
-            TestUtility.writeDataToOutputStreams(content, largeFileSize, fileName, ioOperationsSession, roots);
+        if (testHighNumber) {
+            for (int i = 0; i < 1000; i++) {
+                String fileName = "small.txt" + i;
+                TestUtility.createFile(fileName, false, ioOperationsSession, roots);
+                TestUtility.writeDataToOutputStreams(content, smallFileSize, fileName, ioOperationsSession, roots);
+                fileName = "large.txt" + i;
+                TestUtility.createFile(fileName, false, ioOperationsSession, roots);
+                TestUtility.writeDataToOutputStreams(content, largeFileSize, fileName, ioOperationsSession, roots);
+            }
+            checkpoint();
         }
-        checkpoint();
 
         TestUtility.createFile("childDir1", true, ioOperationsSession, roots);
         checkpoint();
@@ -180,9 +196,16 @@ public class CoreXAFileSystemTests {
         System.out.println("*******************");
 
         TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
-        ioOperationsSession.commit(true);
-        resetIOOperationsSession();
-        TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
+        if (checkRollback) {
+            System.out.println("Rolling Back...");
+            ioOperationsSession.rollback();
+            TestUtility.compareDiskAndDisk(baseForRollbackRoot, ioOperationsRoot1);
+        } else {
+            System.out.println("Committing...");
+            ioOperationsSession.commit(true);
+            TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
+        }
+        System.out.println("Done.");
     }
 
     private static void checkpoint() throws Exception {
@@ -197,6 +220,7 @@ public class CoreXAFileSystemTests {
                 TestUtility.copyDirectory(ioOperationsRoot2, baseForRollbackRoot);
                 TestUtility.copyDirectory(ioOperationsRoot2, ioOperationsRoot1);
             } else {
+                //no need for view verification in rollback case; we just need to do it in either place.
                 TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
                 System.out.println("Committing...");
                 ioOperationsSession.commit(true);
@@ -221,7 +245,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testDynamicReadWrite(String testDirectory, int initialFileSize) throws Exception {
+    public static void testDynamicReadWrite(String testDirectory) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -292,7 +316,7 @@ public class CoreXAFileSystemTests {
         TestUtility.compareDiskAndDisk(fileRoot2, fileRoot1);
     }
 
-    public static void testDynamicReadWritePostCrash(String testDirectory, int initialFileSize) throws Exception {
+    public static void testDynamicReadWritePostCrash(String testDirectory) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -320,7 +344,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testConcurrentMoneyTransfer(String testDirectory, final boolean bePessimistic)
+    public static void testConcurrentMoneyTransfer(String testDirectory)
             throws Exception {
         final File rich = new File(testDirectory + SEPERATOR + "rich.txt");
         final File poor = new File(testDirectory + SEPERATOR + "poor.txt");
@@ -348,7 +372,7 @@ public class CoreXAFileSystemTests {
                             XAFileSystem xaFileSystem = TestUtility.getXAFileSystemForTest();
                             xaFileSystem.createSessionForLocalTransaction();
                             plainOldMoneyTransfer(rich, poor, xaFileSystem.createSessionForLocalTransaction(),
-                                    bePessimistic);
+                                    usePessimisticLock);
                             System.out.println("Suceess.");
                         } catch (Exception e) {
                             System.out.println("Failure due to :" + e.getMessage());

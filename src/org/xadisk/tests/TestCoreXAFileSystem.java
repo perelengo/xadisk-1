@@ -16,7 +16,7 @@ public class TestCoreXAFileSystem {
     private static final String currentWorkingDirectory = System.getProperty("user.dir");
     private static final String topLevelTestDirectory = currentWorkingDirectory + SEPERATOR + "testXADiskSystem1";
     private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
-    private static boolean testCrashRecovery = false;
+    private static boolean testCrashRecovery = true;
     public static int concurrencyLevel = 1;
     private static int numberOfCrashes = 100;
     public static int maxConcurrentDeliveries = 2;
@@ -25,6 +25,10 @@ public class TestCoreXAFileSystem {
 
     public static void main(String args[]) {
         try {
+            CoreXAFileSystemTests.testHighNumber = false;
+            CoreXAFileSystemTests.testProgressive = false;
+            CoreXAFileSystemTests.usePessimisticLock = true;
+
             if (args.length > 0 && args[0].equals(forRunningTests)) {
                 System.out.println("Entered into the main of childJVM " + forRunningTests);
                 test(false);
@@ -63,8 +67,8 @@ public class TestCoreXAFileSystem {
         StringArgument mainArgument = (StringArgument) connectorArguments.get("main");
         mainArgument.setValue(org.xadisk.tests.TestCoreXAFileSystem.class.getName() + " " + purpose);
         StringArgument optionsArgument = (StringArgument) connectorArguments.get("options");
-        optionsArgument.setValue("-classpath build" + SEPERATOR + "classes;" +
-                "dist" + SEPERATOR + "lib" + SEPERATOR + "javaee.jar ");
+        optionsArgument.setValue("-classpath build" + SEPERATOR + "classes;"
+                + "connector-api-1.5.jar;javaee-api-5.jar");
         return connector.launch(connectorArguments);
     }
 
@@ -87,7 +91,7 @@ public class TestCoreXAFileSystem {
     private static void test(boolean postCrash) {
         try {
             TestUtility.remoteXAFileSystem = false;
-        
+
             StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
             configuration.setWorkManagerCorePoolSize(10);
             configuration.setWorkManagerMaxPoolSize(10000);
@@ -99,7 +103,7 @@ public class TestCoreXAFileSystem {
             nativeXAFileSystem.waitForBootup(-1);
 
             System.out.println("Recovery over.");
-            Class.forName(org.xadisk.bridge.proxies.interfaces.Session.class.getCanonicalName());
+            Class.forName(org.xadisk.filesystem.NativeSession.class.getCanonicalName());
             Class.forName(org.xadisk.filesystem.workers.GatheringDiskWriter.class.getName());
             ArrayList<Thread> allThreads = new ArrayList<Thread>();
             Thread tests[] = new Thread[4];
@@ -118,8 +122,8 @@ public class TestCoreXAFileSystem {
                             topLevelTestDirectory + SEPERATOR + "moneyTransfer" + testReplica));
                     tests[1] = new Thread(new RunnableTest(CoreXAFileSystemTests.testDynamicReadWrite,
                             topLevelTestDirectory + SEPERATOR + "dynamicReadWrite" + testReplica));
-                    tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIncrementalIOOperations,
-                            topLevelTestDirectory + SEPERATOR + "incrementalIOOperations" + testReplica));
+                    tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIOOperations,
+                            topLevelTestDirectory + SEPERATOR + "ioOperations" + testReplica));
                     tests[3] = new Thread(new RunnableTest(CoreXAFileSystemTests.testFileSystemEventing,
                             topLevelTestDirectory + SEPERATOR + "eventingSystem" + testReplica));
                 }

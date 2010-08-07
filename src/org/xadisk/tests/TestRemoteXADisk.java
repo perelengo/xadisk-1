@@ -40,7 +40,7 @@ public class TestRemoteXADisk {
                     topLevelTestDirectory + SEPERATOR + "moneyTransfer"));
             tests[1] = new Thread(new RunnableTest(CoreXAFileSystemTests.testDynamicReadWrite,
                     topLevelTestDirectory + SEPERATOR + "dynamicReadWrite"));
-            tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIncrementalIOOperations,
+            tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIOOperations,
                     topLevelTestDirectory + SEPERATOR + "ioOperations"));
             tests[3] = new Thread(new RunnableTest(CoreXAFileSystemTests.testFileSystemEventing,
                     topLevelTestDirectory + SEPERATOR + "eventingSystems"));

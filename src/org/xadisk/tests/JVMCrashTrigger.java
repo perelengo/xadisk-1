@@ -50,18 +50,20 @@ public class JVMCrashTrigger implements Runnable {
         methods1.add("forceWrite");
         interestingClassesAndMethodNames.put(class1, methods1);
 
-        String class2 = org.xadisk.bridge.proxies.interfaces.Session.class.getName();
+        String class2 = org.xadisk.filesystem.NativeSession.class.getName();
         ArrayList<String> methods2 = new ArrayList<String>();
-        java.lang.reflect.Method allMethods2[] = org.xadisk.bridge.proxies.interfaces.Session.class.getDeclaredMethods();
+        java.lang.reflect.Method allMethods2[] = org.xadisk.filesystem.NativeSession.class.getDeclaredMethods();
         for (int i = 0; i < allMethods2.length; i++) {
             String methodName = allMethods2[i].getName();
             if (methodName.startsWith("commit")) {
                 methods2.add(methodName);
             }
         }
+        methods2.add("commit");
+        methods2.add("rollback");
         interestingClassesAndMethodNames.put(class2, methods2);
     }
-    
+
     public void run() {
         int breakPointsEncountered = 0;
         thisRunnable:

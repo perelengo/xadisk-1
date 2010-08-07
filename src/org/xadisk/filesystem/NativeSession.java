@@ -759,7 +759,7 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            
+
             releaseAllStreams();
 
             ArrayList<Long> logPositions;
@@ -770,7 +770,7 @@ public class NativeSession implements Session {
                 logPositions = xaFileSystem.getRecoveryWorker().getTransactionLogsPositions(xid);
             } else {
                 HashSet<VirtualViewFile> filesTouchedInPlace = view.getViewFilesWithLatestViewOnDisk();
-                for(VirtualViewFile vvf : filesTouchedInPlace) {
+                for (VirtualViewFile vvf : filesTouchedInPlace) {
                     vvf.freePhysicalChannel();
                 }
                 logPositions = this.transactionLogPositions;
@@ -858,7 +858,7 @@ public class NativeSession implements Session {
         while (vvfsInBackupDir.hasNext()) {
             vvfsInBackupDir.next().cleanupBackup();
         }
-        
+
         xaFileSystem.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
 
         for (Buffer buffer : transactionInMemoryBuffers) {
@@ -1008,7 +1008,7 @@ public class NativeSession implements Session {
                 TransactionLogEntry.TXN_USES_UNDO_LOGS));
         xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }
-    
+
     public long getTimeOfEntryToTransaction() {
         return timeOfEntryToTransaction;
     }

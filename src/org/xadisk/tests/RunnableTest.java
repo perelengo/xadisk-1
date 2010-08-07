@@ -12,23 +12,22 @@ class RunnableTest implements Runnable {
 
     public void run() {
         try {
-            int initialFileSize = 100000;
             if (testName.equals(CoreXAFileSystemTests.testConcurrentMoneyTransfer)) {
-                CoreXAFileSystemTests.testConcurrentMoneyTransfer(testDirectory, true);
+                CoreXAFileSystemTests.testConcurrentMoneyTransfer(testDirectory);
+            } else if (testName.equals(CoreXAFileSystemTests.testIOOperations)) {
+                CoreXAFileSystemTests.testIOOperations(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testDynamicReadWrite)) {
-                CoreXAFileSystemTests.testDynamicReadWrite(testDirectory, initialFileSize);
+                CoreXAFileSystemTests.testDynamicReadWrite(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testFileSystemEventing)) {
                 CoreXAFileSystemTests.testFileSystemEventing(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testConcurrentMoneyTransferPostCrash)) {
                 CoreXAFileSystemTests.testConcurrentMoneyTransferPostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testDynamicReadWritePostCrash)) {
-                CoreXAFileSystemTests.testDynamicReadWritePostCrash(testDirectory, initialFileSize);
+                CoreXAFileSystemTests.testDynamicReadWritePostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testIOOperationsPostCrash)) {
                 CoreXAFileSystemTests.testIOOperationsPostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testFileSystemEventingPostCrash)) {
                 CoreXAFileSystemTests.testFileSystemEventingPostCrash(testDirectory);
-            } else if (testName.equals(CoreXAFileSystemTests.testIncrementalIOOperations)) {
-                CoreXAFileSystemTests.testIncrementalIOOperations(testDirectory);
             }
         } catch (Throwable t) {
             System.out.println("Test failed " + testName + " in " + testDirectory + " due to " + t);
