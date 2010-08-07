@@ -72,6 +72,16 @@ public class CoreXAFileSystemTests {
 
         resetIOOperationsSession();
 
+        for (int i = 0; i < 1000; i++) {
+            String fileName = "small.txt" + i;
+            TestUtility.createFile(fileName, false, ioOperationsSession, roots);
+            TestUtility.writeDataToOutputStreams(content, smallFileSize, fileName, ioOperationsSession, roots);
+            fileName = "large.txt" + i;
+            TestUtility.createFile(fileName, false, ioOperationsSession, roots);
+            TestUtility.writeDataToOutputStreams(content, largeFileSize, fileName, ioOperationsSession, roots);
+        }
+        checkpoint();
+
         TestUtility.createFile("childDir1", true, ioOperationsSession, roots);
         checkpoint();
         TestUtility.createFile("childDir2", true, ioOperationsSession, roots);
@@ -177,7 +187,7 @@ public class CoreXAFileSystemTests {
 
     private static void checkpoint() throws Exception {
         if (checkpointAt == -1 || currentCheckpoint == checkpointAt) {
-            if(checkRollback) {
+            if (checkRollback) {
                 System.out.println("Rolling Back...");
                 ioOperationsSession.rollback();
                 resetIOOperationsSession();

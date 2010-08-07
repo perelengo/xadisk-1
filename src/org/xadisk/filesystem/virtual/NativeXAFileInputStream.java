@@ -86,7 +86,9 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                 }
             }
             vvf.reduceBeingRead();
-            theXAFileSystem.getBufferPool().checkIn(pooledBuffer);
+            if (pooledBuffer != null) {
+                theXAFileSystem.getBufferPool().checkIn(pooledBuffer);
+            }
             closed = true;
         } finally {
             asynchronousRollbackLock.unlock();

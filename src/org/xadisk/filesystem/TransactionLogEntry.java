@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class TransactionLogEntry {
+
     public static final byte FILE_APPEND = 2;
     public static final byte FILE_MOVE = 3;
     public static final byte FILE_COPY = 4;
@@ -48,7 +49,7 @@ public class TransactionLogEntry {
     static byte[] getUTF8Bytes(String str) {
         try {
             return str.getBytes(UTF8Charset);
-        } catch(UnsupportedEncodingException uee) {
+        } catch (UnsupportedEncodingException uee) {
             return null;
             //won't arise.
         }
@@ -57,7 +58,7 @@ public class TransactionLogEntry {
     static String getUTF8AssumedString(byte[] bytes) {
         try {
             return new String(bytes, UTF8Charset);
-        } catch(UnsupportedEncodingException uee) {
+        } catch (UnsupportedEncodingException uee) {
             return null;
             //won't arise.
         }
@@ -196,7 +197,8 @@ public class TransactionLogEntry {
             totalFilePathsLength += filePathsBytes[i].length;
             i++;
         }
-        ByteBuffer buffer = ByteBuffer.allocate(200 + totalFilePathsLength);
+        //a bug was identified by Janos, for a large number of files. We need the "4* .. " segment below.
+        ByteBuffer buffer = ByteBuffer.allocate(200 + totalFilePathsLength + 4 * filePathsBytes.length);
 
         buffer.putInt(0);
         buffer.putInt(0);
@@ -254,11 +256,11 @@ public class TransactionLogEntry {
             temp.fileName = readFileName(buffer);
             temp.filePosition = buffer.getLong();
             temp.fileContentLength = buffer.getInt(4);
-        } else if (temp.operationType == FILE_DELETE || temp.operationType == FILE_CREATE ||
-                temp.operationType == DIR_CREATE) {
+        } else if (temp.operationType == FILE_DELETE || temp.operationType == FILE_CREATE
+                || temp.operationType == DIR_CREATE) {
             temp.fileName = readFileName(buffer);
-        } else if (temp.operationType == FILE_COPY || temp.operationType == FILE_MOVE ||
-                temp.operationType == FILE_SPECIAL_MOVE) {
+        } else if (temp.operationType == FILE_COPY || temp.operationType == FILE_MOVE
+                || temp.operationType == FILE_SPECIAL_MOVE) {
             temp.fileName = readFileName(buffer);
             temp.destFileName = readFileName(buffer);
         } else if (temp.operationType == FILE_TRUNCATE || temp.operationType == UNDOABLE_FILE_APPEND) {
@@ -270,8 +272,8 @@ public class TransactionLogEntry {
             for (int i = 0; i < numFiles; i++) {
                 temp.fileList.add(new File(readFileName(buffer)));
             }
-        } else if (temp.operationType == EVENT_ENQUEUE || temp.operationType == EVENT_DEQUEUE ||
-                temp.operationType == PREPARE_COMPLETES_FOR_EVENT_DEQUEUE) {
+        } else if (temp.operationType == EVENT_ENQUEUE || temp.operationType == EVENT_DEQUEUE
+                || temp.operationType == PREPARE_COMPLETES_FOR_EVENT_DEQUEUE) {
             int numEvents = buffer.getInt();
             temp.eventList = new ArrayList<FileStateChangeEvent>(numEvents);
             for (int i = 0; i < numEvents; i++) {
@@ -379,7 +381,7 @@ public class TransactionLogEntry {
             boolean onlyCompletionEntry) throws IOException {
         ByteBuffer header = ByteBuffer.allocate(500);
         logChannel.position(position);
-        
+
         FileIOUtility.readFromChannel(logChannel, header, 0, 4);
 
         int logEntryHeaderLength = header.getInt(0);
@@ -400,9 +402,9 @@ public class TransactionLogEntry {
 
             logChannel.position(position + logEntry.headerLength + logEntry.fileContentLength);
 
-            if (logEntry.operationType == COMMIT_BEGINS || logEntry.operationType == PREPARE_COMPLETES ||
-                    logEntry.operationType == TXN_COMMIT_DONE || logEntry.operationType == TXN_ROLLBACK_DONE ||
-                    logEntry.operationType == PREPARE_COMPLETES_FOR_EVENT_DEQUEUE) {
+            if (logEntry.operationType == COMMIT_BEGINS || logEntry.operationType == PREPARE_COMPLETES
+                    || logEntry.operationType == TXN_COMMIT_DONE || logEntry.operationType == TXN_ROLLBACK_DONE
+                    || logEntry.operationType == PREPARE_COMPLETES_FOR_EVENT_DEQUEUE) {
                 return logEntry;
             }
             return null;
@@ -422,10 +424,10 @@ public class TransactionLogEntry {
     }
 
     public boolean isUndoLogEntry() {
-        return (operationType == TransactionLogEntry.UNDOABLE_FILE_APPEND ||
-                operationType == TransactionLogEntry.UNDOABLE_FILE_TRUNCATE);
+        return (operationType == TransactionLogEntry.UNDOABLE_FILE_APPEND
+                || operationType == TransactionLogEntry.UNDOABLE_FILE_TRUNCATE);
     }
-    
+
     public boolean isRedoLogEntry() {
         return operationType < 12;
     }
