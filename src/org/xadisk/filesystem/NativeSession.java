@@ -1066,6 +1066,11 @@ public class NativeSession implements Session {
     }
 
     public void reAssociateTransactionThread(Thread thread) {
-        this.xid.getNodeInResourceDependencyGraph().reAssociatedTransactionThread(thread);
+        //this check is required due to quite possible calls from Txn Manager even after committing
+        //the txn on RemoteManagedConnection (such NPE was seen also).
+        ResourceDependencyGraph.Node xidNode = this.xid.getNodeInResourceDependencyGraph();
+        if (xidNode != null) {
+            xidNode.reAssociatedTransactionThread(thread);
+        }
     }
 }

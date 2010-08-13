@@ -44,7 +44,7 @@ import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
 import org.xadisk.filesystem.pools.SelectorPool;
 
-public class NativeXAFileSystem implements XAFileSystem{
+public class NativeXAFileSystem implements XAFileSystem {
 
     private static NativeXAFileSystem theXAFileSystem;
     private final AtomicLong lastTransactionId = new AtomicLong(System.currentTimeMillis() / 1000);
@@ -173,20 +173,20 @@ public class NativeXAFileSystem implements XAFileSystem{
         return session;
     }
 
-    public NativeSession createSessionForXATransaction(XidImpl xid) {
+    public NativeSession createSessionForXATransaction(Xid xid) {
         checkIfCanContinue();
-        NativeSession session = new NativeSession(xid, false);
+        NativeSession session = new NativeSession((XidImpl) xid, false);
         return session;
     }
 
-    public NativeSession getSessionForTransaction(XidImpl xid) {
+    public NativeSession getSessionForTransaction(Xid xid) {
         NativeSession session;
-        session = transactionAndSession.get(xid);
+        session = transactionAndSession.get((XidImpl) xid);
         if (session != null) {
             return session;
         }
         if (transactionsPreparedPreCrash.contains(xid)) {
-            session = new NativeSession(xid, true);
+            session = new NativeSession((XidImpl) xid, true);
             if (session != null) {
                 return session;
             }
@@ -604,7 +604,7 @@ public class NativeXAFileSystem implements XAFileSystem{
                     checkIfCanContinue();
                     break;
                 } catch (RecoveryInProgressException ripe) {
-                        Thread.sleep(1000);
+                    Thread.sleep(1000);
                 }
             }
         } else {

@@ -12,22 +12,22 @@ import org.xadisk.filesystem.exceptions.LockingFailedException;
 import org.xadisk.filesystem.exceptions.NoOngoingTransactionException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
-public class ConnectionHandle {
+public class XADiskConnectionImpl implements XADiskConnection {
 
-    private volatile ManagedConnectionImpl mc;
-    private final UserLocalTransaction userLocalTransaction;
+    private volatile XADiskManagedConnection mc;
+    private final XADiskUserLocalTransaction userLocalTransaction;
     private boolean publishFileStateChangeEventsOnCommit = false;
 
-    protected ConnectionHandle(ManagedConnectionImpl mc) {
+    protected XADiskConnectionImpl(XADiskManagedConnection mc) {
         this.mc = mc;
-        this.userLocalTransaction = new UserLocalTransaction(mc);
+        this.userLocalTransaction = new XADiskUserLocalTransaction(mc);
     }
 
-    protected void setManagedConnection(ManagedConnectionImpl mc) {
+    protected void setManagedConnection(XADiskManagedConnection mc) {
         this.mc = mc;
     }
 
-    public UserLocalTransaction getUserLocalTransaction() {
+    public XADiskUserLocalTransaction getUserLocalTransaction() {
         return userLocalTransaction;
     }
 

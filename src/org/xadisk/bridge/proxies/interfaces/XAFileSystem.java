@@ -10,9 +10,9 @@ public interface XAFileSystem {
 
     public Session createSessionForLocalTransaction();
 
-    public Session createSessionForXATransaction(XidImpl xid);
+    public Session createSessionForXATransaction(Xid xid);
 
-    public Session getSessionForTransaction(XidImpl xid);
+    public Session getSessionForTransaction(Xid xid);
 
     public void waitForBootup(long timeout) throws InterruptedException;
 

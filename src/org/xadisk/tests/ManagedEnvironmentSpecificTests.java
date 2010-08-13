@@ -6,8 +6,8 @@ import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.xadisk.connector.outbound.ConnectionHandle;
-import org.xadisk.connector.outbound.ManagedConnectionFactoryImpl;
+import org.xadisk.connector.outbound.XADiskConnection;
+import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
@@ -36,12 +36,12 @@ public class ManagedEnvironmentSpecificTests {
             xaFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(saConfig);
             waitForXAFileSystemToBeUp(xaFileSystem);
 
-            ManagedConnectionFactory mcf = new ManagedConnectionFactoryImpl();
+            ManagedConnectionFactory mcf = new XADiskManagedConnectionFactory();
             ManagedConnection mc = mcf.createManagedConnection(null, null);
             XAResource xar = mc.getXAResource();
             XAResource xarSameRM = mcf.createManagedConnection(null, null).getXAResource();
             Xid xid = getNewXid(plainTransactionId++);
-            ConnectionHandle connection = (ConnectionHandle) mc.getConnection(null, null);
+            XADiskConnection connection = (XADiskConnection) mc.getConnection(null, null);
 
             xar.start(xid, XAResource.TMNOFLAGS);
             doTransactionalWork(connection, testDirectory1, "a.txt");
@@ -79,7 +79,7 @@ public class ManagedEnvironmentSpecificTests {
             xaFileSystem.shutdown();
             xaFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(saConfig);
             Thread.sleep(5000);
-            mcf = new ManagedConnectionFactoryImpl();
+            mcf = new XADiskManagedConnectionFactory();
             mc = mcf.createManagedConnection(null, null);
             xar = mc.getXAResource();
 
@@ -105,7 +105,7 @@ public class ManagedEnvironmentSpecificTests {
         }
     }
 
-    private static void doTransactionalWork(ConnectionHandle connection, File testDirectory,
+    private static void doTransactionalWork(XADiskConnection connection, File testDirectory,
             String fileName)
             throws Exception {
         connection.createFile(new File(testDirectory, fileName), false);

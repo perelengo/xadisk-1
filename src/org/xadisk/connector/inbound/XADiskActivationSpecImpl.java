@@ -10,7 +10,7 @@ import javax.resource.spi.InvalidPropertyException;
 import javax.resource.spi.ResourceAdapter;
 import org.xadisk.filesystem.FileStateChangeEvent;
 
-public class ActivationSpecImpl implements ActivationSpec, Serializable {
+public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
 
     private ResourceAdapter ra;
     private final HashMap<File, String> fileNamesAndInterests = new HashMap<File, String>(10);
@@ -21,7 +21,7 @@ public class ActivationSpecImpl implements ActivationSpec, Serializable {
     private String remoteServerAddress;
     private Integer remoteServerPort;
 
-    public ActivationSpecImpl() {
+    public XADiskActivationSpecImpl() {
     }
 
     public void setFileNamesAndEventInterests(String filesNamesAndEventInterests) {

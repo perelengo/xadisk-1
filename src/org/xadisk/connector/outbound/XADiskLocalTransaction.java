@@ -6,19 +6,19 @@ import javax.resource.spi.LocalTransaction;
 import org.xadisk.filesystem.exceptions.TransactionAlreadyAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
-public class LocalTransactionImpl implements LocalTransaction {
+public class XADiskLocalTransaction implements LocalTransaction {
 
-    private final ManagedConnectionImpl mc;
+    private final XADiskManagedConnection mc;
     private int transactionTimeOut;
 
-    public LocalTransactionImpl(ManagedConnectionImpl mc) {
+    public XADiskLocalTransaction(XADiskManagedConnection mc) {
         this.mc = mc;
         XAFileSystem xaFileSystem = mc.getTheUnderlyingXAFileSystem();
         this.transactionTimeOut = xaFileSystem.getDefaultTransactionTimeout();
     }
 
     void _begin() throws TransactionAlreadyAssociatedException {
-        mc.setTypeOfOngoingTransaction(ManagedConnectionImpl.LOCAL_TRANSACTION);
+        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.LOCAL_TRANSACTION);
         mc.refreshSessionForBeginLocalTransaction().setTransactionTimeout(transactionTimeOut);
     }
 
@@ -31,7 +31,7 @@ public class LocalTransactionImpl implements LocalTransaction {
     }
 
     void _rollback() throws TransactionRolledbackException {
-        mc.setTypeOfOngoingTransaction(ManagedConnectionImpl.NO_TRANSACTION);
+        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().rollback();
     }
 
@@ -44,7 +44,7 @@ public class LocalTransactionImpl implements LocalTransaction {
     }
 
     void _commit() throws TransactionRolledbackException {
-        mc.setTypeOfOngoingTransaction(ManagedConnectionImpl.NO_TRANSACTION);
+        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().commit(true);
     }
 

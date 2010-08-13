@@ -11,13 +11,13 @@
     <vendor-name>XADisk@java.net</vendor-name>
     <eis-type>XAFileSystem 1.0</eis-type>
     <resourceadapter-version>1.0</resourceadapter-version>
-    
+
     <resourceadapter>
-        
+
         <resourceadapter-class>
             org.xadisk.connector.XADiskResourceAdapter
         </resourceadapter-class>
-        
+
         <config-property>
             <config-property-name>directBufferPoolSize</config-property-name>
             <config-property-type>java.lang.Integer</config-property-type>
@@ -98,24 +98,44 @@
         <outbound-resourceadapter>
             <connection-definition>
                 <managedconnectionfactory-class>
-                    org.xadisk.connector.outbound.ManagedConnectionFactoryImpl
+                    org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnectionFactory
                 </managedconnectionfactory-class>
-                <!--
                 <config-property>
-                    <config-property-name>ConnectionValidationEnabled</config-property-name>
-                    <config-property-type>java.lang.Boolean</config-property-type>
-                </config-property>  -->
+                    <config-property-name>serverAddress</config-property-name>
+                    <config-property-type>java.lang.String</config-property-type>
+                </config-property>
+                <config-property>
+                    <config-property-name>serverPort</config-property-name>
+                    <config-property-type>java.lang.Integer</config-property-type>
+                </config-property>
                 <connectionfactory-interface>
-                    org.xadisk.connector.outbound.ConnectionFactory
+                    org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnectionFactory
                 </connectionfactory-interface>
                 <connectionfactory-impl-class>
-                    org.xadisk.connector.outbound.ConnectionFactory
+                    org.xadisk.connector.outbound.XADiskConnectionFactoryImpl
                 </connectionfactory-impl-class>
                 <connection-interface>
-                    org.xadisk.connector.outbound.ConnectionHandle
+                    org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnection
                 </connection-interface>
                 <connection-impl-class>
-                    org.xadisk.connector.outbound.ConnectionHandle
+                    org.xadisk.connector.outbound.XADiskConnectionImpl
+                </connection-impl-class>
+            </connection-definition>
+            <connection-definition>
+                <managedconnectionfactory-class>
+                    org.xadisk.connector.outbound.XADiskManagedConnectionFactory
+                </managedconnectionfactory-class>
+                <connectionfactory-interface>
+                    org.xadisk.connector.outbound.XADiskConnectionFactory
+                </connectionfactory-interface>
+                <connectionfactory-impl-class>
+                    org.xadisk.connector.outbound.XADiskConnectionFactoryImpl
+                </connectionfactory-impl-class>
+                <connection-interface>
+                    org.xadisk.connector.outbound.XADiskConnection
+                </connection-interface>
+                <connection-impl-class>
+                    org.xadisk.connector.outbound.XADiskConnectionImpl
                 </connection-impl-class>
             </connection-definition>
 
@@ -130,56 +150,34 @@
         <inbound-resourceadapter>
             <messageadapter>
                 <messagelistener>
+                    <!-- the schema says "The messagelistener-type element content must be
+	      unique in the messageadapter. Several messagelisteners
+	      can not use the same messagelistener-type. In order to have a different ActivationSpec
+              for remote xadisk, we had to have a different <messagelistener> element and also
+              a different listener-type due to the unique constraint. But this would remove the flexibilty
+              to write same MDBs for local and remote xadisk. So, finally deciding to use same ActivationSpec"-->
                     <messagelistener-type>
                         org.xadisk.connector.inbound.FileSystemEventListener
                     </messagelistener-type>
                     <activationspec>
                         <activationspec-class>
-                            org.xadisk.connector.inbound.ActivationSpecImpl
+                            org.xadisk.connector.inbound.XADiskActivationSpecImpl
                         </activationspec-class>
+                        <required-config-property>
+                            <config-property-name>areFilesRemote</config-property-name>
+                        </required-config-property>
+                        <required-config-property>
+                            <config-property-name>remoteServerAddress</config-property-name>
+                        </required-config-property>
+                        <required-config-property>
+                            <config-property-name>remoteServerPort</config-property-name>
+                        </required-config-property>
                         <required-config-property>
                             <config-property-name>fileNamesAndEventInterests</config-property-name>
                         </required-config-property>
-                        <!--<config-property>
-                            <config-property-name>fileNamesAndEventInterests</config-property-name>
-                            <config-property-type>java.lang.String</config-property-type>
-                            <config-property-value>a.txt::001,b.txt:101</config-property-value>
-                        </config-property>
-                        -->
                     </activationspec>
                 </messagelistener>
             </messageadapter>
         </inbound-resourceadapter>
-
-        <!-- <adminobject>
-            <adminobject-interface>javax.jms.Queue
-            </adminobject-interface>
-            <adminobject-class>
-                com.sun.genericra.outbound.QueueProxy
-            </adminobject-class>
-            <config-property>
-                <config-property-name>
-                    DestinationJndiName
-                </config-property-name>
-                <config-property-type>
-                    java.lang.String
-                </config-property-type>
-                <config-property-value>
-                </config-property-value>
-            </config-property>
-            <config-property>
-                <config-property-name>
-                    DestinationProperties
-                </config-property-name>
-                <config-property-type>
-                    java.lang.String
-                </config-property-type>
-                <config-property-value>
-                </config-property-value>
-            </config-property>
-        </adminobject> -->
-        
-
     </resourceadapter>
 </connector>
-

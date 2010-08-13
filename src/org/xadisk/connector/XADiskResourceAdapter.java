@@ -2,7 +2,7 @@ package org.xadisk.connector;
 
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.connector.inbound.EndPointActivation;
-import org.xadisk.connector.inbound.ActivationSpecImpl;
+import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import java.io.IOException;
 import java.io.Serializable;
 import javax.resource.ResourceException;
@@ -37,12 +37,12 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
     }
 
     public void endpointActivation(MessageEndpointFactory mef, ActivationSpec as) throws ResourceException {
-        EndPointActivation epActivation = new EndPointActivation(mef, (ActivationSpecImpl) as);
+        EndPointActivation epActivation = new EndPointActivation(mef, (XADiskActivationSpecImpl) as);
         xaFileSystem.registerEndPointActivation(epActivation);
     }
 
     public void endpointDeactivation(MessageEndpointFactory mef, ActivationSpec as) {
-        EndPointActivation epActivation = new EndPointActivation(mef, (ActivationSpecImpl) as);
+        EndPointActivation epActivation = new EndPointActivation(mef, (XADiskActivationSpecImpl) as);
         xaFileSystem.deRegisterEndPointActivation(epActivation);
     }
 

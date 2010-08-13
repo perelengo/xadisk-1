@@ -15,7 +15,7 @@ public class RemoteXADiskBootup {
             StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
             configuration.setWorkManagerCorePoolSize(100);
             configuration.setWorkManagerMaxPoolSize(100);
-            configuration.setServerPort(9999);
+            configuration.setServerPort(1234);
 
             NativeXAFileSystem xaFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             xaFileSystem.waitForBootup(-1L);

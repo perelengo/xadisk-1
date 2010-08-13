@@ -4,13 +4,13 @@ import javax.resource.spi.ConnectionEvent;
 import org.xadisk.filesystem.exceptions.TransactionAlreadyAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
-public class UserLocalTransaction {
+public class XADiskUserLocalTransaction {
 
-    private final LocalTransactionImpl localTxnImpl;
-    private final ManagedConnectionImpl mc;
+    private final XADiskLocalTransaction localTxnImpl;
+    private final XADiskManagedConnection mc;
 
-    UserLocalTransaction(ManagedConnectionImpl mc) {
-        this.localTxnImpl = new LocalTransactionImpl(mc);
+    XADiskUserLocalTransaction(XADiskManagedConnection mc) {
+        this.localTxnImpl = new XADiskLocalTransaction(mc);
         this.mc = mc;
     }
 

@@ -1,15 +1,15 @@
 package org.xadisk.connector.inbound;
 
-import org.xadisk.connector.inbound.ActivationSpecImpl;
+import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import java.io.Serializable;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
 
 public class EndPointActivation implements Serializable {
 
     private final MessageEndpointFactory messageEndpointFactory;
-    private final ActivationSpecImpl activationSpecImpl;
+    private final XADiskActivationSpecImpl activationSpecImpl;
 
-    public EndPointActivation(MessageEndpointFactory messageEndpointFactory, ActivationSpecImpl activationSpecImpl) {
+    public EndPointActivation(MessageEndpointFactory messageEndpointFactory, XADiskActivationSpecImpl activationSpecImpl) {
         this.messageEndpointFactory = messageEndpointFactory;
         this.activationSpecImpl = activationSpecImpl;
     }
@@ -18,7 +18,7 @@ public class EndPointActivation implements Serializable {
         return messageEndpointFactory;
     }
 
-    public ActivationSpecImpl getActivationSpecImpl() {
+    public XADiskActivationSpecImpl getActivationSpecImpl() {
         return activationSpecImpl;
     }
 

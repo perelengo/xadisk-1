@@ -16,7 +16,7 @@ public class TestCoreXAFileSystem {
     private static final String currentWorkingDirectory = System.getProperty("user.dir");
     private static final String topLevelTestDirectory = currentWorkingDirectory + SEPERATOR + "testXADiskSystem1";
     private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
-    private static boolean testCrashRecovery = true;
+    private static boolean testCrashRecovery = false;
     public static int concurrencyLevel = 1;
     private static int numberOfCrashes = 100;
     public static int maxConcurrentDeliveries = 2;
@@ -28,6 +28,7 @@ public class TestCoreXAFileSystem {
             CoreXAFileSystemTests.testHighNumber = false;
             CoreXAFileSystemTests.testProgressive = false;
             CoreXAFileSystemTests.usePessimisticLock = true;
+            TestUtility.remoteXAFileSystem = false;
 
             if (args.length > 0 && args[0].equals(forRunningTests)) {
                 System.out.println("Entered into the main of childJVM " + forRunningTests);
@@ -90,8 +91,6 @@ public class TestCoreXAFileSystem {
 
     private static void test(boolean postCrash) {
         try {
-            TestUtility.remoteXAFileSystem = false;
-
             StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
             configuration.setWorkManagerCorePoolSize(10);
             configuration.setWorkManagerMaxPoolSize(10000);

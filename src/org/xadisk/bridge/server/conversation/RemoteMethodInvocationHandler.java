@@ -198,11 +198,12 @@ public class RemoteMethodInvocationHandler implements Work {
         if (obj instanceof XAResource) {
             return XAResource.class;
             //this was to do avoid a strange/unexpected error saying NoSuchMethodException in cases
-            //when the parameter-type was specified as an implementing class name instead of the interface.
-            }
+            //when the parameter-type (during method invocation via reflection) was specified as an
+            //implementing class name instead of the interface.
+        }
         if (obj instanceof Xid) {
             return Xid.class;//reason same as above.
-            }
+        }
         return obj.getClass();
     }
 }

@@ -6,7 +6,7 @@ import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Random;
-import org.xadisk.connector.inbound.ActivationSpecImpl;
+import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.bridge.proxies.interfaces.Session;
@@ -451,7 +451,7 @@ public class CoreXAFileSystemTests {
         File interestingFiles[] = new File[2];
         interestingFiles[0] = new File(testDirectory + SEPERATOR + "polledFile1.txt");
         interestingFiles[1] = new File(testDirectory + SEPERATOR + "polledFile2.txt");
-        ActivationSpecImpl actSpec = new ActivationSpecImpl();
+        XADiskActivationSpecImpl actSpec = new XADiskActivationSpecImpl();
         String fileNamesAndInterests = interestingFiles[0].getAbsolutePath() + "::111" + "," + interestingFiles[1].getAbsolutePath() + "::111";
         actSpec.setFileNamesAndEventInterests(fileNamesAndInterests);
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();

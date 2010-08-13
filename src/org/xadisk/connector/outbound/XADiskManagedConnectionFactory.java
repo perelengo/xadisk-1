@@ -10,12 +10,11 @@ import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.security.auth.Subject;
 
-public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
+public class XADiskManagedConnectionFactory implements ManagedConnectionFactory {
 
     private volatile PrintWriter logWriter;
 
-    public ManagedConnectionFactoryImpl() {
-        
+    public XADiskManagedConnectionFactory() {
     }
 
     public Object createConnectionFactory() throws ResourceException {
@@ -23,27 +22,34 @@ public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
     }
 
     public Object createConnectionFactory(ConnectionManager cm) throws ResourceException {
-        return new ConnectionFactory(this, cm);
+        return new XADiskConnectionFactoryImpl(this, cm);
     }
 
     public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cri)
             throws ResourceException {
-        return new ManagedConnectionImpl();
+        return new XADiskManagedConnection();
     }
 
     public ManagedConnection matchManagedConnections(Set candidates, Subject subject, ConnectionRequestInfo cri)
             throws ResourceException {
         boolean glassFish = false;
-        /*there was a bug with glassfish-2, throwing NSException was strange for the container.
-        But, with glassfish301, none of the following works (contrary to JCA spec). So, only workaround for
-        developers is to disable connection pooling when working with glassfish.*/
-        if (glassFish) {
-            System.out.println("Please disable pooling for the XADisk connection pool.");
+        /*Throwing NSE doesn't work for glassfish and JBoss atleast. So, one workaround for
+        developers was to disable connection pooling when working with glassfish. But JBoss doeesn't
+        seem to have an option for disabling pooling. Looking
+        broadly, not "all" j2ee server implementations may support disabling of pooling; so i am
+        now implementing a hack "inside". I will return the first connection blindly for "local connection"
+        cases, and for remote connections, no need to check for address/port as an MCF will get only
+        those in the set which are from that MCF itself (i trust).
+         */
+        //throw new NotSupportedException("Please don't pool connections to this EIS");
+        if (candidates.size() == 0) {
             return null;
-        } else {
-            System.out.println("Please disable pooling for the XADisk connection pool.");
-            throw new NotSupportedException("Please don't pool connections to this EIS");
         }
+        Object mc = candidates.iterator().next();
+        if (mc instanceof ManagedConnection) {
+            return (XADiskManagedConnection) mc;
+        }
+        return null;
     }
 
     public PrintWriter getLogWriter() throws ResourceException {
@@ -61,8 +67,8 @@ public class ManagedConnectionFactoryImpl implements ManagedConnectionFactory {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof ManagedConnectionFactoryImpl) {
-            ManagedConnectionFactoryImpl mcf = (ManagedConnectionFactoryImpl) obj;
+        if (obj instanceof XADiskManagedConnectionFactory) {
+            XADiskManagedConnectionFactory mcf = (XADiskManagedConnectionFactory) obj;
             return true;
         }
         return false;

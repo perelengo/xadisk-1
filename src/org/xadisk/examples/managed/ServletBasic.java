@@ -11,8 +11,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Status;
 import javax.transaction.UserTransaction;
-import org.xadisk.connector.outbound.ConnectionFactory;
-import org.xadisk.connector.outbound.ConnectionHandle;
+import org.xadisk.connector.outbound.XADiskConnectionFactory;
+import org.xadisk.connector.outbound.XADiskConnection;
 
 /*This is a very basic example to outline the usage of XADisk in managed (J2EE) environment.*/
 
@@ -35,7 +35,7 @@ public class ServletBasic extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         UserTransaction utx = null;
-        ConnectionHandle connection = null;
+        XADiskConnection connection = null;
         try {
             out.println("<html><head><title>Servlet ServletBasic</title></head><body>");
             out.println("<h1>Servlet ServletBasic at " + request.getContextPath () + "</h1>");
@@ -47,7 +47,7 @@ public class ServletBasic extends HttpServlet {
             utx.begin();
 
             out.println("Looking up a Connection Factory instance for XADisk...<br>");
-            ConnectionFactory cf = (ConnectionFactory)new InitialContext().lookup("java:xadiskcf");
+            XADiskConnectionFactory cf = (XADiskConnectionFactory)new InitialContext().lookup("java:xadiskcf");
 
             out.println("Retrieveing a Connection to interact with XADisk....<br>");
             connection = cf.getConnection();
@@ -96,7 +96,7 @@ public class ServletBasic extends HttpServlet {
         return (UserTransaction)new InitialContext().lookup("java:comp/UserTransaction");
     }
 
-    private void cleanUp(UserTransaction utx, ConnectionHandle connection, PrintWriter out) {
+    private void cleanUp(UserTransaction utx, XADiskConnection connection, PrintWriter out) {
         try {
             if(utx != null && utx.getStatus() == Status.STATUS_ACTIVE) {
                     utx.rollback();

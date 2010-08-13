@@ -1,6 +1,5 @@
 package org.xadisk.connector.outbound;
 
-import java.io.IOException;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import java.io.PrintWriter;
@@ -18,35 +17,34 @@ import org.xadisk.connector.XAResourceImpl;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.exceptions.NoOngoingTransactionException;
-import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 
-public class ManagedConnectionImpl implements ManagedConnection {
+public class XADiskManagedConnection implements ManagedConnection {
 
     private final HashSet<ConnectionEventListener> listeners = new HashSet<ConnectionEventListener>(10);
     private volatile PrintWriter logWriter;
-    private final HashSet<ConnectionHandle> connectionHandles = new HashSet<ConnectionHandle>(2);
+    private final HashSet<XADiskConnection> connectionHandles = new HashSet<XADiskConnection>(2);
     private volatile Session sessionOfXATransaction;
     private volatile Session sessionOfLocalTransaction;
-    private volatile byte typeOfOngoingTransaction;
+    private volatile byte typeOfOngoingTransaction = NO_TRANSACTION;
     private boolean publishFileStateChangeEventsOnCommit = false;
-    private final XAFileSystem theXAFileSystem;
-    private final XAResourceImpl xaResourceImpl;
-    private final LocalTransactionImpl localTransactionImpl;
+    protected volatile XAFileSystem theXAFileSystem;
+    protected volatile XAResourceImpl xaResourceImpl;
+    private volatile XADiskLocalTransaction localTransactionImpl;
     private volatile boolean memorySynchTrigger = false;
     public static final byte NO_TRANSACTION = 0;
     public static final byte LOCAL_TRANSACTION = 1;
     public static final byte XA_TRANSACTION = 2;
 
-    public ManagedConnectionImpl() {
+    public XADiskManagedConnection() {
         this.theXAFileSystem = NativeXAFileSystem.getXAFileSystem();
         this.xaResourceImpl = new XAResourceImpl(this);
-        this.localTransactionImpl = new LocalTransactionImpl(this);
+        this.localTransactionImpl = new XADiskLocalTransaction(this);
     }
 
-    public ManagedConnectionImpl(String serverAddress, Integer serverPort) throws IOException {
-        this.theXAFileSystem = new RemoteXAFileSystem(serverAddress, serverPort);
+    public XADiskManagedConnection(XAFileSystem xaFileSystem) {
+        this.theXAFileSystem = xaFileSystem;
         this.xaResourceImpl = new XAResourceImpl(this);
-        this.localTransactionImpl = new LocalTransactionImpl(this);
+        this.localTransactionImpl = new XADiskLocalTransaction(this);
     }
 
     public XAFileSystem getTheUnderlyingXAFileSystem() {
@@ -54,23 +52,32 @@ public class ManagedConnectionImpl implements ManagedConnection {
     }
 
     public void associateConnection(Object connection) throws ResourceException {
-        if (!(connection instanceof ConnectionHandle)) {
+        if (!(connection instanceof XADiskConnection)) {
             throw new ResourceException("Unexpected type for connection handle.");
         }
-        ((ConnectionHandle) connection).setManagedConnection(this);
+        ((XADiskConnectionImpl) connection).setManagedConnection(this);
         invalidateCache();
-        connectionHandles.add((ConnectionHandle) connection);
+        connectionHandles.add((XADiskConnection) connection);
         flushCacheToMainMemory();
     }
 
     public void cleanup() throws ResourceException {
+        this.xaResourceImpl = new XAResourceImpl(this);
+        this.localTransactionImpl = new XADiskLocalTransaction(this);
+        this.connectionHandles.clear();
+        //DO NOT clear the listeners. When trying to implement pooling, this guy
+        //tested my patience. [this.listeners.clear();]
+        this.publishFileStateChangeEventsOnCommit = false;
+        this.sessionOfLocalTransaction = null;
+        this.sessionOfXATransaction = null;
+        this.typeOfOngoingTransaction = NO_TRANSACTION;
     }
 
     public void destroy() throws ResourceException {
     }
 
     public Object getConnection(Subject subject, ConnectionRequestInfo cri) throws ResourceException {
-        ConnectionHandle temp = new ConnectionHandle(this);
+        XADiskConnection temp = new XADiskConnectionImpl(this);
         invalidateCache();
         connectionHandles.add(temp);
         flushCacheToMainMemory();
@@ -126,7 +133,7 @@ public class ManagedConnectionImpl implements ManagedConnection {
         this.logWriter = logWriter;
     }
 
-    void connectionClosed(ConnectionHandle connection) {
+    void connectionClosed(XADiskConnection connection) {
         connectionHandles.remove(connection);
         raiseConnectionEvent(new ConnectionEvent(this, ConnectionEvent.CONNECTION_CLOSED));
     }
