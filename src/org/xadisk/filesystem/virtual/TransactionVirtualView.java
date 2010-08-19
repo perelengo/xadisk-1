@@ -36,7 +36,7 @@ public class TransactionVirtualView {
         filesWithLatestViewOnDisk.remove(f);
     }
 
-    public void deleteFile(File f)
+    public boolean deleteFile(File f)
             throws DirectoryNotEmptyException, FileNotExistsException, FileUnderUseException,
             InsufficientPermissionOnFileException {
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -49,7 +49,7 @@ public class TransactionVirtualView {
             }
             parentVVD.deleteDir(f.getName());
             virtualViewDirs.remove(f);
-            return;
+            return true;
         }
         if (parentVVD.fileExists(f.getName())) {
             parentVVD.deleteFile(f.getName());
@@ -57,7 +57,7 @@ public class TransactionVirtualView {
             if (vvfIfAny != null) {
                 vvfIfAny.propagatedDeleteCall();
             }
-            return;
+            return false;
         }
         throw new FileNotExistsException();
     }

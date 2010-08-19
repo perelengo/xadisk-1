@@ -93,6 +93,16 @@
             <config-property-type>java.lang.Integer</config-property-type>
             <config-property-value>60</config-property-value>
         </config-property>
+        <config-property>
+            <config-property-name>serverAddress</config-property-name>
+            <config-property-type>java.lang.String</config-property-type>
+            <config-property-value>127.0.0.1</config-property-value>
+        </config-property>
+        <config-property>
+            <config-property-name>serverPort</config-property-name>
+            <config-property-type>java.lang.Integer</config-property-type>
+            <config-property-value>9999</config-property-value>
+        </config-property>
 
 
         <outbound-resourceadapter>

@@ -12,10 +12,10 @@ import org.xadisk.filesystem.FileStateChangeEvent;
 
 public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
 
-    private ResourceAdapter ra;
+    private transient ResourceAdapter ra;
     private final HashMap<File, String> fileNamesAndInterests = new HashMap<File, String>(10);
     private static final String interestSymbol = "::";
-    private static final String seperator = ",";
+    private static final String seperator = "\\|";
     private String fileNamesAndEventInterests;
     private Boolean areFilesRemote;
     private String remoteServerAddress;
@@ -39,7 +39,7 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
     }
 
     public void setAreFilesRemote(String areFilesRemote) {
-        this.areFilesRemote = new Boolean(areFilesRemote);
+        this.areFilesRemote = Boolean.valueOf(areFilesRemote);
     }
 
     public String getRemoteServerAddress() {
@@ -79,7 +79,7 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
         while (iter.hasNext()) {
             String interest = (String) iter.next();
             try {
-                new Integer(interest);
+                Integer.valueOf(interest);
             } catch (NumberFormatException nfe) {
                 throw new InvalidPropertyException("Invalid event-interest specification : " + interest);
             }

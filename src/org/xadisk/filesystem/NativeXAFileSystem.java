@@ -30,7 +30,6 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.xadisk.connector.inbound.EndPointActivation;
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.filesystem.exceptions.AncestorPinnedException;
 import org.xadisk.filesystem.exceptions.DirectoryPinningFailedException;
 import org.xadisk.filesystem.exceptions.LockingFailedException;
@@ -40,8 +39,10 @@ import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
+import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
+import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.filesystem.pools.SelectorPool;
 
 public class NativeXAFileSystem implements XAFileSystem {
@@ -626,11 +627,15 @@ public class NativeXAFileSystem implements XAFileSystem {
         return defaultTransactionTimeout;
     }
 
-    public int getXADiskSystemId() {
-        return configuration.getXadiskSystemId();
+    public String getXADiskSystemId() {
+        return configuration.getServerAddress() + "_" + configuration.getServerPort();
     }
 
     public RemoteMethodInvoker createRemoteMethodInvokerToSelf() {
         return new RemoteMethodInvoker(configuration.getServerAddress(), configuration.getServerPort());
+    }
+
+    public XAResource getEventProcessingXAResourceForRecovery() {
+        return new LocalEventProcessingXAResource(theXAFileSystem);
     }
 }

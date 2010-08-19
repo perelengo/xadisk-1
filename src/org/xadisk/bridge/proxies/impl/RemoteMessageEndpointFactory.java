@@ -15,13 +15,13 @@ import org.xadisk.bridge.server.conversation.HostedContext;
 
 public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements MessageEndpointFactory {
 
-    private final int xaDiskSystemId;
+    private final String xaDiskSystemId;
 
-    public RemoteMessageEndpointFactory(int objectId, int xaDiskSystemId, RemoteMethodInvoker invoker) {
+    public RemoteMessageEndpointFactory(int objectId, String xaDiskSystemId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
         this.xaDiskSystemId = xaDiskSystemId;
     }
-    
+
     synchronized public boolean isDeliveryTransacted(Method method) throws NoSuchMethodException {
         try {
             SerializedMethod serializableMethod = new MethodSerializabler().serialize(method);
@@ -32,7 +32,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
             throw assertExceptionHandling(th);
         }
     }
-    
+
     synchronized public MessageEndpoint createEndpoint(XAResource xar) throws UnavailableException {
         try {
             HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
@@ -53,7 +53,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
     public void shutdown() {
         try {
             this.invoker.disconnect();
-        } catch(IOException ioe) {
+        } catch (IOException ioe) {
             //no-op.
         }
     }
@@ -63,13 +63,13 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
         if (obj instanceof RemoteMessageEndpointFactory) {
             RemoteMessageEndpointFactory that = (RemoteMessageEndpointFactory) obj;
             return this.remoteObjectId == that.remoteObjectId
-                    && this.xaDiskSystemId == that.xaDiskSystemId;
+                    && this.xaDiskSystemId.equals(that.xaDiskSystemId);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return xaDiskSystemId + remoteObjectId;
+        return xaDiskSystemId.hashCode() + remoteObjectId;
     }
 }

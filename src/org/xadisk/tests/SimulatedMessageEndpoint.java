@@ -15,6 +15,7 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
     private XAResource epXAR;
     private SimulatedMessageEndpointFactory owningFactory;
     private XidImpl generatedXid;
+    public SimulatedMessageEndpointFactory.GoTill goTill;
 
     public SimulatedMessageEndpoint(XAResource epXAR, SimulatedMessageEndpointFactory owningFactory) {
         this.epXAR = epXAR;
@@ -33,6 +34,10 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
     }
 
     public void onFileSystemEvent(FileStateChangeEvent event) {
+        System.out.println("Received " + event.getEventType() + " event for file " + event.getFile());
+        if (this.goTill == SimulatedMessageEndpointFactory.GoTill.consume) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
         owningFactory.incrementEventsReceivedCount();
         try {
             Thread.sleep(100);
@@ -44,6 +49,9 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
         try {
             epXAR.end(generatedXid, XAResource.TMSUCCESS);
             epXAR.prepare(generatedXid);
+            if (this.goTill == SimulatedMessageEndpointFactory.GoTill.prepare) {
+                return;
+            }
             epXAR.commit(generatedXid, false);
         } catch (XAException xae) {
             throw new ResourceException(xae);

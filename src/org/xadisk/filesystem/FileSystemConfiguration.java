@@ -2,6 +2,13 @@ package org.xadisk.filesystem;
 
 import java.io.Serializable;
 
+/**
+ * An object of this class encapsulates the configuration for XADisk, and is used while
+ * booting of the XADisk instance. When booting from standalone Java programs, a subclass
+ * object of type "StandaloneFileSystemConfiguration" needs to be used.
+ *
+ * For details on all of these properties, please refer to the User Guide.
+ */
 public class FileSystemConfiguration implements Serializable {
 
     private Integer directBufferPoolSize = 1000;
@@ -13,7 +20,7 @@ public class FileSystemConfiguration implements Serializable {
     private Integer directBufferIdleTime = 100;
     private Integer nonDirectBufferIdleTime = 100;
     private Integer bufferPoolRelieverInterval = 60;
-    private Long maxNonPooledBufferSize = 2 ^ 20L;
+    private Long maxNonPooledBufferSize = 1000000L;
     private Integer deadLockDetectorInterval = 30;
     private Integer lockTimeOut = 10000;
     private Integer maximumConcurrentEventDeliveries = 20;
@@ -21,7 +28,6 @@ public class FileSystemConfiguration implements Serializable {
     private Integer transactionTimeout = 60;
     private String serverAddress = "127.0.0.1";
     private Integer serverPort = 9999;
-    private Integer xadiskSystemId = 0;
 
     public FileSystemConfiguration() {
     }
@@ -164,13 +170,5 @@ public class FileSystemConfiguration implements Serializable {
 
     public void setServerPort(Integer serverPort) {
         this.serverPort = serverPort;
-    }
-
-    public Integer getXadiskSystemId() {
-        return xadiskSystemId;
-    }
-
-    public void setXadiskSystemId(Integer xadiskSystemId) {
-        this.xadiskSystemId = xadiskSystemId;
     }
 }

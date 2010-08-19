@@ -3,7 +3,6 @@ package org.xadisk.connector.outbound;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import javax.resource.ResourceException;
 import javax.resource.spi.LocalTransaction;
-import org.xadisk.filesystem.exceptions.TransactionAlreadyAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
 public class XADiskLocalTransaction implements LocalTransaction {
@@ -17,17 +16,13 @@ public class XADiskLocalTransaction implements LocalTransaction {
         this.transactionTimeOut = xaFileSystem.getDefaultTransactionTimeout();
     }
 
-    void _begin() throws TransactionAlreadyAssociatedException {
+    void _begin() {
         mc.setTypeOfOngoingTransaction(XADiskManagedConnection.LOCAL_TRANSACTION);
         mc.refreshSessionForBeginLocalTransaction().setTransactionTimeout(transactionTimeOut);
     }
 
     public void begin() throws ResourceException {
-        try {
-            _begin();
-        } catch (TransactionAlreadyAssociatedException taae) {
-            throw new ResourceException(taae);
-        }
+        _begin();
     }
 
     void _rollback() throws TransactionRolledbackException {
@@ -45,7 +40,7 @@ public class XADiskLocalTransaction implements LocalTransaction {
 
     void _commit() throws TransactionRolledbackException {
         mc.setTypeOfOngoingTransaction(XADiskManagedConnection.NO_TRANSACTION);
-        mc.getSessionOfLocalTransaction().commit(true);
+        mc.getSessionOfLocalTransaction().commit();
     }
 
     public void commit() throws ResourceException {

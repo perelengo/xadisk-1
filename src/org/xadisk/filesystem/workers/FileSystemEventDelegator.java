@@ -76,7 +76,8 @@ public class FileSystemEventDelegator implements Work {
                     if (interestedActivationPicked != null) {
                         workManager.startWork(new FileSystemEventProcessor(interestedActivationPicked.getMessageEndpointFactory(),
                                 event, xaFileSystem), 0, null, concurrentEventDeliveryCounter);
-                        concurrentEventDeliveryCounter.workStarted(null);
+                        //concurrentEventDeliveryCounter.workStarted(null);found glassfish sending
+                        //an event on work start already.
                     }
                 } catch (WorkException we) {
                     eventQueue.put(event);//but this will disrupt the order of events in the queue. Any other

@@ -25,7 +25,7 @@ public class TestUtility {
     public static XAFileSystem getXAFileSystemForTest() {
         if (remoteXAFileSystem) {
             try {
-                return new RemoteXAFileSystem("localhost", 9999);
+                return new RemoteXAFileSystem("localhost", 5151);
             } catch (Throwable t) {
                 t.printStackTrace();
                 return null;

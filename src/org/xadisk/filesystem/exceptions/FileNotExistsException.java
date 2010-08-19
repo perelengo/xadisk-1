@@ -2,6 +2,10 @@ package org.xadisk.filesystem.exceptions;
 
 import java.io.File;
 
+/**
+ * This exception is thrown when an XADisk operation expects to find a file/directory
+ * but it does not exist.
+ */
 public class FileNotExistsException extends XAApplicationException {
     
     public FileNotExistsException() {

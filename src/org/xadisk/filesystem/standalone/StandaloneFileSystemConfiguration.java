@@ -2,9 +2,14 @@ package org.xadisk.filesystem.standalone;
 
 import org.xadisk.filesystem.FileSystemConfiguration;
 
+/**
+ * This class represents the configuration object required for booting XADisk
+ * from standalone Java programs.
+ * For details on all of these properties, please refer to the User Guide.
+ */
 public class StandaloneFileSystemConfiguration extends FileSystemConfiguration {
 
-    private int workManagerCorePoolSize = Integer.MAX_VALUE;
+    private int workManagerCorePoolSize = 10;
     private int workManagerMaxPoolSize = Integer.MAX_VALUE;
     private long workManagerKeepAliveTime = 60; //in seconds.
 

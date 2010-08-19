@@ -8,7 +8,6 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnection;
-import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.XASystemException;

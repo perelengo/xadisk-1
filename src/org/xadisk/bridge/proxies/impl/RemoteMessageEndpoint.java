@@ -1,7 +1,6 @@
 package org.xadisk.bridge.proxies.impl;
 
 import java.io.IOException;
-import java.io.Serializable;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.facilitators.RemoteObjectProxy;
 import java.lang.reflect.Method;

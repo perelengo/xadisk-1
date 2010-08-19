@@ -10,9 +10,13 @@ import javax.transaction.xa.XAResource;
 public class SimulatedMessageEndpointFactory implements MessageEndpointFactory {
 
     private AtomicInteger eventsReceived = new AtomicInteger(0);
+    public GoTill goTill = GoTill.commit;
+    public enum GoTill {consume, prepare, commit};
 
     public MessageEndpoint createEndpoint(XAResource xar) throws UnavailableException {
-        return new SimulatedMessageEndpoint(xar, this);
+        SimulatedMessageEndpoint smep = new SimulatedMessageEndpoint(xar, this);
+        smep.goTill = this.goTill;
+        return smep;
     }
 
     public boolean isDeliveryTransacted(Method meth) throws NoSuchMethodException {

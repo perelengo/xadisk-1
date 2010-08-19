@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
 import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.bridge.proxies.interfaces.Session;
@@ -15,7 +16,7 @@ import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSystem {
 
-    public RemoteXAFileSystem(String serverAddress, int serverPort) throws IOException {
+    public RemoteXAFileSystem(String serverAddress, int serverPort) {
         super(0, new RemoteMethodInvoker(serverAddress, serverPort));
     }
 
@@ -96,7 +97,7 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
             MessageEndpointFactory messageEndpointFactory = epActivation.getMessageEndpointFactory();
             HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
             int objectId = globalCallbackContext.hostObject(messageEndpointFactory);
-            int xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
+            String xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
             RemoteMessageEndpointFactory remoteMessageEndpointFactory = new RemoteMessageEndpointFactory(objectId, xaDiskSystemId,
                     NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
 
@@ -116,13 +117,21 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
             if (objectId == 1) {
                 throw new AssertionError();
             }
-            int xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
+            String xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
             RemoteMessageEndpointFactory remoteMessageEndpointFactory =
                     new RemoteMessageEndpointFactory(objectId, xaDiskSystemId, null);
 
             EndPointActivation callbackEndPointActivation = new EndPointActivation(remoteMessageEndpointFactory,
                     epActivation.getActivationSpecImpl());
             invokeRemoteMethod("deRegisterEndPointActivation", callbackEndPointActivation);
+        } catch (Throwable th) {
+            throw assertExceptionHandling(th);
+        }
+    }
+
+    public XAResource getEventProcessingXAResourceForRecovery() {
+        try {
+            return (XAResource) invokeRemoteMethod("getEventProcessingXAResourceForRecovery");
         } catch (Throwable th) {
             throw assertExceptionHandling(th);
         }

@@ -1,6 +1,5 @@
 package org.xadisk.connector.inbound;
 
-import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import java.io.Serializable;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
 

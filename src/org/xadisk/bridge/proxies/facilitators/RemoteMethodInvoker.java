@@ -55,7 +55,7 @@ public class RemoteMethodInvoker implements Serializable {
         return connected;
     }
 
-    public Object invokeRemoteMethod(int targetObjectId, String method, Serializable... args) throws XASystemException, Throwable {
+    public Object invokeRemoteMethod(int targetObjectId, String method, Serializable... args) throws Throwable {
         boolean isError;
         Object returnObject;
         try {
@@ -111,5 +111,20 @@ public class RemoteMethodInvoker implements Serializable {
         b[2] = (byte) ((i >> 8) & 0xFF);
         b[3] = (byte) (i & 0xFF);
         return b;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof RemoteMethodInvoker) {
+            RemoteMethodInvoker that = (RemoteMethodInvoker) obj;
+            return this.serverAddress.equals(that.serverAddress)
+                    && this.serverPort == that.serverPort;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.serverPort + this.serverAddress.hashCode();
     }
 }

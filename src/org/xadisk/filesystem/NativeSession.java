@@ -146,7 +146,7 @@ public class NativeSession implements Session {
             NativeXAFileOutputStream temp = NativeXAFileOutputStream.getCachedXAFileOutputStream(vvf, xid, heavyWrite, this);
             addLocks(newLock);
             allAcquiredOutputStreams.add(temp);
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(f, false, FileStateChangeEvent.FILE_MODIFIED, xid));
+            addToFileSystemEvents(FileStateChangeEvent.FILE_MODIFIED, f, false);
             success = true;
             return temp;
         } catch (XASystemException xase) {
@@ -184,8 +184,7 @@ public class NativeSession implements Session {
             Buffer logEntry = new Buffer(logEntryBytes);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            //should we raise dir modified event also??
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(f, isDirectory, FileStateChangeEvent.FILE_CREATED, xid));
+            addToFileSystemEvents(FileStateChangeEvent.FILE_CREATED, f, isDirectory);
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -204,6 +203,7 @@ public class NativeSession implements Session {
         f = f.getAbsoluteFile();
         Lock newLocks[] = new Lock[2];
         boolean success = false;
+        boolean isDirectory = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -215,14 +215,13 @@ public class NativeSession implements Session {
             if (!alreadyHaveALock(parentFile, true)) {
                 newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, parentFile, fileLockWaitTimeout);
             }
-            view.deleteFile(f);
+            isDirectory = view.deleteFile(f);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
                     TransactionLogEntry.FILE_DELETE));
             Buffer logEntry = new Buffer(logEntryBytes);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(f, f.isDirectory(),
-                    FileStateChangeEvent.FILE_DELETED, xid));
+            addToFileSystemEvents(FileStateChangeEvent.FILE_DELETED, f, isDirectory);
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -242,6 +241,7 @@ public class NativeSession implements Session {
         dest = dest.getAbsoluteFile();
         Lock newLocks[] = new Lock[4];
         boolean success = false;
+        boolean isDirectoryMove = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -265,6 +265,7 @@ public class NativeSession implements Session {
             if (view.fileExistsAndIsNormal(src)) {
                 view.moveNormalFile(src, dest);
             } else if (view.fileExistsAndIsDirectory(src)) {
+                isDirectoryMove = true;
                 checkAnyOpenStreamToDescendantFiles(src);
                 xaFileSystem.pinDirectoryForRename(src, xid);
                 directoriesPinnedInThisSession.add(src);
@@ -277,10 +278,11 @@ public class NativeSession implements Session {
             Buffer logEntry = new Buffer(logEntryBytes);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            //when dir move supported, also correct below events.
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(src, false, FileStateChangeEvent.FILE_DELETED, xid));
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(dest, false, FileStateChangeEvent.FILE_CREATED, xid));
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(dest, false, FileStateChangeEvent.FILE_MODIFIED, xid));
+
+            addToFileSystemEvents(new byte[]{FileStateChangeEvent.FILE_DELETED,
+                        FileStateChangeEvent.FILE_CREATED, FileStateChangeEvent.FILE_MODIFIED},
+                    new File[]{src, dest, dest}, isDirectoryMove);
+
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -326,8 +328,10 @@ public class NativeSession implements Session {
             Buffer logEntry = new Buffer(logEntryBytes);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(dest, false, FileStateChangeEvent.FILE_CREATED, xid));
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(dest, false, FileStateChangeEvent.FILE_MODIFIED, xid));
+
+            addToFileSystemEvents(new byte[]{FileStateChangeEvent.FILE_CREATED, FileStateChangeEvent.FILE_MODIFIED},
+                    new File[]{dest, dest}, false);
+
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -473,7 +477,9 @@ public class NativeSession implements Session {
             Buffer logEntry = new Buffer(logEntryBytes);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLock);
-            fileStateChangeEventsToRaise.add(new FileStateChangeEvent(f, false, FileStateChangeEvent.FILE_MODIFIED, xid));
+
+            addToFileSystemEvents(FileStateChangeEvent.FILE_MODIFIED, f, false);
+
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -854,12 +860,13 @@ public class NativeSession implements Session {
         releaseAllLocks();
         xaFileSystem.removeTransactionSessionEntry(xid);
 
-        Iterator<VirtualViewFile> vvfsInBackupDir = view.getViewFilesUsingBackupDir().iterator();
-        while (vvfsInBackupDir.hasNext()) {
-            vvfsInBackupDir.next().cleanupBackup();
+        if (!createdForRecovery) {
+            Iterator<VirtualViewFile> vvfsInBackupDir = view.getViewFilesUsingBackupDir().iterator();
+            while (vvfsInBackupDir.hasNext()) {
+                vvfsInBackupDir.next().cleanupBackup();
+            }
+            xaFileSystem.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
         }
-
-        xaFileSystem.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
 
         for (Buffer buffer : transactionInMemoryBuffers) {
             if (buffer instanceof PooledBuffer) {
@@ -1072,5 +1079,38 @@ public class NativeSession implements Session {
         if (xidNode != null) {
             xidNode.reAssociatedTransactionThread(thread);
         }
+    }
+
+    private void addToFileSystemEvents(byte actionType, File affectedObject, boolean isDirectory) {
+        File parentDirectory = null;
+        switch (actionType) {
+            case FileStateChangeEvent.FILE_CREATED:
+                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_CREATED, xid));
+                parentDirectory = affectedObject.getParentFile();
+                if (parentDirectory != null) {
+                    fileStateChangeEventsToRaise.add(new FileStateChangeEvent(parentDirectory, true, FileStateChangeEvent.FILE_MODIFIED, xid));
+                }
+                break;
+            case FileStateChangeEvent.FILE_DELETED:
+                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_DELETED, xid));
+                parentDirectory = affectedObject.getParentFile();
+                if (parentDirectory != null) {
+                    fileStateChangeEventsToRaise.add(new FileStateChangeEvent(parentDirectory, true, FileStateChangeEvent.FILE_MODIFIED, xid));
+                }
+                break;
+            case FileStateChangeEvent.FILE_MODIFIED:
+                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_MODIFIED, xid));
+                break;
+        }
+    }
+
+    private void addToFileSystemEvents(byte[] actionType, File[] affectedObject, boolean areDirectories) {
+        for (int i = 0; i < actionType.length; i++) {
+            addToFileSystemEvents(actionType[i], affectedObject[i], areDirectories);
+        }
+    }
+
+    public void commit() throws TransactionRolledbackException {
+        this.commit(true);
     }
 }

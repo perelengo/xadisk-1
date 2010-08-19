@@ -2,6 +2,7 @@ package org.xadisk.examples.standalone;
 
 import java.io.File;
 import org.xadisk.bridge.proxies.interfaces.Session;
+import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
@@ -21,7 +22,7 @@ those running in a non-managed environment.*/
 public class Basic {
 
     public static void main(String args[]) {
-        NativeXAFileSystem xaf = null;
+        XAFileSystem xaf = null;
         try {
             String XADiskSystemDirectory = "C:\\XADiskSystem";
             /* if the specified XADiskSystemDirectory doesn't exist, it will be created automatically.
@@ -52,7 +53,7 @@ public class Basic {
              * ...
              */
 
-            session.commit(true);
+            session.commit();
             /*for standalone java applications, give "true", which indicates a one-phase (XA terminology) commit.*/
 
         } catch (Exception e) {

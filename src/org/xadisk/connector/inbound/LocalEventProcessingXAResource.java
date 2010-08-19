@@ -140,9 +140,12 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public boolean isSameRM(XAResource obj) throws XAException {
-        if (obj instanceof LocalEventProcessingXAResource) {
-            return true;
-        }
+        //never ever return true : note that this object is use-once; mainly the
+        //"event" object is being used in prepare/commit; so imagine the disaster
+        //if the TM keeps calling commit on the same XAR because it thinks that
+        //the 2 local XARs are same ; though they are actually same "RM" here but
+        //the consequence is that the "call commit on any of the sameRM xar" created
+        //problem.
         return false;
     }
 

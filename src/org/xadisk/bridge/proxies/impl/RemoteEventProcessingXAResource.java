@@ -11,7 +11,13 @@ import org.xadisk.filesystem.XidImpl;
 
 public class RemoteEventProcessingXAResource extends RemoteObjectProxy implements XAResource {
 
-    private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+    private transient ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+
+    private void readObject(java.io.ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        this.internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+    }
 
     public RemoteEventProcessingXAResource(int objectId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
@@ -63,16 +69,15 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
     }
 
     public boolean isSameRM(XAResource xar) throws XAException {
-        try {
-            if (xar instanceof RemoteEventProcessingXAResource) {
-                invokeRemoteMethod("isSameRM", (RemoteEventProcessingXAResource) xar);
-            }
-            return false;
-        } catch (XAException xae) {
-            throw xae;
-        } catch (Throwable th) {
-            throw assertExceptionHandling(th);
-        }
+        //it was dangerous (wrong) in the earlier impl to compare the invoker and say "same" if
+        //the remoteAddr/Port was same. Note that the remote object, mapped using objectId,
+        //might be release anytime, so we should be careful in so that these pointers (IDs)
+        //to be referenced. For example, we have would be removing the remote XAR after say commit,
+        //the object ID of the "sameRM"'s XAR would be pointing to a non-existing object.
+        //Now, for this example, this was not the case as we didn't removed the remote LocalXAR.
+        //But the main problem was that the objects of LocalEventProcessingXAResource are
+        //use-once only as is visible from their field variables.
+        return false;
     }
 
     public int prepare(Xid xid) throws XAException {

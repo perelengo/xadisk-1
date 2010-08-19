@@ -15,6 +15,7 @@ import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 
 public class CoreXAFileSystemTests {
+
     public static final String testIOOperations = "testIOOperations";
     public static final String testIOOperationsPostCrash = "testIOOperationsPostCrash";
     public static final String testDynamicReadWrite = "testDynamicReadWrite";
@@ -451,9 +452,11 @@ public class CoreXAFileSystemTests {
         File interestingFiles[] = new File[2];
         interestingFiles[0] = new File(testDirectory + SEPERATOR + "polledFile1.txt");
         interestingFiles[1] = new File(testDirectory + SEPERATOR + "polledFile2.txt");
+
         XADiskActivationSpecImpl actSpec = new XADiskActivationSpecImpl();
-        String fileNamesAndInterests = interestingFiles[0].getAbsolutePath() + "::111" + "," + interestingFiles[1].getAbsolutePath() + "::111";
+        String fileNamesAndInterests = interestingFiles[0].getAbsolutePath() + "::111" + "|" + interestingFiles[1].getParent() + "::111";
         actSpec.setFileNamesAndEventInterests(fileNamesAndInterests);
+
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
         EndPointActivation epActivation = new EndPointActivation(smef, actSpec);
         XAFileSystem xaFileSystem = TestUtility.getXAFileSystemForTest();
@@ -466,10 +469,11 @@ public class CoreXAFileSystemTests {
         session.deleteFile(interestingFiles[0]);
         session.commit(true);
 
-        while (smef.getEventsReceivedCount() < 4) {
+        while (smef.getEventsReceivedCount() < 5) {
             System.out.println("Not all events recevied yet. Receieved : " + smef.getEventsReceivedCount());
             Thread.sleep(1000);
         }
+
         System.out.println("Inbound Messaging Test Successful.");
     }
 

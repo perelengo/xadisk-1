@@ -28,7 +28,7 @@ public class TestCoreXAFileSystem {
             CoreXAFileSystemTests.testHighNumber = false;
             CoreXAFileSystemTests.testProgressive = false;
             CoreXAFileSystemTests.usePessimisticLock = true;
-            TestUtility.remoteXAFileSystem = false;
+            TestUtility.remoteXAFileSystem = true;
 
             if (args.length > 0 && args[0].equals(forRunningTests)) {
                 System.out.println("Entered into the main of childJVM " + forRunningTests);
@@ -98,6 +98,8 @@ public class TestCoreXAFileSystem {
             configuration.setTransactionTimeout(Integer.MAX_VALUE);
             configuration.setDeadLockDetectorInterval(2);
             configuration.setLockTimeOut(10 * 1000);
+            configuration.setServerAddress("localhost");
+            configuration.setServerPort(5151);
             NativeXAFileSystem nativeXAFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             nativeXAFileSystem.waitForBootup(-1);
 
@@ -127,7 +129,7 @@ public class TestCoreXAFileSystem {
                             topLevelTestDirectory + SEPERATOR + "eventingSystem" + testReplica));
                 }
                 for (int i = 0; i < 4; i++) {
-                    if (i == 2) {
+                    if (i == 3) {
                         tests[i].setName(transactionDemarcatingThread);
                         tests[i].start();
                         allThreads.add(tests[i]);

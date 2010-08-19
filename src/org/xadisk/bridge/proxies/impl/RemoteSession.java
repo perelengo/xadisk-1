@@ -112,7 +112,7 @@ public class RemoteSession extends RemoteObjectProxy implements Session {
             throw assertExceptionHandling(t);
         }
     }
-    
+
     public void deleteFile(File f) throws DirectoryNotEmptyException, FileNotExistsException, FileUnderUseException,
             InsufficientPermissionOnFileException, LockingFailedException, NoOngoingTransactionException,
             TransactionRolledbackException, InterruptedException {
@@ -271,6 +271,10 @@ public class RemoteSession extends RemoteObjectProxy implements Session {
         }
     }
 
+    public void commit() throws TransactionRolledbackException {
+        this.commit(true);
+    }
+
     public void commit(boolean onePhase) throws TransactionRolledbackException {
         try {
             invokeRemoteMethod("commit", onePhase);
@@ -299,9 +303,25 @@ public class RemoteSession extends RemoteObjectProxy implements Session {
         }
     }
 
+    public boolean getPublishFileStateChangeEventsOnCommit() {
+        try {
+            return (Boolean) invokeRemoteMethod("getPublishFileStateChangeEventsOnCommit");
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
     public boolean setTransactionTimeout(int transactionTimeout) {
         try {
             return (Boolean) invokeRemoteMethod("setTransactionTimeout", transactionTimeout);
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
+    public int getTransactionTimeout() {
+        try {
+            return (Integer) invokeRemoteMethod("getTransactionTimeout");
         } catch (Throwable t) {
             throw assertExceptionHandling(t);
         }
