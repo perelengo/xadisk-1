@@ -55,14 +55,14 @@ public class RemoteMethodInvoker implements Serializable {
         return connected;
     }
 
-    public Object invokeRemoteMethod(int targetObjectId, String method, Serializable... args) throws Throwable {
+    public Object invokeRemoteMethod(long targetObjectId, String method, Serializable... args) throws Throwable {
         boolean isError;
         Object returnObject;
         try {
             ensureConnected();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeInt(targetObjectId);
+            oos.writeLong(targetObjectId);
             byte[] methodNameBytes = method.getBytes(UTF8CharsetName);
             oos.writeInt(methodNameBytes.length);
             oos.write(methodNameBytes);
@@ -126,5 +126,13 @@ public class RemoteMethodInvoker implements Serializable {
     @Override
     public int hashCode() {
         return this.serverPort + this.serverAddress.hashCode();
+    }
+
+    public String getServerAddress() {
+        return serverAddress;
+    }
+
+    public int getServerPort() {
+        return serverPort;
     }
 }

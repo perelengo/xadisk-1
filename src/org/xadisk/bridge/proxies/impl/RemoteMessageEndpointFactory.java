@@ -17,7 +17,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
 
     private final String xaDiskSystemId;
 
-    public RemoteMessageEndpointFactory(int objectId, String xaDiskSystemId, RemoteMethodInvoker invoker) {
+    public RemoteMessageEndpointFactory(long objectId, String xaDiskSystemId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
         this.xaDiskSystemId = xaDiskSystemId;
     }
@@ -36,7 +36,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
     synchronized public MessageEndpoint createEndpoint(XAResource xar) throws UnavailableException {
         try {
             HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
-            int objectId = globalCallbackContext.hostObject(xar);
+            long objectId = globalCallbackContext.hostObject(xar);
             RemoteEventProcessingXAResource remoteEventProcessingXAResource = new RemoteEventProcessingXAResource(objectId,
                     NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
             RemoteMessageEndpoint remoteMEP =
@@ -58,6 +58,11 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
         }
     }
 
+    /*
+     * JCA spec dis-allows equals method for this bean. For this case,
+     * remoteObjectId infact follows the remote unique object identities for the
+     * original MEF objects.
+     */
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof RemoteMessageEndpointFactory) {
@@ -70,6 +75,18 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
 
     @Override
     public int hashCode() {
-        return xaDiskSystemId.hashCode() + remoteObjectId;
+        return xaDiskSystemId.hashCode() + (int) remoteObjectId;
+    }
+
+    public String getXaDiskSystemId() {
+        return xaDiskSystemId;
+    }
+
+    public long getRemoteObjectId() {
+        return remoteObjectId;
+    }
+
+    public RemoteMethodInvoker getInvoker() {
+        return invoker;
     }
 }

@@ -10,6 +10,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
+import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
+import org.xadisk.connector.inbound.EndPointActivation;
+import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 
 public class TransactionLogEntry {
 
@@ -33,7 +37,9 @@ public class TransactionLogEntry {
     public static final byte EVENT_DEQUEUE = 19;
     public static final byte PREPARE_COMPLETES_FOR_EVENT_DEQUEUE = 20;
     public static final byte CHECKPOINT_AVOIDING_COPY_OR_MOVE_REDO = 21;
-    private static final String UTF8Charset = "UTF8";
+    public static final byte REMOTE_ENDPOINT_ACTIVATES = 22;
+    public static final byte REMOTE_ENDPOINT_DEACTIVATES = 23;
+    public static final String UTF8Charset = "UTF8";
     private XidImpl xid;
     private byte operationType;
     private String fileName;
@@ -45,6 +51,7 @@ public class TransactionLogEntry {
     private HashSet<File> fileList;
     private ArrayList<FileStateChangeEvent> eventList;
     private int checkPointPosition = -1;
+    private EndPointActivation remoteActivation;
 
     static byte[] getUTF8Bytes(String str) {
         try {
@@ -72,8 +79,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt((int) fileContentLength);
-        buffer.put(serializeXid(xid));
         buffer.put(appendOrUndoTruncate);
+        buffer.put(serializeXid(xid));
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -94,8 +101,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(createFileOrDirOrDeleteOrUndoCreate);
+        buffer.put(serializeXid(xid));
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -115,8 +122,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(truncateOrUndoAppend);
+        buffer.put(serializeXid(xid));
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -140,8 +147,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(moveOrCopyOrUndoDelete);
+        buffer.put(serializeXid(xid));
         buffer.putInt(srcFilePathLength);
         buffer.put(sourceFilePathBytes);
 
@@ -160,8 +167,8 @@ public class TransactionLogEntry {
         ByteBuffer buffer = ByteBuffer.allocate(200);
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(commitStatus);
+        buffer.put(serializeXid(xid));
 
         buffer.putInt(0, buffer.position());
 
@@ -175,8 +182,8 @@ public class TransactionLogEntry {
         ByteBuffer buffer = ByteBuffer.allocate(200);
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(CHECKPOINT_AVOIDING_COPY_OR_MOVE_REDO);
+        buffer.put(serializeXid(xid));
         buffer.putInt(checkPointPosition);
 
         buffer.putInt(0, buffer.position());
@@ -202,8 +209,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(FILES_ALREADY_ONDISK);
+        buffer.put(serializeXid(xid));
         buffer.putInt(files.size());
         iter = files.iterator();
         for (i = 0; i < filePathsBytes.length; i++) {
@@ -229,8 +236,8 @@ public class TransactionLogEntry {
 
         buffer.putInt(0);
         buffer.putInt(0);
-        buffer.put(serializeXid(xid));
         buffer.put(enQ_deQ_prepareDequeue);
+        buffer.put(serializeXid(xid));
         buffer.putInt(events.size());
         for (int i = 0; i < eventsBytes.length; i++) {
             buffer.put(eventsBytes[i]);
@@ -243,14 +250,72 @@ public class TransactionLogEntry {
         return temp;
     }
 
+    public static byte[] getLogEntry(EndPointActivation remoteEPActivation, byte activation_deActivation) {
+        try {
+            XADiskActivationSpecImpl as = remoteEPActivation.getActivationSpecImpl();
+            RemoteMessageEndpointFactory remoteMEPF = (RemoteMessageEndpointFactory) remoteEPActivation.getMessageEndpointFactory();
+
+            byte[][] variableBytes = new byte[3][];
+            if (activation_deActivation == REMOTE_ENDPOINT_DEACTIVATES) {
+                variableBytes[0] = "".getBytes(UTF8Charset);
+            } else {
+                variableBytes[0] = remoteMEPF.getInvoker().getServerAddress().getBytes(UTF8Charset);
+            }
+            variableBytes[1] = as.getFileNamesAndEventInterests().getBytes(UTF8Charset);
+            variableBytes[2] = remoteMEPF.getXaDiskSystemId().getBytes(UTF8Charset);
+
+            int variableBytesLength = 0;
+            for (int i = 0; i < 3; i++) {
+                variableBytesLength += variableBytes[i].length;
+            }
+            ByteBuffer buffer = ByteBuffer.allocate(41 + variableBytesLength);
+
+            buffer.putInt(0);
+            buffer.putInt(0);
+            buffer.put(activation_deActivation);
+            //we always come here for "areFilesRemote = true".
+            buffer.putInt(variableBytes[0].length);
+            buffer.put(variableBytes[0]);
+
+            if (activation_deActivation == REMOTE_ENDPOINT_DEACTIVATES) {
+                buffer.putInt(0);
+            } else {
+                buffer.putInt(Integer.valueOf(remoteMEPF.getInvoker().getServerPort()));
+            }
+
+            buffer.putInt(variableBytes[1].length);
+            buffer.put(variableBytes[1]);
+
+            buffer.putInt(as.getOriginalObjectsHashCode());
+
+            buffer.putInt(variableBytes[2].length);
+            buffer.put(variableBytes[2]);
+
+            buffer.putLong(remoteMEPF.getRemoteObjectId());
+
+            buffer.putInt(0, buffer.position());
+
+            buffer.flip();
+            byte temp[] = new byte[buffer.limit()];
+            buffer.get(temp);
+            return temp;
+        } catch (UnsupportedEncodingException uee) {
+            //assert false;
+            return null;
+        }
+    }
+
     static TransactionLogEntry parseLogEntry(ByteBuffer buffer) {
         TransactionLogEntry temp = new TransactionLogEntry();
         int position = buffer.position();
         buffer.position(0);
         temp.headerLength = buffer.getInt();
         buffer.getInt();
-        temp.xid = deSerializeXid(buffer);
         temp.operationType = buffer.get();
+        if (temp.operationType != REMOTE_ENDPOINT_ACTIVATES
+                && temp.operationType != REMOTE_ENDPOINT_DEACTIVATES) {
+            temp.xid = deSerializeXid(buffer);
+        }
 
         if (temp.operationType == FILE_APPEND || temp.operationType == UNDOABLE_FILE_TRUNCATE) {
             temp.fileName = readFileName(buffer);
@@ -277,10 +342,13 @@ public class TransactionLogEntry {
             int numEvents = buffer.getInt();
             temp.eventList = new ArrayList<FileStateChangeEvent>(numEvents);
             for (int i = 0; i < numEvents; i++) {
-                temp.eventList.add(readEvent(buffer, temp.xid));
+                temp.eventList.add(readEvent(buffer));
             }
         } else if (temp.operationType == CHECKPOINT_AVOIDING_COPY_OR_MOVE_REDO) {
             temp.checkPointPosition = buffer.getInt();
+        } else if (temp.operationType == REMOTE_ENDPOINT_ACTIVATES
+                || temp.operationType == REMOTE_ENDPOINT_DEACTIVATES) {
+            temp.remoteActivation = readRemoteEndPointActivation(buffer);
         }
 
         buffer.position(position);
@@ -296,7 +364,8 @@ public class TransactionLogEntry {
 
     private static byte[] getBytesFromEvent(FileStateChangeEvent event) {
         byte fileNameBytes[] = getUTF8Bytes(event.getFile().getAbsolutePath());
-        ByteBuffer buffer = ByteBuffer.allocate(fileNameBytes.length + 10);
+        ByteBuffer buffer = ByteBuffer.allocate(fileNameBytes.length + 200);
+        buffer.put(serializeXid(event.getEnqueuingTransaction()));
         buffer.put(event.getEventType());
         buffer.putInt(fileNameBytes.length);
         buffer.put(fileNameBytes);
@@ -307,7 +376,8 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    private static FileStateChangeEvent readEvent(ByteBuffer buffer, XidImpl enqueuingTransaction) {
+    private static FileStateChangeEvent readEvent(ByteBuffer buffer) {
+        XidImpl enqueuingTransaction = deSerializeXid(buffer);
         byte eventType = buffer.get();
         int fileNameLength = buffer.getInt();
         byte fileNameBytes[] = new byte[fileNameLength];
@@ -316,6 +386,38 @@ public class TransactionLogEntry {
         File file = new File(fileName);
         boolean isDirectory = buffer.get() == 1 ? true : false;
         return new FileStateChangeEvent(file, isDirectory, eventType, enqueuingTransaction);
+    }
+
+    private static EndPointActivation readRemoteEndPointActivation(ByteBuffer buffer) {
+        try {
+            byte[] serverAddressBytes = new byte[buffer.getInt()];
+            buffer.get(serverAddressBytes);
+            String serverAddress = new String(serverAddressBytes, UTF8Charset);
+
+            int serverPort = buffer.getInt();
+
+            byte[] fileNamesAndEventInterestsBytes = new byte[buffer.getInt()];
+            buffer.get(fileNamesAndEventInterestsBytes);
+            String fileNamesAndEventInterests = new String(fileNamesAndEventInterestsBytes, UTF8Charset);
+            int originalASpecObjectHashCode = buffer.getInt();
+
+            byte[] xaDiskSystemIdBytes = new byte[buffer.getInt()];
+            buffer.get(xaDiskSystemIdBytes);
+            String xaDiskSystemId = new String(xaDiskSystemIdBytes, UTF8Charset);
+
+            long remoteObjectId = buffer.getLong();
+
+            XADiskActivationSpecImpl as = new XADiskActivationSpecImpl();
+            as.setOriginalObjectIsRemote(true);
+            as.setOriginalObjectsHashCode(originalASpecObjectHashCode);
+            as.setFileNamesAndEventInterests(fileNamesAndEventInterests);
+            RemoteMessageEndpointFactory remoteMEPF = new RemoteMessageEndpointFactory(remoteObjectId, xaDiskSystemId,
+                    new RemoteMethodInvoker(serverAddress, serverPort));
+            return new EndPointActivation(remoteMEPF, as);
+        } catch (UnsupportedEncodingException uee) {
+            //infeasible.
+            return null;
+        }
     }
 
     public byte getOperationType() {
@@ -421,6 +523,10 @@ public class TransactionLogEntry {
 
     public ArrayList<FileStateChangeEvent> getEventList() {
         return eventList;
+    }
+
+    public EndPointActivation getRemoteActivation() {
+        return remoteActivation;
     }
 
     public boolean isUndoLogEntry() {

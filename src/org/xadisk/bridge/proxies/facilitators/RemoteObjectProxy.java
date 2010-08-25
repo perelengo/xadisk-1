@@ -3,10 +3,10 @@ package org.xadisk.bridge.proxies.facilitators;
 import java.io.Serializable;
 
 public class RemoteObjectProxy implements Serializable {
-    protected final int remoteObjectId;
+    protected final long remoteObjectId;
     protected RemoteMethodInvoker invoker;
 
-    public RemoteObjectProxy(int remoteObjectId, RemoteMethodInvoker invoker) {
+    public RemoteObjectProxy(long remoteObjectId, RemoteMethodInvoker invoker) {
         this.remoteObjectId = remoteObjectId;
         this.invoker = invoker;
     }

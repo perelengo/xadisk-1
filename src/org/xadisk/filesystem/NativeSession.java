@@ -47,7 +47,7 @@ public class NativeSession implements Session {
     private long fileLockWaitTimeout = 200;
     private final ResourceDependencyGraph RDG;
     private boolean createdForRecovery = false;
-    private final ArrayList<FileStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileStateChangeEvent>(10);
+    private ArrayList<FileStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileStateChangeEvent>(10);
     private final ArrayList<File> directoriesPinnedInThisSession = new ArrayList<File>(5);
     private final long timeOfEntryToTransaction;
     private final ReentrantLock asynchronousRollbackLock = new ReentrantLock(false);
@@ -74,6 +74,19 @@ public class NativeSession implements Session {
             timeOfEntryToTransaction = System.currentTimeMillis();
             xaFileSystem.assignSessionToTransaction(xid, this);
         }
+    }
+
+    public NativeSession(XidImpl xid, ArrayList<FileStateChangeEvent> events) {
+        this.xid = xid;
+        xid.setOwningSession(this);
+        this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+        this.RDG = xaFileSystem.getResourceDependencyGraph();
+        this.createdForRecovery = true;
+        this.transactionTimeout = 0;
+        this.view = null;
+        this.timeOfEntryToTransaction = -100;
+        this.fileStateChangeEventsToRaise = events;
+        this.publishFileStateChangeEventsOnCommit = true;
     }
 
     public void rollbackAsynchronously(Throwable rollbackCause) {
@@ -504,6 +517,7 @@ public class NativeSession implements Session {
         xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes), xid);
 
         if (publishFileStateChangeEventsOnCommit) {
+            fileStateChangeEventsToRaise = xaFileSystem.getFileSystemEventDelegator().retainOnlyInterestingEvents(fileStateChangeEventsToRaise);
             logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, fileStateChangeEventsToRaise,
                     TransactionLogEntry.EVENT_ENQUEUE));
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes), xid);
@@ -626,6 +640,10 @@ public class NativeSession implements Session {
                 logChannel.close();
             }
             cleanup();
+            //we should not raise events before actually making the commit changes; else the MDBs
+            //wouldn't find what they wanted to look for. The below is in-memory operation, so
+            //after a crash, we need to check enQed, but not deQed, events for all committed txns
+            //and populate them in in-memory queue again.
             raiseFileStateChangeEvents();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);

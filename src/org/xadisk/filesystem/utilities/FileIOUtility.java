@@ -164,21 +164,21 @@ public class FileIOUtility {
         return false;
     }
 
-    public static void readFromChannel(FileChannel fc, ByteBuffer buffer, int bufferOffset, int num) 
+    public static void readFromChannel(FileChannel fc, ByteBuffer buffer, int bufferOffset, int num)
             throws IOException, EOFException {
         buffer.position(bufferOffset);
-        if(buffer.remaining() < num) {
+        if (buffer.remaining() < num) {
             throw new BufferUnderflowException();
         }
         buffer.limit(bufferOffset + num);
         int numRead = 0;
         int t = 0;
-        while(numRead < num) {
-           t = fc.read(buffer);
-           if(t == -1) {
-               throw new EOFException();
-           }
-           numRead+=t;
+        while (numRead < num) {
+            t = fc.read(buffer);
+            if (t == -1) {
+                throw new EOFException();
+            }
+            numRead += t;
         }
     }
 }

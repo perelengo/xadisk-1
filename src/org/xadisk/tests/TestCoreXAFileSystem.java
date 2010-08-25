@@ -14,7 +14,7 @@ public class TestCoreXAFileSystem {
 
     private static final String SEPERATOR = File.separator;
     private static final String currentWorkingDirectory = System.getProperty("user.dir");
-    private static final String topLevelTestDirectory = currentWorkingDirectory + SEPERATOR + "testXADiskSystem1";
+    private static final String topLevelTestDirectory = currentWorkingDirectory + SEPERATOR + "testXADiskSystem";
     private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
     private static boolean testCrashRecovery = false;
     public static int concurrencyLevel = 1;
@@ -28,7 +28,7 @@ public class TestCoreXAFileSystem {
             CoreXAFileSystemTests.testHighNumber = false;
             CoreXAFileSystemTests.testProgressive = false;
             CoreXAFileSystemTests.usePessimisticLock = true;
-            TestUtility.remoteXAFileSystem = true;
+            TestUtility.remoteXAFileSystem = false;
 
             if (args.length > 0 && args[0].equals(forRunningTests)) {
                 System.out.println("Entered into the main of childJVM " + forRunningTests);
@@ -129,7 +129,7 @@ public class TestCoreXAFileSystem {
                             topLevelTestDirectory + SEPERATOR + "eventingSystem" + testReplica));
                 }
                 for (int i = 0; i < 4; i++) {
-                    if (i == 3) {
+                    if (i == 2) {
                         tests[i].setName(transactionDemarcatingThread);
                         tests[i].start();
                         allThreads.add(tests[i]);

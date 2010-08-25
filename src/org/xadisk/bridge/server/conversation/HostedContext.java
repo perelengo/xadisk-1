@@ -2,11 +2,11 @@ package org.xadisk.bridge.server.conversation;
 
 public interface HostedContext {
 
-    public int hostObject(Object target);
+    public long hostObject(Object target);
 
-    public void deHostObjectWithId(int objectId);
+    public void deHostObjectWithId(long objectId);
 
-    public int deHostObject(Object target);
+    public long deHostObject(Object target);
 
-    public Object getHostedObjectWithId(int objectId);
+    public Object getHostedObjectWithId(long objectId);
 }

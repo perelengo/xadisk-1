@@ -20,10 +20,12 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
     private Boolean areFilesRemote;
     private String remoteServerAddress;
     private Integer remoteServerPort;
+    private boolean originalObjectIsRemote = false;
+    private int originalObjectsHashCode = this.hashCode();//this will get serialized too.
 
     public XADiskActivationSpecImpl() {
     }
-
+    
     public void setFileNamesAndEventInterests(String filesNamesAndEventInterests) {
         this.fileNamesAndEventInterests = filesNamesAndEventInterests;
         setupFileNamesAndEventInterests(filesNamesAndEventInterests.split(seperator));
@@ -74,6 +76,10 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
         this.ra = ra;
     }
 
+    public void setOriginalObjectIsRemote(boolean originalObjectIsRemote) {
+        this.originalObjectIsRemote = originalObjectIsRemote;
+    }
+
     public void validate() throws InvalidPropertyException {
         Iterator iter = fileNamesAndInterests.values().iterator();
         while (iter.hasNext()) {
@@ -96,5 +102,38 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
             }
         }
         return false;
+    }
+
+    /*
+     * From JCA Spec:
+    "These objects, in general, should not override the default equals and hashCode methods."
+     * From Java API:
+     * "As much as is reasonably practical, the hashCode method defined by class Object
+    does return distinct integers for distinct objects."
+     * We always compare the asSpec as part of Activation comparison, so by chance if
+     * remote asSpec equals the local one, the MEF won't equal due to different classes.
+     * But, anyway, for clarity keep a separate flag to know if remote.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof XADiskActivationSpecImpl) {
+            XADiskActivationSpecImpl that = (XADiskActivationSpecImpl) obj;
+            return this.originalObjectIsRemote == that.originalObjectIsRemote
+                    && this.originalObjectsHashCode == that.originalObjectsHashCode;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.originalObjectsHashCode;
+    }
+
+    public int getOriginalObjectsHashCode() {
+        return originalObjectsHashCode;
+    }
+
+    public void setOriginalObjectsHashCode(int originalObjectsHashCode) {
+        this.originalObjectsHashCode = originalObjectsHashCode;
     }
 }

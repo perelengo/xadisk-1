@@ -19,7 +19,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
         this.internalXids = new ConcurrentHashMap<Xid, XidImpl>();
     }
 
-    public RemoteEventProcessingXAResource(int objectId, RemoteMethodInvoker invoker) {
+    public RemoteEventProcessingXAResource(long objectId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
     }
 

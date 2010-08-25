@@ -15,7 +15,7 @@ import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
 public class RemoteSession extends RemoteObjectProxy implements Session {
 
-    public RemoteSession(int objectId, RemoteMethodInvoker invoker) {
+    public RemoteSession(long objectId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
     }
 

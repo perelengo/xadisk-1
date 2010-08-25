@@ -59,10 +59,18 @@ public class FileStateChangeEvent implements Serializable {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof FileStateChangeEvent) {
-            FileStateChangeEvent event = (FileStateChangeEvent) obj;
-            return event.file.equals(this.file) && event.eventType == this.eventType
-                    && event.isDirectory == this.isDirectory && event.enqueuingTransaction.equals(this.enqueuingTransaction);
+            FileStateChangeEvent that = (FileStateChangeEvent) obj;
+            return that.file.equals(this.file) && that.eventType == this.eventType
+                    && that.isDirectory == this.isDirectory
+                    && that.enqueuingTransaction.equals(this.enqueuingTransaction);
         }
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return "Event Type : " + this.eventType
+                + " || File Name : " + this.file
+                + " || Is a Directory : " + this.isDirectory;
     }
 }

@@ -1,7 +1,6 @@
 package org.xadisk.tests;
 
 import java.io.File;
-import javax.ejb.EJBException;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
@@ -22,10 +21,6 @@ public class RemoteXADiskBootup {
             xaFileSystem.waitForBootup(-1L);
             
             System.out.println("XADisk System is up for use...");
-            
-            while (true) {
-                Thread.sleep(Integer.MAX_VALUE);
-            }
         } catch (Throwable t) {
             t.printStackTrace();
         }

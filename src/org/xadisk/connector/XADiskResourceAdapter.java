@@ -44,22 +44,41 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
     }
 
     public void endpointActivation(MessageEndpointFactory mef, ActivationSpec as) throws ResourceException {
-        XADiskActivationSpecImpl xadiskAS = (XADiskActivationSpecImpl) as;
-        EndPointActivation epActivation = new EndPointActivation(mef, xadiskAS);
-        if (Boolean.valueOf(xadiskAS.getAreFilesRemote())) {
-            String serverAddress = xadiskAS.getRemoteServerAddress();
-            Integer serverPort = Integer.valueOf(xadiskAS.getRemoteServerPort());
-            RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort);
-            remoteXAFS.registerEndPointActivation(epActivation);
-            remoteXAFS.shutdown();
-        } else {
-            xaFileSystem.registerEndPointActivation(epActivation);
+        try {
+            XADiskActivationSpecImpl xadiskAS = (XADiskActivationSpecImpl) as;
+            EndPointActivation epActivation = new EndPointActivation(mef, xadiskAS);
+            if (Boolean.valueOf(xadiskAS.getAreFilesRemote())) {
+                String serverAddress = xadiskAS.getRemoteServerAddress();
+                Integer serverPort = Integer.valueOf(xadiskAS.getRemoteServerPort());
+                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort);
+                remoteXAFS.registerEndPointActivation(epActivation);
+                remoteXAFS.shutdown();
+            } else {
+                xaFileSystem.registerEndPointActivation(epActivation);
+            }
+        } catch (IOException ioe) {
+            throw new ResourceException(ioe);
         }
     }
 
     public void endpointDeactivation(MessageEndpointFactory mef, ActivationSpec as) {
-        EndPointActivation epActivation = new EndPointActivation(mef, (XADiskActivationSpecImpl) as);
-        xaFileSystem.deRegisterEndPointActivation(epActivation);
+        try {
+            XADiskActivationSpecImpl xadiskAS = (XADiskActivationSpecImpl) as;
+            EndPointActivation epActivation = new EndPointActivation(mef, xadiskAS);
+            if (Boolean.valueOf(xadiskAS.getAreFilesRemote())) {
+                String serverAddress = xadiskAS.getRemoteServerAddress();
+                Integer serverPort = Integer.valueOf(xadiskAS.getRemoteServerPort());
+                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort);
+                remoteXAFS.deRegisterEndPointActivation(epActivation);
+                remoteXAFS.shutdown();
+            } else {
+                xaFileSystem.deRegisterEndPointActivation(epActivation);
+            }
+        } catch (IOException ioe) {
+            /* JCA Spec : "Any exception thrown by the endpointDeactivation method call must be
+            ignored. After this method call the endpoint is deemed inactive." */
+            ioe.printStackTrace();
+        }
     }
 
     public XAResource[] getXAResources(ActivationSpec[] as) throws ResourceException {

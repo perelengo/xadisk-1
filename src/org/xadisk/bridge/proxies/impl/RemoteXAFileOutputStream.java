@@ -8,7 +8,7 @@ import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
 public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFileOutputStream {
 
-    public RemoteXAFileOutputStream(int objectId, RemoteMethodInvoker invoker) {
+    public RemoteXAFileOutputStream(long objectId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
     }
 

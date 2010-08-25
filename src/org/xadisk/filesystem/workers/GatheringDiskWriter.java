@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.filesystem.Buffer;
 import org.xadisk.filesystem.FileStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
@@ -237,6 +238,18 @@ public class GatheringDiskWriter extends EventWorker {
         forceWrite(temp);
     }
 
+    public void recordEndPointActivation(EndPointActivation activation) throws IOException {
+        ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(activation,
+                TransactionLogEntry.REMOTE_ENDPOINT_ACTIVATES));
+        forceWrite(temp);
+    }
+
+    public void recordEndPointDeActivation(EndPointActivation activation) throws IOException {
+        ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(activation,
+                TransactionLogEntry.REMOTE_ENDPOINT_DEACTIVATES));
+        forceWrite(temp);
+    }
+
     public void forceLog(ByteBuffer logEntryHeader) throws IOException {
         try {
             transactionLogLock.lock();
@@ -324,11 +337,31 @@ public class GatheringDiskWriter extends EventWorker {
                 transactionLogChannel =
                         new FileOutputStream(nextTransactionLog, true).getChannel();
                 currentLogIndex = i;
+                recordAllActivationsInNewLog();
                 break;
             }
             if (nextTransactionLog == null) {
                 throw new IOException("Transaction logs seems to be over...cannot proceed.");
             }
+        }
+    }
+
+    private void recordAllActivationsInNewLog() throws IOException {
+        for (EndPointActivation activation : theXAFileSystem.getAllActivations()) {
+            //note that this solution means duplicate entries for a single activation; eg one entry
+            //in log 3 and other in 4 when log 4 is allocated. The other solution where we
+            //keep entries as such and carry-them-over during log deletion is not full-proof
+            //because it also means a crash can happen during transfer of entries from log-be-deleted
+            //to current log and this implies duplicate entries or absent entries.
+            //With the current solution though, we will have to be careful during activations
+            //after recovery to avoid duplicates.
+            //Current solution is safe because it works even for a case when a log get deleted
+            //because we never delete the "current" log and we can see that
+            //during current log creation we save all activation "during" that time, implying
+            //that it also includes activations in the log we are deleting because
+            //once the current log got created all activation onwards get anyway persisted in the
+            //current log.
+            recordEndPointActivation(activation);
         }
     }
 }

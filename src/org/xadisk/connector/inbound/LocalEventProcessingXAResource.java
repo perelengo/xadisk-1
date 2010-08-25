@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.transaction.Status;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -21,6 +22,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     private volatile boolean returnedAllPreparedTransactions = false;
     private final boolean isCreatedForRecovery;
     private volatile HashMap<XidImpl, FileStateChangeEvent> dequeuingTransactionsPreparedPreCrash;
+    private byte transactionOutcome = Status.STATUS_NO_TRANSACTION;
 
     public LocalEventProcessingXAResource(NativeXAFileSystem xaFileSystem, FileStateChangeEvent event) {
         this.xaFileSystem = xaFileSystem;
@@ -78,6 +80,7 @@ public class LocalEventProcessingXAResource implements XAResource {
             if (isCreatedForRecovery) {
                 xaFileSystem.getRecoveryWorker().cleanupTransactionInfo(xidImpl);
             }
+            this.transactionOutcome = Status.STATUS_COMMITTED;
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailureAndContinue(ioe);
             throw new XAException(XAException.XAER_RMFAIL);
@@ -96,6 +99,7 @@ public class LocalEventProcessingXAResource implements XAResource {
             if (isCreatedForRecovery) {
                 xaFileSystem.getRecoveryWorker().cleanupTransactionInfo(xidImpl);
             }
+            this.transactionOutcome = Status.STATUS_ROLLEDBACK;
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailureAndContinue(ioe);
             throw new XAException(XAException.XAER_RMFAIL);
@@ -107,7 +111,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     public void forget(Xid xid) throws XAException {
         XidImpl xidImpl = mapToInternalXid(xid);
     }
-    
+
     public Xid[] recover(int flag) throws XAException {
         if (!xaFileSystem.getRecoveryWorker().isRecoveryDataCollectionDone()) {
             throw new XAException(XAException.XAER_RMFAIL);
@@ -123,7 +127,7 @@ public class LocalEventProcessingXAResource implements XAResource {
         }
 
         dequeuingTransactionsPreparedPreCrash = xaFileSystem.getRecoveryWorker().
-                getPreparedInDoubtTransactionsForDequeue();
+                getPreparedInDoubtTransactionsOfDequeue();
 
         Xid xids[];
         xids = dequeuingTransactionsPreparedPreCrash.keySet().toArray(new Xid[0]);
@@ -159,8 +163,12 @@ public class LocalEventProcessingXAResource implements XAResource {
             return internalXid;
         }
     }
-    
+
     private void releaseFromInternalXidMap(Xid xid) {
         internalXids.remove(xid);
+    }
+
+    public byte getTransactionOutcome() {
+        return transactionOutcome;
     }
 }

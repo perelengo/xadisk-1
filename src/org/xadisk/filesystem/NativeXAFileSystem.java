@@ -39,9 +39,11 @@ import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
+import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
+import org.xadisk.connector.inbound.DeadLetterMessageEndpoint;
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.filesystem.pools.SelectorPool;
 
@@ -56,6 +58,7 @@ public class NativeXAFileSystem implements XAFileSystem {
     private static Logger logger;
     private final String XADiskHome;
     private final String transactionLogsDir;
+    private final DeadLetterMessageEndpoint deadLetter;
     private static FileSystemConfiguration configuration;
     private final ConcurrentHashMap<XidImpl, NativeSession> transactionAndSession = new ConcurrentHashMap<XidImpl, NativeSession>(1000);
     private HashSet<XidImpl> transactionsPreparedPreCrash;
@@ -117,6 +120,9 @@ public class NativeXAFileSystem implements XAFileSystem {
             this.lockTimeOut = configuration.getLockTimeOut();
             this.defaultTransactionTimeout = configuration.getTransactionTimeout();
             this.workListener = new CriticalWorkersListener(this);
+            File deadLetterDir = new File(XADiskHome, "deadletter");
+            FileIOUtility.createDirectoriesIfRequired(deadLetterDir);
+            this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir);
 
             workManager.startWork(deadLockDetector, 0, null, workListener);
             workManager.startWork(bufferPoolReliever, 0, null, workListener);
@@ -157,8 +163,7 @@ public class NativeXAFileSystem implements XAFileSystem {
     }
 
     public void notifyRecoveryComplete() throws IOException {
-        ArrayList<FileStateChangeEvent> eventsNotYetDequeued = recoveryWorker.getFileSystemEventsFromCommittedTransactions();
-        fileSystemEventQueue.addAll(eventsNotYetDequeued);
+        fileSystemEventQueue.addAll(recoveryWorker.getEventsEnqueueCommittedNotDequeued());
         FileIOUtility.deleteDirectoryRecursively(topLevelBackupDir);
         FileIOUtility.createDirectory(topLevelBackupDir);
         backupFileNameCounter.set(0);
@@ -186,8 +191,14 @@ public class NativeXAFileSystem implements XAFileSystem {
         if (session != null) {
             return session;
         }
-        if (transactionsPreparedPreCrash.contains(xid)) {
-            session = new NativeSession((XidImpl) xid, true);
+        if (transactionsPreparedPreCrash.contains((XidImpl) xid)) {
+            ArrayList<FileStateChangeEvent> events =
+                    recoveryWorker.getEventsFromPreparedTransaction((XidImpl) xid);
+            if (events != null) {
+                session = new NativeSession((XidImpl) xid, events);
+            } else {
+                session = new NativeSession((XidImpl) xid, true);
+            }
             if (session != null) {
                 return session;
             }
@@ -207,8 +218,12 @@ public class NativeXAFileSystem implements XAFileSystem {
         return transactionAndSession.values().toArray(new NativeSession[0]);
     }
 
-    public NativeSession createRecoverySession(XidImpl xid) {
-        return new NativeSession(xid, true);
+    public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileStateChangeEvent> events) {
+        if (events == null) {
+            return new NativeSession(xid, true);
+        } else {
+            return new NativeSession(xid, events);
+        }
     }
 
     //todo : confirm that recover on XAR/here will be called only by one thread and not in parallel by more
@@ -506,6 +521,10 @@ public class NativeXAFileSystem implements XAFileSystem {
         return workManager;
     }
 
+    public ArrayList<EndPointActivation> getAllActivations() {
+        return fileSystemEventDelegator.getAllActivations();
+    }
+
     public void startWork(Work work) throws WorkException {
         workManager.startWork(work, 0, null, workListener);
     }
@@ -534,6 +553,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         pointOfContact.release();
         logger.releaseLogFile();
         getLogger().close();
+        deadLetter.release();
         if (workManager instanceof StandaloneWorkManager) {
             ((StandaloneWorkManager) workManager).shutdown();
         }
@@ -563,12 +583,22 @@ public class NativeXAFileSystem implements XAFileSystem {
         return fileSystemEventQueue;
     }
 
-    public void registerEndPointActivation(EndPointActivation activation) {
-        fileSystemEventDelegator.registerActivation(activation);
+    public void registerEndPointActivation(EndPointActivation activation) throws IOException {
+        boolean notADuplicateActivation = fileSystemEventDelegator.registerActivation(activation);
+        if (notADuplicateActivation && activation.getMessageEndpointFactory() instanceof RemoteMessageEndpointFactory) {
+            gatheringDiskWriter.recordEndPointActivation(activation);
+        }
     }
 
-    public void deRegisterEndPointActivation(EndPointActivation activation) {
+    public void deRegisterEndPointActivation(EndPointActivation activation) throws IOException {
         fileSystemEventDelegator.deRegisterActivation(activation);
+        if (activation.getMessageEndpointFactory() instanceof RemoteMessageEndpointFactory) {
+            gatheringDiskWriter.recordEndPointDeActivation(activation);
+        }
+    }
+
+    FileSystemEventDelegator getFileSystemEventDelegator() {
+        return fileSystemEventDelegator;
     }
 
     public void notifySystemFailure(Throwable systemFailureCause) {
@@ -637,5 +667,9 @@ public class NativeXAFileSystem implements XAFileSystem {
 
     public XAResource getEventProcessingXAResourceForRecovery() {
         return new LocalEventProcessingXAResource(theXAFileSystem);
+    }
+
+    public DeadLetterMessageEndpoint getDeadLetter() {
+        return deadLetter;
     }
 }

@@ -23,6 +23,7 @@ import org.xadisk.bridge.proxies.facilitators.ByteArrayRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.MethodSerializabler;
 import org.xadisk.bridge.proxies.facilitators.OptimizedRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.SerializedMethod;
+import org.xadisk.filesystem.exceptions.ContextOutOfSyncException;
 
 public class RemoteMethodInvocationHandler implements Work {
 
@@ -95,11 +96,15 @@ public class RemoteMethodInvocationHandler implements Work {
     byte[] handleRemoteInvocation(byte[] invocation) throws IOException,
             ClassNotFoundException,
             NoSuchMethodException,
-            IllegalAccessException {
+            IllegalAccessException,
+            ContextOutOfSyncException {
         ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(invocation));
 
-        int targetObjectId = ois.readInt();
+        long targetObjectId = ois.readLong();
         Object targetObject = context.getInvocationTarget(targetObjectId);
+        if (targetObject == null) {
+            throw new ContextOutOfSyncException("No object with id " + targetObjectId);
+        }
 
         byte[] methodNameBytes = new byte[ois.readInt()];
         ois.read(methodNameBytes);

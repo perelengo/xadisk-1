@@ -65,13 +65,13 @@ public interface XAFileSystem {
      * For internal use only.
      * @param epActivation
      */
-    public void registerEndPointActivation(EndPointActivation epActivation);
+    public void registerEndPointActivation(EndPointActivation epActivation) throws IOException;
 
     /**
      * For internal use only.
      * @param epActivation
      */
-    public void deRegisterEndPointActivation(EndPointActivation epActivation);
+    public void deRegisterEndPointActivation(EndPointActivation epActivation) throws IOException;
 
     /**
      * If this is a NativeXAFileSystem object, this method shuts down the XADisk instance.

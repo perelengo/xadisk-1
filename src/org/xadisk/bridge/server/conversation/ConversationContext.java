@@ -35,7 +35,7 @@ public class ConversationContext {
         this.globalHostedContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
     }
 
-    public Object getInvocationTarget(int objectId) {
+    public Object getInvocationTarget(long objectId) {
         if (objectId < 0) {
             return globalHostedContext.getHostedObjectWithId(objectId);
         } else {

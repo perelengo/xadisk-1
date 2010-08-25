@@ -1,6 +1,6 @@
 package org.xadisk.filesystem.workers;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,7 +13,7 @@ import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.filesystem.FileStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
-import org.xadisk.filesystem.workers.observers.ConcurrentEventDeliveryCounter;
+import org.xadisk.filesystem.workers.observers.EventDispatchListener;
 
 public class FileSystemEventDelegator implements Work {
 
@@ -23,7 +23,7 @@ public class FileSystemEventDelegator implements Work {
     private final CopyOnWriteArrayList<EndPointActivation> registeredActivations =
             new CopyOnWriteArrayList<EndPointActivation>();
     private final int maximumConcurrentEventDeliveries;
-    private final ConcurrentEventDeliveryCounter concurrentEventDeliveryCounter;
+    private final EventDispatchListener eventDispatchListener;
     private volatile boolean released = false;
 
     public FileSystemEventDelegator(NativeXAFileSystem xaFileSystem, int maximumConcurrentEventDeliveries) {
@@ -31,11 +31,15 @@ public class FileSystemEventDelegator implements Work {
         this.eventQueue = xaFileSystem.getFileSystemEventQueue();
         this.workManager = NativeXAFileSystem.getWorkManager();
         this.maximumConcurrentEventDeliveries = maximumConcurrentEventDeliveries;
-        this.concurrentEventDeliveryCounter = new ConcurrentEventDeliveryCounter();
+        this.eventDispatchListener = new EventDispatchListener();
     }
 
-    public void registerActivation(EndPointActivation activation) {
+    public boolean registerActivation(EndPointActivation activation) {
+        if (registeredActivations.contains(activation)) {
+            return false;
+        }
         registeredActivations.add(activation);
+        return true;
     }
 
     public void deRegisterActivation(EndPointActivation activation) {
@@ -51,10 +55,14 @@ public class FileSystemEventDelegator implements Work {
         registeredActivations.remove(activation);
     }
 
+    public ArrayList<EndPointActivation> getAllActivations() {
+        return new ArrayList<EndPointActivation>(registeredActivations);
+    }
+
     public void run() {
         try {
             while (!released) {
-                if (concurrentEventDeliveryCounter.getOngoingConcurrentDeliveries()
+                if (eventDispatchListener.getOngoingConcurrentDeliveries()
                         >= maximumConcurrentEventDeliveries) {
                     Thread.sleep(100);
                     continue;
@@ -75,8 +83,8 @@ public class FileSystemEventDelegator implements Work {
                 try {
                     if (interestedActivationPicked != null) {
                         workManager.startWork(new FileSystemEventProcessor(interestedActivationPicked.getMessageEndpointFactory(),
-                                event, xaFileSystem), 0, null, concurrentEventDeliveryCounter);
-                        //concurrentEventDeliveryCounter.workStarted(null);found glassfish sending
+                                event, xaFileSystem, eventQueue), 0, null, eventDispatchListener);
+                        //eventDispatchListener.workStarted(null);found glassfish sending
                         //an event on work start already.
                     }
                 } catch (WorkException we) {
@@ -94,5 +102,18 @@ public class FileSystemEventDelegator implements Work {
 
     public void release() {
         released = true;
+    }
+
+    public ArrayList<FileStateChangeEvent> retainOnlyInterestingEvents(ArrayList<FileStateChangeEvent> fileStateChangeEventsToRaise) {
+        ArrayList<FileStateChangeEvent> eventsToRetain = new ArrayList<FileStateChangeEvent>();
+        for (FileStateChangeEvent event : fileStateChangeEventsToRaise) {
+            for (EndPointActivation activation : registeredActivations) {
+                if (activation.getActivationSpecImpl().isEndpointInterestedIn(event)) {
+                    eventsToRetain.add(event);
+                    break;
+                }
+            }
+        }
+        return eventsToRetain;
     }
 }
