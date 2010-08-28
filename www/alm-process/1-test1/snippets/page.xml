@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<page visibility="3"><component_list /></page>
+<page visibility="3"><component_list><component visibility="1" type="Documents" order="1"><title localize="false">test1</title><showtemplates>false</showtemplates></component></component_list></page>
