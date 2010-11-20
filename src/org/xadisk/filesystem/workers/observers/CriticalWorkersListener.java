@@ -27,6 +27,10 @@ public class CriticalWorkersListener implements WorkListener {
     }
 
     public void workRejected(WorkEvent we) {
+        //if we decide to use "scheduleWork" for any case with zero OR non-zero startTimeout,
+        //(in both cases) the work-rejected-due-to-starttimeout exception can come on this
+        //listener (which does not come to a listener when using startWork, because startWork returns only
+        //after starting the work, and so such starttimeout exception would directly come to the caller.
     }
 
     public void workStarted(WorkEvent we) {

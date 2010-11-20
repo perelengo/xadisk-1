@@ -2,17 +2,14 @@ package org.xadisk.filesystem.pools;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class SelectorPool implements ResourcePool<PooledSelector> {
 
-    private final AtomicInteger currentPoolSize;
     private final ConcurrentLinkedQueue<PooledSelector> freeSelectors;
     private final int idleTime;
 
     public SelectorPool(int idleTime) {
         this.idleTime = idleTime;
-        this.currentPoolSize = new AtomicInteger(0);
         this.freeSelectors = new ConcurrentLinkedQueue<PooledSelector>();
     }
 
@@ -35,21 +32,17 @@ public class SelectorPool implements ResourcePool<PooledSelector> {
 
     private PooledSelector allocateNewInCurrentPool() {
         PooledSelector newSelector = null;
-        while (true) {
-            try {
-                newSelector = new PooledSelector();
-            } catch (IOException ioe) {
-                //allocation failed...return null.
-            }
-            int temp = currentPoolSize.get();
-            if (currentPoolSize.compareAndSet(temp, temp + 1)) {
-                break;
-            }
+        try {
+            newSelector = new PooledSelector();
+            return newSelector;
+        } catch (IOException ioe) {
+            //allocation failed...return null.
+            return null;
         }
-        return newSelector;
     }
 
     public void checkIn(PooledSelector selector) {
+        selector.markFree();
         freeSelectors.offer(selector);
     }
 
@@ -61,9 +54,7 @@ public class SelectorPool implements ResourcePool<PooledSelector> {
                 break;
             }
             if (now - selector.getLastFreed() > idleTime) {
-                if (freeSelectors.remove(selector)) {
-                    currentPoolSize.decrementAndGet();
-                }
+                freeSelectors.remove(selector);
             } else {
                 break;
             }

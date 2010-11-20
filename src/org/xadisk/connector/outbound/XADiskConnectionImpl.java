@@ -1,6 +1,7 @@
 package org.xadisk.connector.outbound;
 
 import java.io.File;
+import org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnection;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
@@ -12,7 +13,7 @@ import org.xadisk.filesystem.exceptions.LockingFailedException;
 import org.xadisk.filesystem.exceptions.NoOngoingTransactionException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
-public class XADiskConnectionImpl implements XADiskConnection {
+public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConnection {
 
     private volatile XADiskManagedConnection mc;
     private final XADiskUserLocalTransaction userLocalTransaction;

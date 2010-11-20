@@ -5,6 +5,8 @@ import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
 /**
  * Represents an input stream to a file.
+ * This stream can further be wrapped by a utility class "XAFileInputStreamWrapper" to
+ * get easy pluggability via standard java.io's InputStream.
  */
 public interface XAFileInputStream {
 
@@ -73,4 +75,10 @@ public interface XAFileInputStream {
      * @return
      */
     public boolean isClosed();
+
+    /**
+     * Returns the current position in the stream. For a fresh stream, it is 0.
+     * @return The current position in the stream.
+     */
+    public long position();
 }

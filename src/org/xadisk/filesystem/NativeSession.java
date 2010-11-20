@@ -151,9 +151,7 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(f, true)) {
-                newLock = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            }
+            newLock = acquireLockIfRequired(f, true);
             checkPermission(WRITE_FILE, f);
             VirtualViewFile vvf = view.getVirtualViewFile(f);
             NativeXAFileOutputStream temp = NativeXAFileOutputStream.getCachedXAFileOutputStream(vvf, xid, heavyWrite, this);
@@ -182,14 +180,10 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(f, true)) {
-                newLocks[0] = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            }
+            newLocks[0] = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            if (!alreadyHaveALock(parentFile, true)) {
-                newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, parentFile, fileLockWaitTimeout);
-            }
+            newLocks[1] = acquireLockIfRequired(parentFile, true);
             view.createFile(f, isDirectory);
             byte operation = isDirectory ? TransactionLogEntry.DIR_CREATE : TransactionLogEntry.FILE_CREATE;
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
@@ -220,14 +214,10 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(f, true)) {
-                newLocks[0] = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            }
+            newLocks[0] = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            if (!alreadyHaveALock(parentFile, true)) {
-                newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, parentFile, fileLockWaitTimeout);
-            }
+            newLocks[1] = acquireLockIfRequired(parentFile, true);
             isDirectory = view.deleteFile(f);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
                     TransactionLogEntry.FILE_DELETE));
@@ -258,22 +248,14 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(src, true)) {
-                newLocks[0] = xaFileSystem.acquireExclusiveLock(xid, src, fileLockWaitTimeout);
-            }
-            if (!alreadyHaveALock(dest, true)) {
-                newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, dest, fileLockWaitTimeout);
-            }
+            newLocks[0] = acquireLockIfRequired(src, true);
+            newLocks[1] = acquireLockIfRequired(dest, true);
             File srcParentFile = src.getParentFile();
             checkValidParent(src);
             File destParentFile = dest.getParentFile();
             checkValidParent(dest);
-            if (!alreadyHaveALock(srcParentFile, true)) {
-                newLocks[2] = xaFileSystem.acquireExclusiveLock(xid, srcParentFile, fileLockWaitTimeout);
-            }
-            if (!alreadyHaveALock(destParentFile, true)) {
-                newLocks[3] = xaFileSystem.acquireExclusiveLock(xid, destParentFile, fileLockWaitTimeout);
-            }
+            newLocks[2] = acquireLockIfRequired(srcParentFile, true);
+            newLocks[3] = acquireLockIfRequired(destParentFile, true);
 
             if (view.fileExistsAndIsNormal(src)) {
                 view.moveNormalFile(src, dest);
@@ -303,7 +285,9 @@ public class NativeSession implements Session {
         } finally {
             if (!success) {
                 releaseLocks(newLocks);
-                xaFileSystem.releaseRenamePinOnDirectory(src);
+                if(isDirectoryMove) {
+                    xaFileSystem.releaseRenamePinOnDirectory(src);
+                }
             }
             asynchronousRollbackLock.unlock();
         }
@@ -319,18 +303,12 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(src, false)) {
-                newLocks[0] = xaFileSystem.acquireSharedLock(xid, src, fileLockWaitTimeout);
-            }
-            if (!alreadyHaveALock(dest, true)) {
-                newLocks[1] = xaFileSystem.acquireExclusiveLock(xid, dest, fileLockWaitTimeout);
-            }
+            newLocks[0] = acquireLockIfRequired(src, false);
+            newLocks[1] = acquireLockIfRequired(dest, true);
             File destParentFile = dest.getParentFile();
             checkValidParent(src);
             checkValidParent(dest);
-            if (!alreadyHaveALock(destParentFile, true)) {
-                newLocks[2] = xaFileSystem.acquireExclusiveLock(xid, destParentFile, fileLockWaitTimeout);
-            }
+            newLocks[2] = acquireLockIfRequired(destParentFile, true);
             checkPermission(READ_FILE, src);
             view.createFile(dest, false);
             VirtualViewFile srcFileInView = view.getVirtualViewFile(src);
@@ -473,9 +451,7 @@ public class NativeSession implements Session {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            if (!alreadyHaveALock(f, true)) {
-                newLock = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            }
+            newLock = acquireLockIfRequired(f, true);
             checkPermission(WRITE_FILE, f);
             if (view.isNormalFileBeingReadOrWritten(f)) {
                 //earlier we threw an exception here.
@@ -891,9 +867,6 @@ public class NativeSession implements Session {
                 xaFileSystem.getBufferPool().checkIn((PooledBuffer) buffer);
             }
         }
-        //todo: the client code may keep this Session object longer even after the txn compelted. Should
-        //we not cleanup other heaby DS here, eg by setting them "null" atleast. Note that there is no sense
-        //in wasting time here by calling "clear" : what we will do after cleaning them!!
     }
 
     private void releaseAllLocks() {

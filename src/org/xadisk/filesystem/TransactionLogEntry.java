@@ -11,9 +11,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
+import org.xadisk.bridge.proxies.facilitators.RemoteXADiskActivationSpecImpl;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.connector.inbound.EndPointActivation;
-import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 
 public class TransactionLogEntry {
 
@@ -252,7 +252,7 @@ public class TransactionLogEntry {
 
     public static byte[] getLogEntry(EndPointActivation remoteEPActivation, byte activation_deActivation) {
         try {
-            XADiskActivationSpecImpl as = remoteEPActivation.getActivationSpecImpl();
+            RemoteXADiskActivationSpecImpl ras = (RemoteXADiskActivationSpecImpl)(remoteEPActivation.getActivationSpecImpl());
             RemoteMessageEndpointFactory remoteMEPF = (RemoteMessageEndpointFactory) remoteEPActivation.getMessageEndpointFactory();
 
             byte[][] variableBytes = new byte[3][];
@@ -261,7 +261,7 @@ public class TransactionLogEntry {
             } else {
                 variableBytes[0] = remoteMEPF.getInvoker().getServerAddress().getBytes(UTF8Charset);
             }
-            variableBytes[1] = as.getFileNamesAndEventInterests().getBytes(UTF8Charset);
+            variableBytes[1] = ras.getFileNamesAndEventInterests().getBytes(UTF8Charset);
             variableBytes[2] = remoteMEPF.getXaDiskSystemId().getBytes(UTF8Charset);
 
             int variableBytesLength = 0;
@@ -286,7 +286,7 @@ public class TransactionLogEntry {
             buffer.putInt(variableBytes[1].length);
             buffer.put(variableBytes[1]);
 
-            buffer.putInt(as.getOriginalObjectsHashCode());
+            buffer.putInt(ras.getOriginalActivationSpecObjectsHashCode());
 
             buffer.putInt(variableBytes[2].length);
             buffer.put(variableBytes[2]);
@@ -407,13 +407,12 @@ public class TransactionLogEntry {
 
             long remoteObjectId = buffer.getLong();
 
-            XADiskActivationSpecImpl as = new XADiskActivationSpecImpl();
-            as.setOriginalObjectIsRemote(true);
-            as.setOriginalObjectsHashCode(originalASpecObjectHashCode);
-            as.setFileNamesAndEventInterests(fileNamesAndEventInterests);
+            RemoteXADiskActivationSpecImpl ras = new RemoteXADiskActivationSpecImpl();
+            ras.setOriginalActivationSpecObjectsHashCode(originalASpecObjectHashCode);
+            ras.setFileNamesAndEventInterests(fileNamesAndEventInterests);
             RemoteMessageEndpointFactory remoteMEPF = new RemoteMessageEndpointFactory(remoteObjectId, xaDiskSystemId,
                     new RemoteMethodInvoker(serverAddress, serverPort));
-            return new EndPointActivation(remoteMEPF, as);
+            return new EndPointActivation(remoteMEPF, ras);
         } catch (UnsupportedEncodingException uee) {
             //infeasible.
             return null;

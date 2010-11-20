@@ -83,7 +83,7 @@ public class FileSystemEventDelegator implements Work {
                 try {
                     if (interestedActivationPicked != null) {
                         workManager.startWork(new FileSystemEventProcessor(interestedActivationPicked.getMessageEndpointFactory(),
-                                event, xaFileSystem, eventQueue), 0, null, eventDispatchListener);
+                                event, xaFileSystem, eventQueue), WorkManager.INDEFINITE, null, eventDispatchListener);
                         //eventDispatchListener.workStarted(null);found glassfish sending
                         //an event on work start already.
                     }

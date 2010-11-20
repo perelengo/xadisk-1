@@ -4,7 +4,9 @@ import org.xadisk.filesystem.exceptions.ClosedStreamException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 
 /**
- * Represents an output stream to a file.
+ * Represents an output stream to a file. This stream always appends to the target file.
+ * This stream can further be wrapped by a utility class "XAFileOutputStreamWrapper" to
+ * get easy pluggability via standard java.io's OutputStream.
  */
 public interface XAFileOutputStream {
 

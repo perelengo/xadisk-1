@@ -20,8 +20,6 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
     private Boolean areFilesRemote;
     private String remoteServerAddress;
     private Integer remoteServerPort;
-    private boolean originalObjectIsRemote = false;
-    private int originalObjectsHashCode = this.hashCode();//this will get serialized too.
 
     public XADiskActivationSpecImpl() {
     }
@@ -76,10 +74,6 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
         this.ra = ra;
     }
 
-    public void setOriginalObjectIsRemote(boolean originalObjectIsRemote) {
-        this.originalObjectIsRemote = originalObjectIsRemote;
-    }
-
     public void validate() throws InvalidPropertyException {
         Iterator iter = fileNamesAndInterests.values().iterator();
         while (iter.hasNext()) {
@@ -106,15 +100,21 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
 
     /*
      * From JCA Spec:
-    "These objects, in general, should not override the default equals and hashCode methods."
-     * From Java API:
+    "These objects, in general, should not override the default equals and hashCode methods. However,
+     if these methods are overridden, they must preserve the equality
+     constraints based on Java object identity; that is, no two objects are considered equal."
+     * From Java API of Object class:
      * "As much as is reasonably practical, the hashCode method defined by class Object
     does return distinct integers for distinct objects."
      * We always compare the asSpec as part of Activation comparison, so by chance if
      * remote asSpec equals the local one, the MEF won't equal due to different classes.
      * But, anyway, for clarity keep a separate flag to know if remote.
+     * No "anyway". This created an issue on weblogic as reported by someone from the community,
+     * Weblogic reports a warning and good container citizens should not trigger warnings...so
+     * reverting these equals/hashcode overridden methods. The "different classes" will have to serve
+     * the purpose.
      */
-    @Override
+    /*@Override
     public boolean equals(Object obj) {
         if (obj instanceof XADiskActivationSpecImpl) {
             XADiskActivationSpecImpl that = (XADiskActivationSpecImpl) obj;
@@ -122,18 +122,11 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
                     && this.originalObjectsHashCode == that.originalObjectsHashCode;
         }
         return false;
-    }
+    }*/
 
-    @Override
+    /*@Override
     public int hashCode() {
         return this.originalObjectsHashCode;
-    }
+    }*/
 
-    public int getOriginalObjectsHashCode() {
-        return originalObjectsHashCode;
-    }
-
-    public void setOriginalObjectsHashCode(int originalObjectsHashCode) {
-        this.originalObjectsHashCode = originalObjectsHashCode;
-    }
 }

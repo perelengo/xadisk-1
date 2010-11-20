@@ -4,8 +4,9 @@ import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionManager;
+import org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnectionFactory;
 
-public class XADiskConnectionFactoryImpl implements XADiskConnectionFactory {
+public class XADiskConnectionFactoryImpl implements XADiskConnectionFactory, XADiskRemoteConnectionFactory {
 
     private final XADiskManagedConnectionFactory mcf;
     private final ConnectionManager cm;

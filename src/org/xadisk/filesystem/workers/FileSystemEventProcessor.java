@@ -8,6 +8,8 @@ import javax.resource.spi.endpoint.MessageEndpointFactory;
 import javax.resource.spi.work.Work;
 import javax.transaction.Status;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpoint;
+import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
+import org.xadisk.bridge.server.conversation.HostedContext;
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.connector.inbound.FileSystemEventListener;
 import org.xadisk.filesystem.FileStateChangeEvent;
@@ -52,6 +54,11 @@ public class FileSystemEventProcessor implements Work {
             mep.beforeDelivery(methodToInvoke);
             methodToInvoke.invoke(mep, event);
             mep.afterDelivery();
+
+            if(mef instanceof RemoteMessageEndpointFactory) {
+                HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+                globalCallbackContext.deHostObject(epXAR);
+            }
 
             mep.release();
             if (mep instanceof RemoteMessageEndpoint) {

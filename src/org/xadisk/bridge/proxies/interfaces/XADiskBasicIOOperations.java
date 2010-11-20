@@ -32,6 +32,8 @@ public interface XADiskBasicIOOperations {
 
     /**
      * Creates an input stream associated with the File "f".
+     * This stream can further be wrapped by a utility class "XAFileInputStreamWrapper" to
+     * get easy pluggability via standard java.io's InputStream.
      * @param f The target file from where to read.
      * @param lockExclusively If true, will acquire an exclusive (write) lock for the file.
      * @return the input stream object.
@@ -47,7 +49,13 @@ public interface XADiskBasicIOOperations {
             NoOngoingTransactionException, TransactionRolledbackException, InterruptedException;
 
     /**
-     * Creates an output stream associated with the File "f".
+     * Creates an output stream associated with the File "f". The File "f" should exist
+     * from the viewpoint of the ongoing transaction (i.e. if the file didn't exist before
+     * the transaction, it should be created first).
+     * This stream would always append to the file. To write at an arbitrary offset of the file, this method
+     * can be used along with truncateFile and the XAFileInputStream for example.
+     * This stream can further be wrapped by a utility class "XAFileOutputStreamWrapper" to
+     * get easy pluggability via standard java.io's OutputStream.
      * @param f The target file to which to write.
      * @param heavyWrite A clue for performance tuning. When writing a few 100 bytes set this to false.
      * @return the output stream object.

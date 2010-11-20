@@ -37,6 +37,12 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
         try {
             HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
             long objectId = globalCallbackContext.hostObject(xar);
+            //one problem was to deHost this xar at an appropriate time when its use is done. But its
+            //use may not be done with the end of mep.release(). Who knows, the remote TM sends txn
+            //related commands to this xar at some point quite later. No. Not so. Good news came from
+            //the JCA spec: "During the afterDelivery call from the resource adapter, the application server
+            //completes the transaction and sends transaction completion notifications to the
+            //XAResource instance".
             RemoteEventProcessingXAResource remoteEventProcessingXAResource = new RemoteEventProcessingXAResource(objectId,
                     NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
             RemoteMessageEndpoint remoteMEP =

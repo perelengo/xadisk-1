@@ -15,6 +15,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Set;
+import javax.resource.spi.endpoint.MessageEndpoint;
 import javax.resource.spi.work.Work;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -39,6 +40,7 @@ public class RemoteMethodInvocationHandler implements Work {
         this.selectorPool = NativeXAFileSystem.getXAFileSystem().getSelectorPool();
         this.pooledWriteSelector = selectorPool.checkOut();
         if (pooledWriteSelector == null) {
+            System.err.println("No more Selectors could be created.");
             throw new IOException("Could not get a Selector from the SelectorPool.");
         }
         this.writeSelector = pooledWriteSelector.getSelector();
@@ -149,6 +151,7 @@ public class RemoteMethodInvocationHandler implements Work {
             }
             //note that in case of method thrown exception, the remote arguments are not geting updated. That would be fine for current applications.
             response = context.convertToProxyResponseIfRequired(response);
+            checkForMessageEndpointRelease(targetObject, method);
         } catch (InvocationTargetException ite) {
             response = ite.getCause();
             isError = true;
@@ -168,6 +171,13 @@ public class RemoteMethodInvocationHandler implements Work {
         enabled = false;
         if (writeSelector.isOpen()) {
             writeSelector.wakeup();
+        }
+    }
+
+    private void checkForMessageEndpointRelease(Object targetObject, Method method) throws NoSuchMethodException {
+        if(method.equals(MessageEndpoint.class.getMethod("release", new Class[0]))) {
+            HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+            globalCallbackContext.deHostObject(targetObject);
         }
     }
 

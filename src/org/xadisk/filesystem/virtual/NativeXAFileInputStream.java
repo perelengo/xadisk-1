@@ -213,11 +213,25 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
+    //could not throw those rich exception below due to the wrapping by InputStream.mark method.
+    public long position() {
+        try {
+            asynchronousRollbackLock.lock();
+            if (!filledAtleastOnce) {
+                return 0;
+            }
+            return position - (byteBuffer.remaining() - headerLengthInByteBuffer);
+        } finally {
+            asynchronousRollbackLock.unlock();
+        }
+    }
+
     private int refillBuffer() {
         try {
             byteBuffer = cachedWritableByteBuffer;
             byteBuffer.clear();
             int numRead = 0;
+
             if (vvf.isUsingHeavyWriteOptimization()) {
                 numRead = vvf.fillUpContentsFromChannel(byteBuffer, position);
                 byteBuffer.flip();
@@ -228,6 +242,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                 this.headerLengthInByteBuffer = 0;
                 return numRead;
             }
+
             if (position <= vvf.getMappedToThePhysicalFileTill() - 1) {
                 long maxAmountToBeRead = vvf.getMappedToThePhysicalFileTill() - position;
                 if (maxAmountToBeRead < byteBuffer.limit()) {
@@ -242,31 +257,40 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                     filledAtleastOnce = true;
                 }
                 byteBuffer.flip();
-            } else {
-                Buffer newBuffer = vvf.getInMemoryContentBuffer(position);
-                if (newBuffer == null) {
-                    return -1;
-                }
-                newBuffer = newBuffer.createReadOnlyClone();
-                if (newBuffer.getBuffer() == null) {
-                    int offsetInNewBuffer = (int) (position - newBuffer.getFileContentPosition());
-                    numRead = newBuffer.regenerateContentFromDisk(byteBuffer, offsetInNewBuffer);
-                    if (numRead != -1) {
-                        position += numRead;
-                        filledAtleastOnce = true;
-                    }
-                } else {
-                    this.byteBuffer = newBuffer.getBuffer();
-                    int offsetInNewBuffer = (int) (position - newBuffer.getFileContentPosition());
-                    this.byteBuffer.position(newBuffer.getHeaderLength() + offsetInNewBuffer);
-                    this.byteBuffer.limit(newBuffer.getHeaderLength() + newBuffer.getFileContentLength());
-                    position = position + newBuffer.getFileContentLength() - offsetInNewBuffer;
-                    filledAtleastOnce = true;
-                    numRead = 0;
-                }
+                this.headerLengthInByteBuffer = 0;
+                return numRead;
             }
-            this.headerLengthInByteBuffer = this.byteBuffer.position();
-            return numRead;
+
+            //the only remaining case...
+
+            Buffer newBuffer = vvf.getInMemoryContentBuffer(position);
+            if (newBuffer == null) {
+                byteBuffer.flip();//to cancel the effect of above "clear". (a bug was
+                //reported where after an EOF once, again data started coming.
+                return -1;
+            }
+            newBuffer = newBuffer.createReadOnlyClone();
+            if (newBuffer.getBuffer() == null) {
+                int offsetInNewBuffer = (int) (position - newBuffer.getFileContentPosition());
+                numRead = newBuffer.regenerateContentFromDisk(byteBuffer, offsetInNewBuffer);
+                if (numRead != -1) {
+                    position += numRead;
+                    filledAtleastOnce = true;
+                }
+
+                this.headerLengthInByteBuffer = 0;
+                return numRead;
+            } else {
+                this.byteBuffer = newBuffer.getBuffer();
+                int offsetInNewBuffer = (int) (position - newBuffer.getFileContentPosition());
+                this.byteBuffer.position(newBuffer.getHeaderLength() + offsetInNewBuffer);
+                this.byteBuffer.limit(newBuffer.getHeaderLength() + newBuffer.getFileContentLength());
+                position = position + newBuffer.getFileContentLength() - offsetInNewBuffer;
+                filledAtleastOnce = true;
+
+                this.headerLengthInByteBuffer = this.byteBuffer.position();
+                return 0;
+            }
         } catch (IOException ioe) {
             theXAFileSystem.notifySystemFailure(ioe);
             return -1;

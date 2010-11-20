@@ -113,9 +113,6 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public Xid[] recover(int flag) throws XAException {
-        if (!xaFileSystem.getRecoveryWorker().isRecoveryDataCollectionDone()) {
-            throw new XAException(XAException.XAER_RMFAIL);
-        }
         if (flag == XAResource.TMSTARTRSCAN) {
             returnedAllPreparedTransactions = false;
         }

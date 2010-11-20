@@ -8,11 +8,11 @@ import javax.resource.spi.endpoint.MessageEndpointFactory;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import org.xadisk.bridge.proxies.facilitators.RemoteXADiskActivationSpecImpl;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.server.conversation.HostedContext;
-import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSystem {
@@ -102,10 +102,9 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
             RemoteMessageEndpointFactory remoteMessageEndpointFactory = new RemoteMessageEndpointFactory(objectId, xaDiskSystemId,
                     NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
 
-            XADiskActivationSpecImpl as = epActivation.getActivationSpecImpl();
-            as.setOriginalObjectIsRemote(true);
+            RemoteXADiskActivationSpecImpl ras = new RemoteXADiskActivationSpecImpl(epActivation.getActivationSpecImpl());
             EndPointActivation callbackEndPointActivation = new EndPointActivation(remoteMessageEndpointFactory,
-                    as);
+                    ras);
             invokeRemoteMethod("registerEndPointActivation", callbackEndPointActivation);
         } catch (IOException ioe) {
             throw ioe;
@@ -123,8 +122,8 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
             RemoteMessageEndpointFactory remoteMessageEndpointFactory =
                     new RemoteMessageEndpointFactory(objectId, xaDiskSystemId, null);
 
-            EndPointActivation callbackEndPointActivation = new EndPointActivation(remoteMessageEndpointFactory,
-                    epActivation.getActivationSpecImpl());
+            RemoteXADiskActivationSpecImpl ras = new RemoteXADiskActivationSpecImpl(epActivation.getActivationSpecImpl());
+            EndPointActivation callbackEndPointActivation = new EndPointActivation(remoteMessageEndpointFactory, ras);
             invokeRemoteMethod("deRegisterEndPointActivation", callbackEndPointActivation);
         } catch (IOException ioe) {
             throw ioe;

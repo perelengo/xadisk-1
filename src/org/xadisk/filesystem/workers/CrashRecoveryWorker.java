@@ -31,7 +31,6 @@ public class CrashRecoveryWorker implements Work {
     private final HashSet<XidImpl> onePhaseCommittingTransactions = new HashSet<XidImpl>(1000);
     private final HashSet<XidImpl> heavyWriteTransactionsForRollback = new HashSet<XidImpl>(1000);
     private volatile boolean released = false;
-    private volatile boolean isRecoveryDataCollectionDone = false;
     private volatile boolean logFilesCleaned = false;
     private final HashMap<XidImpl, HashSet> transactionsAndFilesWithLatestViewOnDisk = new HashMap<XidImpl, HashSet>(1000);
     private final ArrayList<XidImpl> committedTransactions = new ArrayList<XidImpl>(1000);
@@ -49,7 +48,7 @@ public class CrashRecoveryWorker implements Work {
         this.xaFileSystem = xaFileSystem;
     }
 
-    public void collectLogFileNamesToProcess() throws IOException {
+    private void collectLogFileNamesToProcess() throws IOException {
         String logsDir = xaFileSystem.getTransactionLogsDir();
         String logNames[] = FileIOUtility.listDirectoryContents(new File(logsDir));
 
@@ -73,25 +72,33 @@ public class CrashRecoveryWorker implements Work {
         }
     }
 
-    public boolean isRecoveryDataCollectionDone() {
-        return isRecoveryDataCollectionDone;
+    public void collectRecoveryData() throws IOException {
+        //earlier we had all the "content" of this method inside the run method, and the run
+        //method used to run "from back of the bootup", i.e. the bootup process only started this
+        //recovery worker, and everything would happen asynchly and most likely after completing the
+        //bootup. The problem there was a probable call from TM "recover()" where XADisk was supposed
+        //to return all prepared transactions; what if recovery worker hasn't completed collecting
+        //these prepared txn list. So, we came to the current solution: collect data inside booting.
+        //Changes to THIS object will be made in this method using the booting thread and later used
+        //by the worker thread; but that is not a problem as the worker thread would be created after
+        //completion of this method; so changes would be reflected across probable different "processors".
+        collectLogFileNamesToProcess();
+        for (FileChannel logCh : logChannels.values()) {
+            if (released) {
+                return;
+            }
+            findInCompleteTransactions(logCh.position(0));
+        }
+        for (Integer logIndex : logChannels.keySet()) {
+            if (released) {
+                return;
+            }
+            collectTransactionLogPositions(logChannels.get(logIndex).position(0), logIndex);
+        }
     }
 
     public void run() {
         try {
-            for (FileChannel logCh : logChannels.values()) {
-                if (released) {
-                    return;
-                }
-                findInCompleteTransactions(logCh.position(0));
-            }
-            for (Integer logIndex : logChannels.keySet()) {
-                if (released) {
-                    return;
-                }
-                collectTransactionLogPositions(logChannels.get(logIndex).position(0), logIndex);
-            }
-            isRecoveryDataCollectionDone = true;
             registerRemoteEndpoints();
             recoverOnePhaseTransactions();
             recoverHeavyWriteTransactionsForRollback();

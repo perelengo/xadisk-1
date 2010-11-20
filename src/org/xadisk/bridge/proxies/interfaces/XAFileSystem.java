@@ -35,7 +35,10 @@ public interface XAFileSystem {
     /**
      * Waits for this XADisk instance to complete its booting and become ready to use. The timeout
      * specifies the maximum amount of time to wait; if timeout expires an appropriate exception is
-     * thrown indicating the reason of why the booting hasn't yet completed.
+     * thrown indicating the reason of why the booting hasn't yet completed. Note that XADisk completes
+     * all of its local transactions and XA transactions before calling it a "boot completion".
+     * For in-doubt XA transactions, an XADisk instance waits for the Transaction Manager to
+     * know the transaction decision; this waiting further delays the boot completion.
      * @param timeout Number of milliseconds to wait.
      * @throws InterruptedException
      */

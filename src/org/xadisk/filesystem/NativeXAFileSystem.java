@@ -103,13 +103,13 @@ public class NativeXAFileSystem implements XAFileSystem {
             bufferPool = new BufferPool(configuration.getDirectBufferPoolSize(), configuration.getNonDirectBufferPoolSize(),
                     configuration.getBufferSize(), configuration.getDirectBufferIdleTime(),
                     configuration.getNonDirectBufferIdleTime(), this);
-            selectorPool = new SelectorPool(1000);//todo: make it configurable if required...think.
+            selectorPool = new SelectorPool(1000);
             gatheringDiskWriter = new GatheringDiskWriter(configuration.getCumulativeBufferSizeForDiskWrite(),
                     configuration.getTransactionLogFileMaxSize(), configuration.getMaxNonPooledBufferSize(),
                     transactionLogFileBaseName, this);
             recoveryWorker = new CrashRecoveryWorker(this);
             bufferPoolReliever = new ObjectPoolReliever(bufferPool, configuration.getBufferPoolRelieverInterval());
-            selectorPoolReliever = new ObjectPoolReliever(selectorPool, 1000);//todo: make it configurable if required...think.
+            selectorPoolReliever = new ObjectPoolReliever(selectorPool, 1000);
             resourceDependencyGraph = new ResourceDependencyGraph();
             deadLockDetector = new DeadLockDetector(configuration.getDeadLockDetectorInterval(), resourceDependencyGraph,
                     this);
@@ -124,17 +124,17 @@ public class NativeXAFileSystem implements XAFileSystem {
             FileIOUtility.createDirectoriesIfRequired(deadLetterDir);
             this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir);
 
-            workManager.startWork(deadLockDetector, 0, null, workListener);
-            workManager.startWork(bufferPoolReliever, 0, null, workListener);
-            workManager.startWork(selectorPoolReliever, 0, null, workListener);
-            workManager.startWork(fileSystemEventDelegator, 0, null, workListener);
-            workManager.startWork(transactionTimeoutDetector, 0, null, workListener);
-            workManager.startWork(pointOfContact, 0, null, workListener);
+            workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(bufferPoolReliever, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(selectorPoolReliever, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(fileSystemEventDelegator, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(transactionTimeoutDetector, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(pointOfContact, WorkManager.INDEFINITE, null, workListener);
 
-            recoveryWorker.collectLogFileNamesToProcess();
+            recoveryWorker.collectRecoveryData();
             gatheringDiskWriter.initialize();
-            workManager.startWork(gatheringDiskWriter, 0, null, workListener);
-            workManager.startWork(recoveryWorker, 0, null, workListener);
+            workManager.startWork(gatheringDiskWriter, WorkManager.INDEFINITE, null, workListener);
+            workManager.startWork(recoveryWorker, WorkManager.INDEFINITE, null, workListener);
 
         } catch (Exception e) {
             throw new XASystemException(e);
@@ -229,9 +229,6 @@ public class NativeXAFileSystem implements XAFileSystem {
     //todo : confirm that recover on XAR/here will be called only by one thread and not in parallel by more
     //then one thread.
     public Xid[] recover(int flag) throws XAException {
-        if (!recoveryWorker.isRecoveryDataCollectionDone()) {
-            throw new XAException(XAException.XAER_RMFAIL);
-        }
         if (flag == XAResource.TMSTARTRSCAN) {
             returnedAllPreparedTransactions = false;
         }
@@ -526,7 +523,7 @@ public class NativeXAFileSystem implements XAFileSystem {
     }
 
     public void startWork(Work work) throws WorkException {
-        workManager.startWork(work, 0, null, workListener);
+        workManager.startWork(work, WorkManager.INDEFINITE, null, workListener);
     }
 
     ResourceDependencyGraph getResourceDependencyGraph() {
