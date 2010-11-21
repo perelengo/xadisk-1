@@ -135,7 +135,9 @@ public class XADiskManagedConnection implements ManagedConnection {
 
     void connectionClosed(XADiskConnection connection) {
         connectionHandles.remove(connection);
-        raiseConnectionEvent(new ConnectionEvent(this, ConnectionEvent.CONNECTION_CLOSED));
+        ConnectionEvent connectionEvent = new ConnectionEvent(this, ConnectionEvent.CONNECTION_CLOSED);
+        connectionEvent.setConnectionHandle(connection);
+        raiseConnectionEvent(connectionEvent);
     }
 
     private void raiseConnectionEvent(ConnectionEvent ce) {

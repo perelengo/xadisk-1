@@ -46,7 +46,7 @@ public class XADiskManagedConnectionFactory implements ManagedConnectionFactory 
             return null;
         }
         Object mc = candidates.iterator().next();
-        if (mc instanceof ManagedConnection) {
+        if (mc instanceof XADiskManagedConnection) {
             return (XADiskManagedConnection) mc;
         }
         return null;

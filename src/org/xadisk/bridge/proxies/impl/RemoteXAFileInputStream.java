@@ -74,7 +74,7 @@ public class RemoteXAFileInputStream extends RemoteObjectProxy implements XAFile
             throw assertExceptionHandling(t);
         }
     }
-
+    
     public int read(byte[] b) throws ClosedStreamException, TransactionRolledbackException {
         try {
             ByteArrayRemoteReference ref = new ByteArrayRemoteReference(b, 0, b.length);
