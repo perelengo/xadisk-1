@@ -9,10 +9,12 @@ import javax.resource.spi.ConnectionRequestInfo;
 import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.security.auth.Subject;
+import org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnectionFactory;
 
 public class XADiskManagedConnectionFactory implements ManagedConnectionFactory {
 
-    private volatile PrintWriter logWriter;
+    private static final long serialVersionUID = 98667567L;
+    private transient volatile PrintWriter logWriter;
 
     public XADiskManagedConnectionFactory() {
     }
@@ -67,8 +69,8 @@ public class XADiskManagedConnectionFactory implements ManagedConnectionFactory 
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof XADiskManagedConnectionFactory) {
-            XADiskManagedConnectionFactory mcf = (XADiskManagedConnectionFactory) obj;
+        if (obj instanceof XADiskManagedConnectionFactory
+                && !(obj instanceof XADiskRemoteManagedConnectionFactory)) {
             return true;
         }
         return false;

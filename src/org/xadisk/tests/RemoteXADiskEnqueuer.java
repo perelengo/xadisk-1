@@ -9,7 +9,8 @@ public class RemoteXADiskEnqueuer {
         try {
             RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", 9998);
             Session s = xafs.createSessionForLocalTransaction();
-            File f = new File("C:\\a.txt");
+            String TEST_ROOT = "C:";
+            File f = new File(TEST_ROOT + "\\a.txt");
             if(s.fileExists(f, true)) {
                 s.deleteFile(f);
             }

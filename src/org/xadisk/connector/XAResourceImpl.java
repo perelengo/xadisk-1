@@ -130,7 +130,7 @@ public class XAResourceImpl implements XAResource {
     }
 
     public void forget(Xid xid) throws XAException {
-        Xid internalXid = mapToInternalXid(xid);
+        //Xid internalXid = mapToInternalXid(xid);
     }
 
     public boolean isSameRM(XAResource xar) throws XAException {
@@ -146,11 +146,7 @@ public class XAResourceImpl implements XAResource {
                 }
             }
             //here, means this.mc is pointing to native xadisk.
-            if (that.mc instanceof XADiskManagedConnection) {
-                return true;
-            } else {
-                return false;
-            }
+            return true;
         }
         return false;
     }

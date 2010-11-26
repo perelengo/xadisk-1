@@ -224,9 +224,11 @@ public class XADiskManagedConnection implements ManagedConnection {
             case LOCAL_TRANSACTION:
                 sessionOfLocalTransaction.setPublishFileStateChangeEventsOnCommit(
                         publishFileStateChangeEventsOnCommit);
+                break;
             case XA_TRANSACTION:
                 sessionOfXATransaction.setPublishFileStateChangeEventsOnCommit(
                         publishFileStateChangeEventsOnCommit);
+                break;
         }
     }
 }

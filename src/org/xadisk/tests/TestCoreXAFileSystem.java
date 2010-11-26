@@ -2,6 +2,7 @@ package org.xadisk.tests;
 
 import com.sun.jdi.Bootstrap;
 import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.Connector.StringArgument;
 import com.sun.jdi.connect.LaunchingConnector;
 import java.io.File;
@@ -13,27 +14,17 @@ import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 public class TestCoreXAFileSystem {
 
     private static final String SEPERATOR = File.separator;
-    private static final String currentWorkingDirectory = System.getProperty("user.dir");
-    private static final String topLevelTestDirectory = currentWorkingDirectory + SEPERATOR + "testXADiskSystem";
-    private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
-    private static boolean testCrashRecovery;
-    public static int concurrencyLevel;
-    private static int numberOfCrashes;
-    public static int maxConcurrentDeliveries;
+    private static final String topLevelTestDirectory = Configuration.getTestRootDirectory();
+    private static final String XADiskSystemDirectory = Configuration.getXADiskSystemDirectory();
     private static final String forRunningTests = "forRunningTests";
     private static final String transactionDemarcatingThread = "TestThreadObservedByJDI";
+    static boolean testCrashRecovery;
+    static int concurrencyLevel;
+    static int numberOfCrashes;
+    static int maxConcurrentDeliveries;
 
     public static void main(String args[]) {
         try {
-            CoreXAFileSystemTests.testHighNumber = false;
-            CoreXAFileSystemTests.testProgressive = false;
-            CoreXAFileSystemTests.usePessimisticLock = true;
-            TestUtility.remoteXAFileSystem = false;
-            testCrashRecovery = false;
-            concurrencyLevel = 1;
-            numberOfCrashes = 100;
-            maxConcurrentDeliveries = 2;
-
             if (args.length > 0 && args[0].equals(forRunningTests)) {
                 System.out.println("Entered into the main of childJVM " + forRunningTests);
                 test(false);
@@ -68,7 +59,7 @@ public class TestCoreXAFileSystem {
     private static VirtualMachine powerOnJVMAsDebugee(String purpose)
             throws Exception {
         LaunchingConnector connector = Bootstrap.virtualMachineManager().defaultConnector();
-        Map connectorArguments = connector.defaultArguments();
+        Map<String, ? extends Argument> connectorArguments = connector.defaultArguments();
         StringArgument mainArgument = (StringArgument) connectorArguments.get("main");
         mainArgument.setValue(org.xadisk.tests.TestCoreXAFileSystem.class.getName() + " " + purpose);
         StringArgument optionsArgument = (StringArgument) connectorArguments.get("options");
@@ -103,7 +94,7 @@ public class TestCoreXAFileSystem {
             configuration.setDeadLockDetectorInterval(2);
             configuration.setLockTimeOut(10 * 1000);
             configuration.setServerAddress("localhost");
-            configuration.setServerPort(5151);
+            configuration.setServerPort(Configuration.getNextServerPort());
             NativeXAFileSystem nativeXAFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             nativeXAFileSystem.waitForBootup(-1);
 
@@ -112,32 +103,20 @@ public class TestCoreXAFileSystem {
             Class.forName(org.xadisk.filesystem.workers.GatheringDiskWriter.class.getName());
             ArrayList<Thread> allThreads = new ArrayList<Thread>();
             Thread tests[] = new Thread[4];
+
             for (int testReplica = 1; testReplica <= concurrencyLevel; testReplica++) {
-                if (postCrash) {
-                    tests[0] = new Thread(new RunnableTest(CoreXAFileSystemTests.testConcurrentMoneyTransferPostCrash,
-                            topLevelTestDirectory + SEPERATOR + "moneyTransfer" + testReplica));
-                    tests[1] = new Thread(new RunnableTest(CoreXAFileSystemTests.testDynamicReadWritePostCrash,
-                            topLevelTestDirectory + SEPERATOR + "dynamicReadWrite" + testReplica));
-                    tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIOOperationsPostCrash,
-                            topLevelTestDirectory + SEPERATOR + "ioOperations" + testReplica));
-                    tests[3] = new Thread(new RunnableTest(CoreXAFileSystemTests.testFileSystemEventingPostCrash,
-                            topLevelTestDirectory + SEPERATOR + "eventingSystems" + testReplica));
-                } else {
-                    tests[0] = new Thread(new RunnableTest(CoreXAFileSystemTests.testConcurrentMoneyTransfer,
-                            topLevelTestDirectory + SEPERATOR + "moneyTransfer" + testReplica));
-                    tests[1] = new Thread(new RunnableTest(CoreXAFileSystemTests.testDynamicReadWrite,
-                            topLevelTestDirectory + SEPERATOR + "dynamicReadWrite" + testReplica));
-                    tests[2] = new Thread(new RunnableTest(CoreXAFileSystemTests.testIOOperations,
-                            topLevelTestDirectory + SEPERATOR + "ioOperations" + testReplica));
-                    tests[3] = new Thread(new RunnableTest(CoreXAFileSystemTests.testFileSystemEventing,
-                            topLevelTestDirectory + SEPERATOR + "eventingSystem" + testReplica));
+                int threadIndex = 0;
+                for (CoreXAFileSystemTests.testNames testName : CoreXAFileSystemTests.testNames.values()) {
+                    if (testName.name().contains("Crash") && postCrash
+                            || !testName.name().contains("Crash") && !postCrash) {
+                        tests[threadIndex++] = new Thread(new RunnableTest(testName,
+                                topLevelTestDirectory + SEPERATOR + testName + testReplica));
+                    }
                 }
                 for (int i = 0; i < 4; i++) {
-                    if (i == 2) {
-                        tests[i].setName(transactionDemarcatingThread);
-                        tests[i].start();
-                        allThreads.add(tests[i]);
-                    }
+                    tests[i].setName(transactionDemarcatingThread);
+                    tests[i].start();
+                    allThreads.add(tests[i]);
                 }
             }
             TestUtility.waitForAllAtHeaven(allThreads);

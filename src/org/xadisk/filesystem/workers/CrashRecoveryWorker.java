@@ -32,7 +32,7 @@ public class CrashRecoveryWorker implements Work {
     private final HashSet<XidImpl> heavyWriteTransactionsForRollback = new HashSet<XidImpl>(1000);
     private volatile boolean released = false;
     private volatile boolean logFilesCleaned = false;
-    private final HashMap<XidImpl, HashSet> transactionsAndFilesWithLatestViewOnDisk = new HashMap<XidImpl, HashSet>(1000);
+    private final HashMap<XidImpl, HashSet<File>> transactionsAndFilesWithLatestViewOnDisk = new HashMap<XidImpl, HashSet<File>>(1000);
     private final ArrayList<XidImpl> committedTransactions = new ArrayList<XidImpl>(1000);
     private final HashMap<XidImpl, ArrayList<FileStateChangeEvent>> eventsEnqueuePreparedOnly =
             new HashMap<XidImpl, ArrayList<FileStateChangeEvent>>(1000);
@@ -299,11 +299,11 @@ public class CrashRecoveryWorker implements Work {
         return eventsDequeuePrepared;
     }
 
-    public HashSet getFilesOnDiskForTransaction(XidImpl xid) {
+    public HashSet<File> getFilesOnDiskForTransaction(XidImpl xid) {
         return transactionsAndFilesWithLatestViewOnDisk.get(xid);
     }
 
-    private class TransactionCompleter implements Work {
+    private static class TransactionCompleter implements Work {
 
         private NativeSession session;
         private final CrashRecoveryWorker crashRecoveryWorker;

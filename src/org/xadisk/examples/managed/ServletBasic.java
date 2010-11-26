@@ -36,6 +36,7 @@ public class ServletBasic extends HttpServlet {
         PrintWriter out = response.getWriter();
         UserTransaction utx = null;
         XADiskConnection connection = null;
+        String TEST_ROOT = "C:";
         try {
             out.println("<html><head><title>Servlet ServletBasic</title></head><body>");
             out.println("<h1>Servlet ServletBasic at " + request.getContextPath () + "</h1>");
@@ -56,9 +57,9 @@ public class ServletBasic extends HttpServlet {
             out.println("[We could also have done some work on database, JMS etc and all of the work " +
                     "will then become part of the same global transaction.]<br>");
 
-            File f = new File("C:\\servlet.txt");
+            File f = new File(TEST_ROOT + "\\servlet.txt");
             if(connection.fileExists(f, true)) { //"true" for pessimistic locking over the file.
-                connection.moveFile(f, new File("C:\\backup.txt_" + System.currentTimeMillis()));
+                connection.moveFile(f, new File(TEST_ROOT + "\\backup.txt_" + System.currentTimeMillis()));
             } else {
                 connection.createFile(f, false);//"false" for creating normal files, "true" for directories.
             }

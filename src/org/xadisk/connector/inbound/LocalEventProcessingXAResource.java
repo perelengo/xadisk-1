@@ -17,6 +17,7 @@ import org.xadisk.filesystem.XidImpl;
 public class LocalEventProcessingXAResource implements XAResource {
 
     private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>(1000);
+    private final Object lockOnInternalXids = new ArrayList<Object>(0);
     private final NativeXAFileSystem xaFileSystem;
     private final FileStateChangeEvent event;
     private volatile boolean returnedAllPreparedTransactions = false;
@@ -37,7 +38,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public void start(Xid xid, int flags) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        //XidImpl xidImpl = mapToInternalXid(xid);
         if (flags == XAResource.TMNOFLAGS) {
         } else {
             //unexpected.
@@ -45,7 +46,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public void end(Xid xid, int flags) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        //XidImpl xidImpl = mapToInternalXid(xid);
     }
 
     public int prepare(Xid xid) throws XAException {
@@ -109,7 +110,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public void forget(Xid xid) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        //XidImpl xidImpl = mapToInternalXid(xid);
     }
 
     public Xid[] recover(int flag) throws XAException {
@@ -151,7 +152,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     private XidImpl mapToInternalXid(Xid xid) {
-        synchronized (internalXids) {
+        synchronized (lockOnInternalXids) {
             XidImpl internalXid = internalXids.get(xid);
             if (internalXid == null) {
                 internalXid = new XidImpl(xid);

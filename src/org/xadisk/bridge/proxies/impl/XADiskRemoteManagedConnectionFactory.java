@@ -1,7 +1,6 @@
 package org.xadisk.bridge.proxies.impl;
 
 import java.io.IOException;
-import java.util.Set;
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionManager;
 import javax.resource.spi.ConnectionRequestInfo;
@@ -58,7 +57,7 @@ public class XADiskRemoteManagedConnectionFactory extends XADiskManagedConnectio
     public boolean equals(Object obj) {
         if (obj instanceof XADiskRemoteManagedConnectionFactory) {
             XADiskRemoteManagedConnectionFactory mcf = (XADiskRemoteManagedConnectionFactory) obj;
-            return (mcf.serverAddress == null ? this.serverAddress == null : mcf.serverAddress.equals(this.serverAddress)) && mcf.serverPort == this.serverPort;
+            return (mcf.serverAddress == null ? this.serverAddress == null : mcf.serverAddress.equals(this.serverAddress)) && mcf.serverPort.equals(this.serverPort);
         }
         return false;
     }

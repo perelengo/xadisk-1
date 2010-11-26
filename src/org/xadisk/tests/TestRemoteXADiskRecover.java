@@ -35,14 +35,14 @@ public class TestRemoteXADiskRecover {
             as.setAreFilesRemote("true");
             as.setRemoteServerAddress("localhost");
             as.setRemoteServerPort("9998");
-            as.setFileNamesAndEventInterests("C:\\::111");
+            as.setFileNamesAndEventInterests(currentWorkingDirectory + "\\::111");
             EndPointActivation activation = new EndPointActivation(mef, as);
 
             RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", 9998);
             xafs.registerEndPointActivation(activation);
 
             Session session = xafs.createSessionForLocalTransaction();
-            File c = new File("C:\\remotelyCreated.txt");
+            File c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
             if (session.fileExists(c, true)) {
                 session.deleteFile(c);
             }
@@ -51,7 +51,7 @@ public class TestRemoteXADiskRecover {
             session.commit();
 
             session = xafs.createSessionForLocalTransaction();
-            c = new File("C:\\remotelyCreated.txt");
+            c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
             if (session.fileExists(c, true)) {
                 session.deleteFile(c);
             }
@@ -84,7 +84,7 @@ public class TestRemoteXADiskRecover {
             xafs.registerEndPointActivation(activation);
 
             session = xafs.createSessionForLocalTransaction();
-            c = new File("C:\\remotelyCreated.txt");
+            c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
             if (session.fileExists(c, true)) {
                 session.deleteFile(c);
             }
@@ -100,7 +100,7 @@ public class TestRemoteXADiskRecover {
             xafs = new RemoteXAFileSystem("localhost", 9998);
 
             session = xafs.createSessionForLocalTransaction();
-            c = new File("C:\\remotelyCreated.txt");
+            c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
             if (session.fileExists(c, true)) {
                 session.deleteFile(c);
             }

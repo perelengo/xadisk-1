@@ -2,6 +2,7 @@ package org.xadisk.bridge.proxies.facilitators;
 
 public class ByteArrayRemoteReference extends OptimizedRemoteReference<byte[]> {
 
+    private static final long serialVersionUID = 9678657576453L;
     private transient byte[] originalByteArray;
     private int lengthForUpdate;
     private transient int offsetForUpdate;

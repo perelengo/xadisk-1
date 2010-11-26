@@ -135,10 +135,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -164,10 +167,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -197,10 +203,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLocks);
+            try {
+                if (!success) {
+                    releaseLocks(newLocks);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -230,10 +239,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLocks);
+            try {
+                if (!success) {
+                    releaseLocks(newLocks);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -283,13 +295,16 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLocks);
-                if(isDirectoryMove) {
-                    xaFileSystem.releaseRenamePinOnDirectory(src);
+            try {
+                if (!success) {
+                    releaseLocks(newLocks);
+                    if(isDirectoryMove) {
+                        xaFileSystem.releaseRenamePinOnDirectory(src);
+                    }
                 }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -328,10 +343,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLocks);
+            try {
+                if (!success) {
+                    releaseLocks(newLocks);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -357,10 +375,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -386,10 +407,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -409,10 +433,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -436,10 +463,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 
@@ -474,10 +504,13 @@ public class NativeSession implements Session {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            if (!success) {
-                releaseLocks(newLock);
+            try {
+                if (!success) {
+                    releaseLocks(newLock);
+                }
+            } finally {
+                asynchronousRollbackLock.unlock();
             }
-            asynchronousRollbackLock.unlock();
         }
     }
 

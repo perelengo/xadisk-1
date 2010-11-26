@@ -47,7 +47,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
                     NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
             RemoteMessageEndpoint remoteMEP =
                     (RemoteMessageEndpoint) invokeRemoteMethod("createEndpoint", remoteEventProcessingXAResource);
-            remoteMEP.setInvoker((RemoteMethodInvoker) this.invoker.clone());
+            remoteMEP.setInvoker((RemoteMethodInvoker) this.invoker.makeCopy());
             return remoteMEP;
         } catch (UnavailableException ue) {
             throw ue;

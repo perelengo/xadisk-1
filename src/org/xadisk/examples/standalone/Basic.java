@@ -24,18 +24,19 @@ public class Basic {
     public static void main(String args[]) {
         XAFileSystem xaf = null;
         try {
-            String XADiskSystemDirectory = "C:\\XADiskSystem";
+            String XADISK_SYSTEM_DIRECTORY = "C:\\XADiskSystem";
+            String TEST_ROOT = "C:";
             /* if the specified XADiskSystemDirectory doesn't exist, it will be created automatically.
              * The contents of this directory should not be modified manually or any other software. In case you ever want to run
              * multiple applications on a single machine with XADisk, there are 2 requirements:
              * 1. Those multiple applications shouldn't work on common files/directories.
              * 2. Each one of them should use a different value for the XADiskSystemDirectory.
              */
-            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
+            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADISK_SYSTEM_DIRECTORY);
             xaf = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             xaf.waitForBootup(10000L);
 
-            File testFile = new File("C:\\test.txt");
+            File testFile = new File(TEST_ROOT + "\\test.txt");
 
             Session session = xaf.createSessionForLocalTransaction();
             session.createFile(testFile, false);

@@ -2,11 +2,13 @@ package org.xadisk.filesystem;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import javax.transaction.xa.Xid;
 import org.xadisk.filesystem.ResourceDependencyGraph.Node;
 
 public class XidImpl implements Xid, Serializable {
 
+    private static final long serialVersionUID = 548753809L;
     public static final byte INTERRUPTED_DUE_TO_DEADLOCK = 1;
     public static final byte INTERRUPTED_DUE_TO_TIMEOUT = 2;
     private final byte[] gid;
@@ -14,8 +16,8 @@ public class XidImpl implements Xid, Serializable {
     private final int formatId;
     private transient volatile ResourceDependencyGraph.Node nodeInResourceDependencyGraph = null;
     private transient volatile byte interruptCause = 0;
-    public final Integer interruptFlagLock = new Integer(1);//making it transient means it would be seen as null
-    //in the remote xadisk, and was giving NPE. We also made this integer as Object is not serializable. Doesn't
+    public final Object interruptFlagLock = new ArrayList<Object>(0);//making it transient means it would be seen as null
+    //in the remote xadisk, and was giving NPE. We also made this String as Object is not serializable. Doesn't
     //matter what is the actual Object anyway.
     private transient NativeSession owningSession;
 

@@ -83,7 +83,7 @@ public class NativeXAFileSystem implements XAFileSystem {
     private final File topLevelBackupDir;
     private File currentBackupDirPath;
     private AtomicLong backupFileNameCounter = new AtomicLong(0);
-    private final int maxFilesInBackupDirectory = 100000;
+    private static final int maxFilesInBackupDirectory = 100000;
     private final int defaultTransactionTimeout;
     private final GlobalHostedContext globalCallbackContext = new GlobalHostedContext();
 
@@ -95,10 +95,10 @@ public class NativeXAFileSystem implements XAFileSystem {
             if (!topLevelBackupDir.isDirectory()) {
                 FileIOUtility.createDirectory(topLevelBackupDir);
             }
-            NativeXAFileSystem.logger = new Logger(new File(configuration.getXaDiskHome(), "debug.log"),
+            NativeXAFileSystem.logger = new Logger(new File(XADiskHome, "debug.log"),
                     (byte) configuration.getLogLevel().byteValue());
-            transactionLogsDir = configuration.getXaDiskHome() + File.separator + "txnlogs";
-            new File(transactionLogsDir).mkdirs();
+            transactionLogsDir = XADiskHome + File.separator + "txnlogs";
+            FileIOUtility.createDirectoriesIfRequired(new File(transactionLogsDir));
             transactionLogFileBaseName = transactionLogsDir + File.separator + "xadisk.log";
             bufferPool = new BufferPool(configuration.getDirectBufferPoolSize(), configuration.getNonDirectBufferPoolSize(),
                     configuration.getBufferSize(), configuration.getDirectBufferIdleTime(),

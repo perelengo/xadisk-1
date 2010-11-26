@@ -41,7 +41,7 @@ public class ResourceDependencyGraph {
     return n;
     }*/
     
-    public class Node {
+    public static class Node {
 
         private final Object id;
         private final ArrayList<Node> neighbors = new ArrayList<Node>(10);

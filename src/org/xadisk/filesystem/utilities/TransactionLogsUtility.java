@@ -28,9 +28,7 @@ public class TransactionLogsUtility {
         }
         for (Integer logFileIndex : logsOccupied) {
             Integer numTxns = transactionLogsAndOpenTransactions.get(logFileIndex);
-            if (numTxns != null) {
-                numTxns--;
-            }
+            numTxns--;
             if (numTxns == 0 && currentLogIndex != logFileIndex) {
                 FileIOUtility.deleteFile(new File(transactionLogBaseName + "_" + logFileIndex));
             } else {
@@ -54,7 +52,7 @@ public class TransactionLogsUtility {
         if (txnFirstTimeInThisLog) {
             Integer numTxns = transactionLogsAndOpenTransactions.get(logFileIndex);
             if (numTxns == null) {
-                numTxns = new Integer(0);
+                numTxns = Integer.valueOf(0);
             }
             numTxns++;
             transactionLogsAndOpenTransactions.put(logFileIndex, numTxns);

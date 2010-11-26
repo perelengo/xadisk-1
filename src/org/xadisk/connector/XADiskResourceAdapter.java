@@ -1,6 +1,5 @@
 package org.xadisk.connector;
 
-import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import java.io.IOException;
@@ -16,7 +15,6 @@ import javax.resource.spi.ResourceAdapter;
 import javax.resource.spi.ResourceAdapterInternalException;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
 import javax.transaction.xa.XAResource;
-import org.xadisk.bridge.proxies.impl.RemoteEventProcessingXAResource;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.filesystem.FileSystemConfiguration;
@@ -25,7 +23,8 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class XADiskResourceAdapter extends FileSystemConfiguration implements ResourceAdapter, Serializable {
 
-    private NativeXAFileSystem xaFileSystem;
+    private static final long serialVersionUID = 2365678787L;
+    private transient NativeXAFileSystem xaFileSystem;
 
     public void start(BootstrapContext bsContext) throws ResourceAdapterInternalException {
         try {

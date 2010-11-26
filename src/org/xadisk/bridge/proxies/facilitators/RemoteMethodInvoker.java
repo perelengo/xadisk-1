@@ -15,6 +15,7 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class RemoteMethodInvoker implements Serializable {
 
+    private static final long serialVersionUID = 76986789L;
     private final String serverAddress;
     private final int serverPort;
     private transient SocketChannel channel;
@@ -27,8 +28,15 @@ public class RemoteMethodInvoker implements Serializable {
         this.serverPort = serverPort;
     }
 
-    @Override
+    /*@Override
+     * Not overriding clone. The javaDoc says : "By convention, the returned object
+     * should be obtained by calling super.clone". As we are not doing that, so we
+     * won't "occupy/defame" the clone() method.
     public Object clone() throws CloneNotSupportedException {
+        return new RemoteMethodInvoker(serverAddress, serverPort);
+    }*/
+
+    public RemoteMethodInvoker makeCopy() {
         return new RemoteMethodInvoker(serverAddress, serverPort);
     }
 
@@ -90,7 +98,11 @@ public class RemoteMethodInvoker implements Serializable {
             returnObject = ois.readObject();
             for (int i = 1; i < numOutputs; i++) {
                 OptimizedRemoteReference updatedRef = (OptimizedRemoteReference) ois.readObject();
-                remoteReferences.get(i - 1).mergeWithRemoteObject(updatedRef.getResultObject());
+                if (updatedRef instanceof ByteArrayRemoteReference) {
+                    ByteArrayRemoteReference barr = (ByteArrayRemoteReference) remoteReferences.get(i - 1);
+                    ByteArrayRemoteReference updatedBarr = (ByteArrayRemoteReference) updatedRef;
+                    barr.mergeWithRemoteObject(updatedBarr.getResultObject());
+                }
             }
         } catch (IOException ioe) {
             this.disconnect();

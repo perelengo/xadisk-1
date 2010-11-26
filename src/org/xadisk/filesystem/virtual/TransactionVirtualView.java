@@ -211,11 +211,11 @@ public class TransactionVirtualView {
         for (File dirName : virtualViewDirs.keySet()) {
             ArrayList<String> stepsToDescendToVVD = isDescedantOf(dirName, ancestorOldName);
             if (stepsToDescendToVVD != null) {
-                String newPathForVVD = ancestorNewName.getAbsolutePath();
+                StringBuilder newPathForVVD = new StringBuilder(ancestorNewName.getAbsolutePath());
                 for (int j = stepsToDescendToVVD.size() - 1; j >= 0; j--) {
-                    newPathForVVD += File.separator + stepsToDescendToVVD.get(j);
+                    newPathForVVD.append(File.separator).append(stepsToDescendToVVD.get(j));
                 }
-                updateVVDWithPath(dirName, new File(newPathForVVD));
+                updateVVDWithPath(dirName, new File(newPathForVVD.toString()));
             }
         }
     }
@@ -267,11 +267,11 @@ public class TransactionVirtualView {
 
         File childDirectoryPhysicalPath = ancestorOfTruth.pointsToPhysicalDirectory(childDirectory.getName());
         if (childDirectoryPhysicalPath != null) {
-            String physicalPathForVVD = childDirectoryPhysicalPath.getAbsolutePath();
+            StringBuilder physicalPathForVVD = new StringBuilder(childDirectoryPhysicalPath.getAbsolutePath());
             for (int i = pathSteps.size() - 3; i >= 0; i--) {
-                physicalPathForVVD += File.separator + pathSteps.get(i);
+                physicalPathForVVD.append(File.separator).append(pathSteps.get(i));
             }
-            File physicalDir = new File(physicalPathForVVD);
+            File physicalDir = new File(physicalPathForVVD.toString());
             if (!physicalDir.exists()) {
                 throw new FileNotExistsException();
             }

@@ -16,51 +16,47 @@ import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 
 public class CoreXAFileSystemTests {
 
-    public static final String testIOOperations = "testIOOperations";
-    public static final String testIOOperationsPostCrash = "testIOOperationsPostCrash";
-    public static final String testDynamicReadWrite = "testDynamicReadWrite";
-    public static final String testDynamicReadWritePostCrash = "testDynamicReadWritePostCrash";
-    public static final String testConcurrentMoneyTransfer = "testConcurrentMoneyTransfer";
-    public static final String testConcurrentMoneyTransferPostCrash = "testConcurrentMoneyTransferPostCrash";
-    public static final String testFileSystemEventing = "testFileSystemEventing";
-    public static final String testFileSystemEventingPostCrash = "testFileSystemEventingPostCrash";
+    static enum testNames {testIOOperations, testIOOperationsPostCrash, testDynamicReadWrite,
+        testDynamicReadWritePostCrash, testConcurrentMoneyTransfer, testConcurrentMoneyTransferPostCrash,
+        testFileSystemEventing, testFileSystemEventingPostCrash};
+        
     private static final String SEPERATOR = File.separator;
     private static Session ioOperationsSession;
     private static File ioOperationsRoot1;
     private static File ioOperationsRoot2;
     private static File baseForRollbackRoot;
-    private static int checkpointAt = -1;
+    private static int nextCheckpointAt = -1;
     private static int currentCheckpoint = 0;
-    private static boolean checkRollback = false;
-    public static Object namesake = new CoreXAFileSystemTests();
-    public static boolean testProgressive = false;
-    public static boolean testHighNumber = false;
-    public static boolean usePessimisticLock = false;
-    public static int initialFileSize = 100000;
+    private static boolean checkForRollbackNext = false;
+    static Object namesake = new CoreXAFileSystemTests();
+    static boolean testProgressive;
+    static boolean testHighNumber;
+    static boolean usePessimisticLock;
+    static final int initialFileSizeForDynamicRWTest = 100000;
 
     public static void testIOOperations(String testDirectory) throws Exception {
         if (testProgressive) {
-            checkRollback = true;
+            checkForRollbackNext = true;
             for (int i = -1; i <= 40; i++) {
                 System.out.println("TestIOOperatios : Incremental Step # " + i);
-                checkpointAt = i;
+                nextCheckpointAt = i;
                 currentCheckpoint = 1;
                 testIOOperationsOneRound(testDirectory, testHighNumber);
             }
-            checkRollback = false;
+            checkForRollbackNext = false;
             for (int i = -1; i <= 40; i++) {
                 System.out.println("TestIOOperatios : Incremental Step # " + i);
-                checkpointAt = i;
+                nextCheckpointAt = i;
                 currentCheckpoint = 1;
                 testIOOperationsOneRound(testDirectory, testHighNumber);
             }
         } else {
-            checkRollback = true;
-            checkpointAt = 100;
+            checkForRollbackNext = true;
+            nextCheckpointAt = 100;
             currentCheckpoint = 1;
             testIOOperationsOneRound(testDirectory, testHighNumber);
-            checkRollback = false;
-            checkpointAt = 100;
+            checkForRollbackNext = false;
+            nextCheckpointAt = 100;
             currentCheckpoint = 1;
             testIOOperationsOneRound(testDirectory, testHighNumber);
         }
@@ -77,9 +73,9 @@ public class CoreXAFileSystemTests {
         TestUtility.cleanupDirectory(ioOperationsRoot1);
         TestUtility.cleanupDirectory(ioOperationsRoot2);
         TestUtility.cleanupDirectory(baseForRollbackRoot);
-        ioOperationsRoot1.mkdirs();
-        ioOperationsRoot2.mkdirs();
-        baseForRollbackRoot.mkdirs();
+        FileIOUtility.createDirectoriesIfRequired(ioOperationsRoot1);
+        FileIOUtility.createDirectoriesIfRequired(ioOperationsRoot2);
+        FileIOUtility.createDirectoriesIfRequired(baseForRollbackRoot);
         byte content[] = "TextContent...".getBytes();
         int smallFileSize = 100;
         int mediumFileSize = 1000;
@@ -197,7 +193,7 @@ public class CoreXAFileSystemTests {
         System.out.println("*******************");
 
         TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
-        if (checkRollback) {
+        if (checkForRollbackNext) {
             System.out.println("Rolling Back...");
             ioOperationsSession.rollback();
             TestUtility.compareDiskAndDisk(baseForRollbackRoot, ioOperationsRoot1);
@@ -210,8 +206,8 @@ public class CoreXAFileSystemTests {
     }
 
     private static void checkpoint() throws Exception {
-        if (checkpointAt == -1 || currentCheckpoint == checkpointAt) {
-            if (checkRollback) {
+        if (nextCheckpointAt == -1 || currentCheckpoint == nextCheckpointAt) {
+            if (checkForRollbackNext) {
                 System.out.println("Rolling Back...");
                 ioOperationsSession.rollback();
                 resetIOOperationsSession();
@@ -254,14 +250,14 @@ public class CoreXAFileSystemTests {
         File fileRoot2 = new File(roots[1]);
         TestUtility.cleanupDirectory(fileRoot1);
         TestUtility.cleanupDirectory(fileRoot2);
-        fileRoot1.mkdirs();
-        fileRoot2.mkdirs();
+        FileIOUtility.createDirectoriesIfRequired(fileRoot1);
+        FileIOUtility.createDirectoriesIfRequired(fileRoot2);
 
         byte modulo = 111;
         for (int i = 0; i < 2; i++) {
             File source = new File(roots[i] + SEPERATOR + "source.txt");
             FileOutputStream fos = new FileOutputStream(source);
-            for (int j = 0; j < initialFileSize; j++) {
+            for (int j = 0; j < initialFileSizeForDynamicRWTest; j++) {
                 fos.write(j % modulo);
             }
             fos.flush();
@@ -278,9 +274,9 @@ public class CoreXAFileSystemTests {
         FileOutputStream fosSource2 = new FileOutputStream(source2, true);
         FileChannel fcSource2 = fosSource2.getChannel();
 
-        long currentViewFileSize = initialFileSize;
+        long currentViewFileSize = initialFileSizeForDynamicRWTest;
         Random randomPosition = new Random();
-        long appendAmountInEachRound = initialFileSize / 5;
+        long appendAmountInEachRound = initialFileSizeForDynamicRWTest / 5;
         int totalRounds = 100;
         for (int rounds = 1; rounds < totalRounds; rounds++) {
             if (rounds == totalRounds / 2) {
@@ -323,7 +319,7 @@ public class CoreXAFileSystemTests {
         roots[1] = testDirectory + SEPERATOR + "dir2";
         File source1 = new File(roots[0] + SEPERATOR + "source.txt");
         File source2 = new File(roots[1] + SEPERATOR + "source.txt");
-        if (source1.exists() && source2.exists() && source1.length() != initialFileSize) {
+        if (source1.exists() && source2.exists() && source1.length() != initialFileSizeForDynamicRWTest) {
             System.out.println("Assuming it was Commit before crash.");
             TestUtility.compareDiskAndDisk(source1, source2);
         } else {
@@ -331,7 +327,7 @@ public class CoreXAFileSystemTests {
             byte modulo = 111;
             if (source1.exists()) {
                 long length = source1.length();
-                if (length != initialFileSize) {
+                if (length != initialFileSizeForDynamicRWTest) {
                     throw new AssertionFailedException("File Content-Length Mismatch: " + source1);
                 }
                 FileInputStream fis1 = new FileInputStream(source1);
@@ -341,6 +337,7 @@ public class CoreXAFileSystemTests {
                         throw new AssertionFailedException("File Content Mismatch: " + source1 + " at " + "position " + i);
                     }
                 }
+                fis1.close();
             }
         }
     }
@@ -350,7 +347,7 @@ public class CoreXAFileSystemTests {
         final File rich = new File(testDirectory + SEPERATOR + "rich.txt");
         final File poor = new File(testDirectory + SEPERATOR + "poor.txt");
         TestUtility.cleanupDirectory(new File(testDirectory));
-        new File(testDirectory).mkdirs();
+        FileIOUtility.createDirectoriesIfRequired(new File(testDirectory));
         FileIOUtility.createFile(rich);
         FileIOUtility.createFile(poor);
         FileOutputStream fos = new FileOutputStream(rich);
@@ -447,14 +444,14 @@ public class CoreXAFileSystemTests {
     public static void testFileSystemEventing(String testDirectory) throws Exception {
         File testDirectoryFile = new File(testDirectory);
         TestUtility.cleanupDirectory(testDirectoryFile);
-        testDirectoryFile.mkdirs();
+        FileIOUtility.createDirectoriesIfRequired(testDirectoryFile);
 
         File interestingFiles[] = new File[2];
         interestingFiles[0] = new File(testDirectory + SEPERATOR + "polledFile1.txt");
         interestingFiles[1] = new File(testDirectory + SEPERATOR + "polledFile2.txt");
 
         XADiskActivationSpecImpl actSpec = new XADiskActivationSpecImpl();
-        String fileNamesAndInterests = interestingFiles[0].getAbsolutePath() + "::111" + "|" + interestingFiles[1].getParent() + "::111";
+        String fileNamesAndInterests = interestingFiles[0].getAbsolutePath() + "::111" + "|" + interestingFiles[0].getParentFile().getAbsolutePath() + "::111";
         actSpec.setFileNamesAndEventInterests(fileNamesAndInterests);
 
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();

@@ -12,6 +12,7 @@ import org.xadisk.filesystem.FileStateChangeEvent;
 
 public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
 
+    private static final long serialVersionUID = 425368L;
     private transient ResourceAdapter ra;
     private final HashMap<File, String> fileNamesAndInterests = new HashMap<File, String>(10);
     private static final String interestSymbol = "::";

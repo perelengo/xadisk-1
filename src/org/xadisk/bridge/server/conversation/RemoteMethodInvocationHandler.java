@@ -142,11 +142,12 @@ public class RemoteMethodInvocationHandler implements Work {
             for (int i = 0; i < remoteReferences.size(); i++) {
                 OptimizedRemoteReference ref = remoteReferences.get(i);
                 if (ref instanceof ByteArrayRemoteReference) {
+                    ByteArrayRemoteReference barr = (ByteArrayRemoteReference) ref;
                     Integer bytesGotUpdated = (Integer) response;
                     byte[] inputArgument = (byte[]) regenerateObjects.get(i);
                     byte[] minimalToSend = new byte[bytesGotUpdated];
                     System.arraycopy(inputArgument, 0, minimalToSend, 0, bytesGotUpdated);
-                    ref.setResultObject(minimalToSend);
+                    barr.setResultObject(minimalToSend);
                 }
             }
             //note that in case of method thrown exception, the remote arguments are not geting updated. That would be fine for current applications.

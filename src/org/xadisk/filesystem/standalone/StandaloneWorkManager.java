@@ -52,7 +52,7 @@ public class StandaloneWorkManager implements WorkManager {
         threadPool.shutdown();
     }
 
-    private class WorkRunnable implements Runnable {
+    private static class WorkRunnable implements Runnable {
 
         private Work work;
         private WorkListener workListener;

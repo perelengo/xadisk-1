@@ -70,7 +70,7 @@ public class DeadLockDetector extends TimedWorker {
 
     private void runDFS() {
         int clock = 0;
-        Stack nodesBeingExplored = new Stack();
+        Stack<ResourceDependencyGraph.Node> nodesBeingExplored = new Stack<ResourceDependencyGraph.Node>();
         for (int i = 0; i < nodes.length; i++) {
             nodes[i].setMark(1);
         }

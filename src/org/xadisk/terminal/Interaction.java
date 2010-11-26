@@ -77,8 +77,15 @@ public class Interaction {
         }
     }
 
+    private static String normalizeInput(String s) {
+        if(s == null) {
+            return "";
+        }
+        return s.trim();
+    }
+
     private static void executeNextCommand() throws Exception {
-        String s = br.readLine().trim();
+        String s = normalizeInput(br.readLine());
         if (s.equals("")) {
             return;
         }
@@ -287,7 +294,7 @@ public class Interaction {
 
     private static boolean readBoolean() throws IOException {
         while (true) {
-            String s = br.readLine().trim();
+            String s = normalizeInput(br.readLine());
             if (s.equalsIgnoreCase("n")) {
                 return false;
             } else if (s.equalsIgnoreCase("y")) {
@@ -301,7 +308,7 @@ public class Interaction {
 
     private static String readNonEmptyString() throws Exception {
         while (true) {
-            String s = br.readLine().trim();
+            String s = normalizeInput(br.readLine());
             if (s.equals("")) {
                 System.out.println("Invalid Input; it was an empty string.");
                 prompt("Enter Again : ");
@@ -313,7 +320,7 @@ public class Interaction {
 
     private static int readInteger() throws Exception {
         while (true) {
-            String s = br.readLine().trim();
+            String s = normalizeInput(br.readLine());
             try {
                 return Integer.valueOf(s);
             } catch (NumberFormatException nfe) {

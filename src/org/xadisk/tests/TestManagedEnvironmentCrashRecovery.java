@@ -12,6 +12,7 @@ import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
+import org.xadisk.filesystem.utilities.FileIOUtility;
 
 public class TestManagedEnvironmentCrashRecovery {
 
@@ -27,9 +28,9 @@ public class TestManagedEnvironmentCrashRecovery {
             File f[] = new File[3];
             for (int i = 0; i < 3; i++) {
                 File dir = new File(currentWorkingDirectory + SEPERATOR + i);
-                dir.mkdir();
+                FileIOUtility.createDirectory(dir);
                 f[i] = new File(dir, "a.txt");
-                f[i].delete();
+                FileIOUtility.deleteFile(f[i]);
             }
 
             xaFileSystem = bootXAFileSystemCompletely();
@@ -89,9 +90,9 @@ public class TestManagedEnvironmentCrashRecovery {
             //a "Complete" starting xadisk indicates no in-doubt txns.
             xaFileSystem = bootXAFileSystemCompletely();
 
-            f[0].delete();
-            f[1].delete();
-            f[2].delete();
+            FileIOUtility.deleteFile(f[0]);
+            FileIOUtility.deleteFile(f[1]);
+            FileIOUtility.deleteFile(f[2]);
 
             SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
             smef.goTill = SimulatedMessageEndpointFactory.GoTill.consume;

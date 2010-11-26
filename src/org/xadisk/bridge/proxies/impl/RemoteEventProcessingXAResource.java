@@ -1,6 +1,7 @@
 package org.xadisk.bridge.proxies.impl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.facilitators.RemoteObjectProxy;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,7 +12,11 @@ import org.xadisk.filesystem.XidImpl;
 
 public class RemoteEventProcessingXAResource extends RemoteObjectProxy implements XAResource {
 
+    private static final long serialVersionUID = 5464754875635L;
     private transient ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+    private final Object lockOnInternalXids = new ArrayList<Object>(0);//just needed something that can
+    //be made final (for synch block) and is serializable ( so that it is not null on the remote side;
+    //because to avoid that readObject needs the line to re-assign the value making it not eligible for final.
 
     private void readObject(java.io.ObjectInputStream stream)
             throws IOException, ClassNotFoundException {
@@ -138,7 +143,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
     }
 
     private XidImpl mapToInternalXid(Xid xid) {
-        synchronized (internalXids) {
+        synchronized (lockOnInternalXids) {
             XidImpl internalXid = internalXids.get(xid);
             if (internalXid == null) {
                 internalXid = new XidImpl(xid);

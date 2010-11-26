@@ -23,7 +23,7 @@ public class Temporary {
                 return;
             }
             LaunchingConnector connector = Bootstrap.virtualMachineManager().defaultConnector();
-            Map connectorArguments = connector.defaultArguments();
+            Map<String, ? extends Argument> connectorArguments = connector.defaultArguments();
             Iterator iter = connectorArguments.values().iterator();
             while (iter.hasNext()) {
                 Argument arg = (Argument) iter.next();

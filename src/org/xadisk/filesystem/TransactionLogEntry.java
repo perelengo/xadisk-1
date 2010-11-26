@@ -212,7 +212,6 @@ public class TransactionLogEntry {
         buffer.put(FILES_ALREADY_ONDISK);
         buffer.put(serializeXid(xid));
         buffer.putInt(files.size());
-        iter = files.iterator();
         for (i = 0; i < filePathsBytes.length; i++) {
             buffer.putInt(filePathsBytes[i].length);
             buffer.put(filePathsBytes[i]);

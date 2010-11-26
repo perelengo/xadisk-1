@@ -5,11 +5,8 @@
 
 package org.xadisk.tests;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import org.xadisk.additional.XAFileInputStreamWrapper;
 import org.xadisk.additional.XAFileOutputStreamWrapper;
@@ -37,7 +34,7 @@ public class TestWrapperStreams {
             xaFileSystem.waitForBootup(-1L);
 
             Session session = xaFileSystem.createSessionForLocalTransaction();
-            InputStream is = new XAFileInputStreamWrapper(session.createXAFileInputStream(new File("C:\\a.txt"), false));
+            InputStream is = new XAFileInputStreamWrapper(session.createXAFileInputStream(new File("a.txt"), false));
             is.mark(100);
             System.out.println((char)is.read());
             System.out.println((char)is.read());
@@ -46,7 +43,7 @@ public class TestWrapperStreams {
             System.out.println((char)is.read());
             is.close();
 
-            OutputStream os = new XAFileOutputStreamWrapper(session.createXAFileOutputStream(new File("C:\\b.txt"), false));
+            OutputStream os = new XAFileOutputStreamWrapper(session.createXAFileOutputStream(new File("b.txt"), false));
             os.write('a');
             os.write('b');
             os.close();
