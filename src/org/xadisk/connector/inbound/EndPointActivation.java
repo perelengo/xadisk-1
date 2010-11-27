@@ -5,6 +5,8 @@ import javax.resource.spi.endpoint.MessageEndpointFactory;
 
 public class EndPointActivation implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+    
     private final MessageEndpointFactory messageEndpointFactory;
     private final XADiskActivationSpecImpl activationSpecImpl;
 

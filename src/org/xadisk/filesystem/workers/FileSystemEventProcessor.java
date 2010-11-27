@@ -20,14 +20,11 @@ public class FileSystemEventProcessor implements Work {
     private final MessageEndpointFactory mef;
     private final FileStateChangeEvent event;
     private final NativeXAFileSystem xaFileSystem;
-    private final LinkedBlockingQueue<FileStateChangeEvent> eventQueue;
 
-    FileSystemEventProcessor(MessageEndpointFactory mef, FileStateChangeEvent event, NativeXAFileSystem xaFileSystem,
-            LinkedBlockingQueue<FileStateChangeEvent> eventQueue) {
+    FileSystemEventProcessor(MessageEndpointFactory mef, FileStateChangeEvent event, NativeXAFileSystem xaFileSystem) {
         this.mef = mef;
         this.event = event;
         this.xaFileSystem = xaFileSystem;
-        this.eventQueue = eventQueue;
     }
 
     public void release() {

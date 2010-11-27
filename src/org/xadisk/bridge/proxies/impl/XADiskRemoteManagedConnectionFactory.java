@@ -11,6 +11,8 @@ import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 
 public class XADiskRemoteManagedConnectionFactory extends XADiskManagedConnectionFactory {
 
+    private static final long serialVersionUID = 1L;
+    
     private String serverAddress;
     private Integer serverPort;
 

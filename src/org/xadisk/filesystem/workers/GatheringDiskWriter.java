@@ -87,8 +87,8 @@ public class GatheringDiskWriter extends EventWorker {
                     allBuffersToWrite.add(buffer);
                 }
             }
-            xids = xidsList.toArray(new XidImpl[0]);
-            buffersArray = allBuffersToWrite.toArray(new Buffer[0]);
+            xids = xidsList.toArray(new XidImpl[xidsList.size()]);
+            buffersArray = allBuffersToWrite.toArray(new Buffer[allBuffersToWrite.size()]);
             try {
                 transactionLogLock.lock();
                 writeBuffersToTransactionLog(buffersArray, xids, 0);
@@ -112,7 +112,7 @@ public class GatheringDiskWriter extends EventWorker {
             }
             try {
                 transactionLogLock.lock();
-                writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[0]), xids, 0);
+                writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[txnBuffers.size()]), xids, 0);
             } finally {
                 transactionLogLock.unlock();
             }

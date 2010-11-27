@@ -215,7 +215,8 @@ public class NativeXAFileSystem implements XAFileSystem {
     }
 
     public NativeSession[] getAllSessions() {
-        return transactionAndSession.values().toArray(new NativeSession[0]);
+        Collection<NativeSession> sessions = transactionAndSession.values();
+        return sessions.toArray(new NativeSession[sessions.size()]);
     }
 
     public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileStateChangeEvent> events) {
@@ -240,7 +241,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         }
         this.transactionsPreparedPreCrash = recoveryWorker.getPreparedInDoubtTransactions();
         Xid xids[];
-        xids = transactionsPreparedPreCrash.toArray(new Xid[0]);
+        xids = transactionsPreparedPreCrash.toArray(new Xid[transactionsPreparedPreCrash.size()]);
         returnedAllPreparedTransactions = true;
         return xids;
     }
@@ -602,7 +603,8 @@ public class NativeXAFileSystem implements XAFileSystem {
         this.systemHasFailed = true;
         this.systemFailureCause = systemFailureCause;
         NativeSession allSessions[];
-        allSessions = transactionAndSession.values().toArray(new NativeSession[0]);
+        Collection<NativeSession> sessionsCollection = transactionAndSession.values();
+        allSessions = sessionsCollection.toArray(new NativeSession[sessionsCollection.size()]);
         for (int i = 0; i < allSessions.length; i++) {
             allSessions[i].notifySystemFailure(systemFailureCause);
         }

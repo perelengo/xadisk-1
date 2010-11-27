@@ -133,7 +133,7 @@ public class JVMCrashTrigger implements Runnable {
         }
     }
 
-    private void refreshStepRequest() {
+    /*private void refreshStepRequest() {
         if (erManager.stepRequests().size() > 0) {
             erManager.deleteEventRequest(erManager.stepRequests().get(0));
         }
@@ -143,5 +143,5 @@ public class JVMCrashTrigger implements Runnable {
         //stepRequest.addClassFilter(null);//what to do here for more than one interesting classes??
         //why no threadFilter can be added to StepRequest??
         stepRequest.enable();
-    }
+    }*/
 }

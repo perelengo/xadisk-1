@@ -1,6 +1,7 @@
 package org.xadisk.filesystem.workers;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Stack;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.Lock;
@@ -54,7 +55,8 @@ public class DeadLockDetector extends TimedWorker {
             XidImpl holders[];
             try {
                 resource.startSynchBlock();
-                holders = resource.getHolders().toArray(new XidImpl[0]);
+                HashSet<XidImpl> holdersSet = resource.getHolders();
+                holders = holdersSet.toArray(new XidImpl[holdersSet.size()]);
             } finally {
                 resource.endSynchBlock();
             }

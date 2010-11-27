@@ -12,7 +12,7 @@ import org.xadisk.filesystem.XidImpl;
 
 public class RemoteEventProcessingXAResource extends RemoteObjectProxy implements XAResource {
 
-    private static final long serialVersionUID = 5464754875635L;
+    private static final long serialVersionUID = 1L;
     private transient ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>();
     private final Object lockOnInternalXids = new ArrayList<Object>(0);//just needed something that can
     //be made final (for synch block) and is serializable ( so that it is not null on the remote side;

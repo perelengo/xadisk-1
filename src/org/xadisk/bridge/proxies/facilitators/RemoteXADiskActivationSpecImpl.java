@@ -1,10 +1,11 @@
 package org.xadisk.bridge.proxies.facilitators;
 
-import java.io.Serializable;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 
-public class RemoteXADiskActivationSpecImpl extends XADiskActivationSpecImpl implements Serializable {
+public class RemoteXADiskActivationSpecImpl extends XADiskActivationSpecImpl {
 
+    private static final long serialVersionUID = 1L;
+    
     private int originalActivationSpecObjectsHashCode = this.hashCode();//this will get serialized too.
 
     public RemoteXADiskActivationSpecImpl() {

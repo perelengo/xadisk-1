@@ -21,9 +21,9 @@ import org.xadisk.filesystem.FileSystemConfiguration;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.exceptions.XASystemException;
 
-public class XADiskResourceAdapter extends FileSystemConfiguration implements ResourceAdapter, Serializable {
+public class XADiskResourceAdapter extends FileSystemConfiguration implements ResourceAdapter {
 
-    private static final long serialVersionUID = 2365678787L;
+    private static final long serialVersionUID = 1L;
     private transient NativeXAFileSystem xaFileSystem;
 
     public void start(BootstrapContext bsContext) throws ResourceAdapterInternalException {
@@ -107,6 +107,6 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
             }
             xars.add(uniqueXAFileSystem.getEventProcessingXAResourceForRecovery());
         }
-        return xars.toArray(new XAResource[0]);
+        return xars.toArray(new XAResource[xars.size()]);
     }
 }

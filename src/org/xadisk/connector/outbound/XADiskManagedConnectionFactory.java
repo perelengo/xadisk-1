@@ -13,7 +13,7 @@ import org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnectionFactory;
 
 public class XADiskManagedConnectionFactory implements ManagedConnectionFactory {
 
-    private static final long serialVersionUID = 98667567L;
+    private static final long serialVersionUID = 1L;
     private transient volatile PrintWriter logWriter;
 
     public XADiskManagedConnectionFactory() {

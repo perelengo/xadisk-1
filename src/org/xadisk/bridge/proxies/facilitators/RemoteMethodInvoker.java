@@ -15,7 +15,7 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class RemoteMethodInvoker implements Serializable {
 
-    private static final long serialVersionUID = 76986789L;
+    private static final long serialVersionUID = 1L;
     private final String serverAddress;
     private final int serverPort;
     private transient SocketChannel channel;

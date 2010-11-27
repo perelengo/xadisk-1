@@ -11,7 +11,7 @@ import java.io.Serializable;
  */
 public class FileStateChangeEvent implements Serializable {
 
-    private static final long serialVersionUID = 98654L;
+    private static final long serialVersionUID = 1L;
     public static final byte FILE_MODIFIED = 0x1;
     public static final byte FILE_DELETED = 0x2;
     public static final byte FILE_CREATED = 0x4;

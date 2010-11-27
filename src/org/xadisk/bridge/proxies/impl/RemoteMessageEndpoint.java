@@ -13,6 +13,8 @@ import org.xadisk.filesystem.FileStateChangeEvent;
 
 public class RemoteMessageEndpoint extends RemoteObjectProxy implements MessageEndpoint, FileSystemEventListener {
 
+    private static final long serialVersionUID = 1L;
+    
     public RemoteMessageEndpoint(long objectId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
     }

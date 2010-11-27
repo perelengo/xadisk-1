@@ -103,7 +103,7 @@ public class Interaction {
                 argsArr.add(quoted[i]);
             }
         }
-        String args[] = argsArr.toArray(new String[0]);
+        String args[] = argsArr.toArray(new String[argsArr.size()]);
         //coming here means args.length > 0.
         if (args[0].equalsIgnoreCase("cd")) {
             File f;

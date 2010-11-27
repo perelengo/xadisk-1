@@ -8,6 +8,8 @@ import javax.resource.spi.ManagedConnectionFactory;
 
 public class ConnectionManagerImpl implements ConnectionManager, Serializable {
 
+    private static final long serialVersionUID = 1L;
+    
     public Object allocateConnection(ManagedConnectionFactory arg0, ConnectionRequestInfo arg1) throws ResourceException {
         throw new UnsupportedOperationException("Not supported yet.");
     }

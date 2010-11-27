@@ -3,6 +3,7 @@ package org.xadisk.additional;
 import java.io.IOException;
 import java.io.OutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
+import org.xadisk.filesystem.exceptions.XAApplicationException;
 
 public class XAFileOutputStreamWrapper extends OutputStream {
 
@@ -16,7 +17,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
     public void close() throws IOException {
         try {
             xos.close();
-        } catch (Exception e) {
+        } catch (XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -25,7 +26,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
     public void flush() throws IOException {
         try {
             xos.flush();
-        } catch (Exception e) {
+        } catch (XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -34,7 +35,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
     public void write(byte[] b) throws IOException {
         try {
             xos.write(b);
-        } catch (Exception e) {
+        } catch (XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -43,7 +44,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
     public void write(int b) throws IOException {
         try {
             xos.write(b);
-        } catch (Exception e) {
+        } catch (XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -52,7 +53,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
     public void write(byte[] b, int off, int len) throws IOException {
         try {
             xos.write(b, off, len);
-        } catch (Exception e) {
+        } catch (XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }

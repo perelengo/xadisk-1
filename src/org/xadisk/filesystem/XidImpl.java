@@ -8,7 +8,7 @@ import org.xadisk.filesystem.ResourceDependencyGraph.Node;
 
 public class XidImpl implements Xid, Serializable {
 
-    private static final long serialVersionUID = 548753809L;
+    private static final long serialVersionUID = 1L;
     public static final byte INTERRUPTED_DUE_TO_DEADLOCK = 1;
     public static final byte INTERRUPTED_DUE_TO_TIMEOUT = 2;
     private final byte[] gid;

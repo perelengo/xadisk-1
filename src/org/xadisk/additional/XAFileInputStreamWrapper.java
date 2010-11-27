@@ -3,6 +3,7 @@ package org.xadisk.additional;
 import java.io.IOException;
 import java.io.InputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
+import org.xadisk.filesystem.exceptions.XAApplicationException;
 
 public class XAFileInputStreamWrapper extends InputStream {
 
@@ -17,7 +18,7 @@ public class XAFileInputStreamWrapper extends InputStream {
     public int available() throws IOException {
         try {
             return xis.available();
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -26,7 +27,7 @@ public class XAFileInputStreamWrapper extends InputStream {
     public void close() throws IOException {
         try {
             xis.close();
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -45,7 +46,7 @@ public class XAFileInputStreamWrapper extends InputStream {
     public int read() throws IOException {
         try {
             return xis.read();
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -54,7 +55,7 @@ public class XAFileInputStreamWrapper extends InputStream {
     public int read(byte[] b) throws IOException {
         try {
             return xis.read(b);
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -63,7 +64,7 @@ public class XAFileInputStreamWrapper extends InputStream {
     public int read(byte[] b, int off, int len) throws IOException {
         try {
             return xis.read(b, off, len);
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -78,7 +79,7 @@ public class XAFileInputStreamWrapper extends InputStream {
             //we do not honor the readlimit; a more flexible approach, which IS spec also allows.
             xis.position(latestMarkPoint);
             this.latestMarkPoint = -1;
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }
@@ -90,7 +91,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         }
         try {
             return xis.skip(n);
-        } catch(Exception e) {
+        } catch(XAApplicationException e) {
             throw new IOException(e.getMessage());
         }
     }

@@ -2,6 +2,7 @@ package org.xadisk.filesystem.virtual;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.Set;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
 import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
@@ -163,8 +164,10 @@ class VirtualViewDirectory {
 
     String[] listFilesAndDirectories() {
         readDirectoryContents();
-        String files[] = allFiles.keySet().toArray(new String[0]);
-        String dirs[] = allDirs.keySet().toArray(new String[0]);
+        Set<String> allFilesKeys = allFiles.keySet();
+        Set<String> allDirsKeys = allDirs.keySet();
+        String files[] = allFilesKeys.toArray(new String[allFilesKeys.size()]);
+        String dirs[] = allDirsKeys.toArray(new String[allDirsKeys.size()]);
         String all[] = new String[files.length + dirs.length];
         for (int i = 0; i < files.length; i++) {
             all[i] = files[i];

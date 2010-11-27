@@ -34,7 +34,7 @@ public abstract class TimedWorker implements Work {
             doWorkOnce();
             try {
                 wakeUpAndDieAlarm.lockInterruptibly();
-                hasBeenReleased.await(frequency * 1000, TimeUnit.MILLISECONDS);
+                hasBeenReleased.await(frequency * 1000L, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 break;

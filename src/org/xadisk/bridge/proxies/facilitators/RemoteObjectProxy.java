@@ -3,6 +3,9 @@ package org.xadisk.bridge.proxies.facilitators;
 import java.io.Serializable;
 
 public class RemoteObjectProxy implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
+
     protected final long remoteObjectId;
     protected RemoteMethodInvoker invoker;
 

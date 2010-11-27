@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.transaction.Status;
 import javax.transaction.xa.XAException;
@@ -93,9 +94,6 @@ public class LocalEventProcessingXAResource implements XAResource {
     public void rollback(Xid xid) throws XAException {
         XidImpl xidImpl = mapToInternalXid(xid);
         try {
-            if (isCreatedForRecovery) {
-                FileStateChangeEvent temp = dequeuingTransactionsPreparedPreCrash.get(xidImpl);
-            }
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xidImpl, false);
             if (isCreatedForRecovery) {
                 xaFileSystem.getRecoveryWorker().cleanupTransactionInfo(xidImpl);
@@ -128,7 +126,8 @@ public class LocalEventProcessingXAResource implements XAResource {
                 getPreparedInDoubtTransactionsOfDequeue();
 
         Xid xids[];
-        xids = dequeuingTransactionsPreparedPreCrash.keySet().toArray(new Xid[0]);
+        Set<XidImpl> xidsSet = dequeuingTransactionsPreparedPreCrash.keySet();
+        xids = xidsSet.toArray(new Xid[xidsSet.size()]);
         returnedAllPreparedTransactions = true;
         return xids;
     }

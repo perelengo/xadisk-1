@@ -15,6 +15,8 @@ import org.xadisk.bridge.server.conversation.HostedContext;
 
 public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements MessageEndpointFactory {
 
+    private static final long serialVersionUID = 1L;
+
     private final String xaDiskSystemId;
 
     public RemoteMessageEndpointFactory(long objectId, String xaDiskSystemId, RemoteMethodInvoker invoker) {

@@ -237,7 +237,7 @@ public class CrashRecoveryWorker implements Work {
             ArrayList<FileStateChangeEvent> events = getEventsFromPreparedTransaction(xid);
             recoverySession = xaFileSystem.createRecoverySession(xid, events);
 
-            TransactionCompleter commitWork = new TransactionCompleter(recoverySession, this, true);
+            TransactionCompleter commitWork = new TransactionCompleter(recoverySession, true);
             workManager.startWork(commitWork);
         }
     }
@@ -249,7 +249,7 @@ public class CrashRecoveryWorker implements Work {
                 return;
             }
             NativeSession recoverySession = xaFileSystem.createRecoverySession(xid, null);
-            TransactionCompleter rollbackWork = new TransactionCompleter(recoverySession, this, false);
+            TransactionCompleter rollbackWork = new TransactionCompleter(recoverySession, false);
             workManager.startWork(rollbackWork);
         }
     }
@@ -306,12 +306,10 @@ public class CrashRecoveryWorker implements Work {
     private static class TransactionCompleter implements Work {
 
         private NativeSession session;
-        private final CrashRecoveryWorker crashRecoveryWorker;
         private boolean toCommit;
 
-        private TransactionCompleter(NativeSession session, CrashRecoveryWorker crashRecoveryWorker, boolean toCommit) {
+        private TransactionCompleter(NativeSession session, boolean toCommit) {
             this.session = session;
-            this.crashRecoveryWorker = crashRecoveryWorker;
             this.toCommit = toCommit;
         }
 

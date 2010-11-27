@@ -17,6 +17,8 @@ import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSystem {
 
+    private static final long serialVersionUID = 1L;
+    
     public RemoteXAFileSystem(String serverAddress, int serverPort) {
         super(0, new RemoteMethodInvoker(serverAddress, serverPort));
     }
@@ -61,7 +63,7 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
         try {
             invokeRemoteMethod("notifySystemFailureAndContinue", t);
         } catch (Throwable th) {
-            throw assertExceptionHandling(t);
+            throw assertExceptionHandling(th);
         }
     }
 

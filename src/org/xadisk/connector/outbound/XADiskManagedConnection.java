@@ -93,24 +93,7 @@ public class XADiskManagedConnection implements ManagedConnection {
     }
 
     public ManagedConnectionMetaData getMetaData() throws ResourceException {
-        return new ManagedConnectionMetaData() {
-
-            public String getEISProductName() throws ResourceException {
-                return "XADiskFileSystem";
-            }
-
-            public String getEISProductVersion() throws ResourceException {
-                return "1.0";
-            }
-
-            public int getMaxConnections() throws ResourceException {
-                return 0;
-            }
-
-            public String getUserName() throws ResourceException {
-                return "irrelevant";
-            }
-        };
+        return new XADiskManagedConnectionMetaData();
     }
 
     public void addConnectionEventListener(ConnectionEventListener cel) {

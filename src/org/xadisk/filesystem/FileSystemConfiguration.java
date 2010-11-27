@@ -10,6 +10,8 @@ import java.io.Serializable;
 
 public class FileSystemConfiguration implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+    
     private Integer directBufferPoolSize = 1000;
     private Integer nonDirectBufferPoolSize = 1000;
     private Integer bufferSize = 4096;

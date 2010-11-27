@@ -45,10 +45,9 @@ public class FileSystemEventDelegator implements Work {
     public void deRegisterActivation(EndPointActivation activation) {
         MessageEndpointFactory mef = activation.getMessageEndpointFactory();
         if (mef instanceof RemoteMessageEndpointFactory) {
-            RemoteMessageEndpointFactory remoteMEF = (RemoteMessageEndpointFactory) mef;
             int registeredAt = registeredActivations.indexOf(activation);
             if (registeredAt != -1) {
-                remoteMEF = (RemoteMessageEndpointFactory) registeredActivations.get(registeredAt).getMessageEndpointFactory();
+                RemoteMessageEndpointFactory remoteMEF = (RemoteMessageEndpointFactory) registeredActivations.get(registeredAt).getMessageEndpointFactory();
                 remoteMEF.shutdown();
             }
         }
@@ -83,7 +82,7 @@ public class FileSystemEventDelegator implements Work {
                 try {
                     if (interestedActivationPicked != null) {
                         workManager.startWork(new FileSystemEventProcessor(interestedActivationPicked.getMessageEndpointFactory(),
-                                event, xaFileSystem, eventQueue), WorkManager.INDEFINITE, null, eventDispatchListener);
+                                event, xaFileSystem), WorkManager.INDEFINITE, null, eventDispatchListener);
                         //eventDispatchListener.workStarted(null);found glassfish sending
                         //an event on work start already.
                     }

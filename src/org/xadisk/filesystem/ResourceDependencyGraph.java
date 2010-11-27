@@ -32,7 +32,7 @@ public class ResourceDependencyGraph {
     }
 
     public Node[] getNodes() {
-        return nodes.values().toArray(new Node[0]);
+        return nodes.values().toArray(new Node[nodes.size()]);
     }
 
     /*public Node generateNodeForTesting() {

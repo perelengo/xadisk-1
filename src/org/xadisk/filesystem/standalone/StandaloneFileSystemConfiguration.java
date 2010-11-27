@@ -14,6 +14,8 @@ import org.xadisk.filesystem.FileSystemConfiguration;
 
 public class StandaloneFileSystemConfiguration extends FileSystemConfiguration {
 
+    private static final long serialVersionUID = 1L;
+    
     private int workManagerCorePoolSize = 10;
     private int workManagerMaxPoolSize = Integer.MAX_VALUE;
     private long workManagerKeepAliveTime = 60; //in seconds.

@@ -8,6 +8,8 @@ import org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnectionFactory;
 
 public class XADiskConnectionFactoryImpl implements XADiskConnectionFactory, XADiskRemoteConnectionFactory {
 
+    private static final long serialVersionUID = 1L;
+    
     private final XADiskManagedConnectionFactory mcf;
     private final ConnectionManager cm;
     private Reference ref;
