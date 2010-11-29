@@ -29,9 +29,9 @@ public class CoreXAFileSystemTests {
     private static int currentCheckpoint = 0;
     private static boolean checkForRollbackNext = false;
     static Object namesake = new CoreXAFileSystemTests();
-    static boolean testProgressive;
-    static boolean testHighNumber;
-    static boolean usePessimisticLock;
+    static boolean testProgressive = false;
+    static boolean testHighNumber = false;
+    static boolean usePessimisticLock = true;
     static final int initialFileSizeForDynamicRWTest = 100000;
 
     public static void testIOOperations(String testDirectory) throws Exception {

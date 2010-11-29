@@ -20,12 +20,13 @@ import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 public class TestUtility {
 
     static boolean remoteXAFileSystem = false;
+    static int remoteXADiskPort = RemoteXADiskBootup.DEFAULT_PORT;
     private static Object namesake = new TestUtility();
 
     public static XAFileSystem getXAFileSystemForTest() {
         if (remoteXAFileSystem) {
             try {
-                return new RemoteXAFileSystem("localhost", Configuration.getRemoteServerPort());
+                return new RemoteXAFileSystem("localhost", remoteXADiskPort);
             } catch (Throwable t) {
                 t.printStackTrace();
                 return null;

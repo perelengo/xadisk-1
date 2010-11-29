@@ -1,8 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package org.xadisk.tests;
 
 import java.io.File;
@@ -14,10 +9,6 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
-/**
- *
- * @author nverma
- */
 public class TestWrapperStreams {
     private static final String SEPERATOR = File.separator;
     private static final String currentWorkingDirectory = System.getProperty("user.dir");
@@ -34,7 +25,7 @@ public class TestWrapperStreams {
             xaFileSystem.waitForBootup(-1L);
 
             Session session = xaFileSystem.createSessionForLocalTransaction();
-            InputStream is = new XAFileInputStreamWrapper(session.createXAFileInputStream(new File("a.txt"), false));
+            InputStream is = new XAFileInputStreamWrapper(session.createXAFileInputStream(new File("C:\\a.txt"), false));
             is.mark(100);
             System.out.println((char)is.read());
             System.out.println((char)is.read());
@@ -43,13 +34,13 @@ public class TestWrapperStreams {
             System.out.println((char)is.read());
             is.close();
 
-            OutputStream os = new XAFileOutputStreamWrapper(session.createXAFileOutputStream(new File("b.txt"), false));
+            OutputStream os = new XAFileOutputStreamWrapper(session.createXAFileOutputStream(new File("C:\\b.txt"), false));
             os.write('a');
             os.write('b');
             os.close();
             session.commit();
 
-            System.out.println("XADisk System is up for use...");
+            xaFileSystem.shutdown();
         } catch (Throwable t) {
             t.printStackTrace();
         }

@@ -9,7 +9,6 @@ public class Configuration {
     private static final String xadiskSystemDirectory;
     private static final String testRootDirectory;
     private static int nextServerPort;
-    private static int remoteServerPort;
 
     static {
         Properties properties = new Properties();
@@ -22,7 +21,6 @@ public class Configuration {
         xadiskSystemDirectory = properties.getProperty("XADISK_SYSTEM_DIRECTORY");
         testRootDirectory = properties.getProperty("TEST_ROOT_DIRECTORY");
         nextServerPort = Integer.valueOf(properties.getProperty("FIRST_SERVER_PORT"));
-        remoteServerPort = Integer.valueOf(properties.getProperty("REMOTE_SERVER_PORT"));
     }
 
     public static String getTestRootDirectory() {
@@ -44,9 +42,5 @@ public class Configuration {
             }
         }
         return nextServerPort++;
-    }
-
-    public static int getRemoteServerPort() {
-        return remoteServerPort;
     }
 }

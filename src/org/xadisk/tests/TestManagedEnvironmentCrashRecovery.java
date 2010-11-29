@@ -28,9 +28,12 @@ public class TestManagedEnvironmentCrashRecovery {
             File f[] = new File[3];
             for (int i = 0; i < 3; i++) {
                 File dir = new File(currentWorkingDirectory + SEPERATOR + i);
+                FileIOUtility.deleteDirectoryRecursively(dir);
                 FileIOUtility.createDirectory(dir);
                 f[i] = new File(dir, "a.txt");
-                FileIOUtility.deleteFile(f[i]);
+                if(f[i].exists()) {
+                    FileIOUtility.deleteFile(f[i]);
+                }
             }
 
             xaFileSystem = bootXAFileSystemCompletely();
@@ -90,9 +93,11 @@ public class TestManagedEnvironmentCrashRecovery {
             //a "Complete" starting xadisk indicates no in-doubt txns.
             xaFileSystem = bootXAFileSystemCompletely();
 
-            FileIOUtility.deleteFile(f[0]);
-            FileIOUtility.deleteFile(f[1]);
-            FileIOUtility.deleteFile(f[2]);
+            for(int i = 0; i < 3; i++) {
+                if(f[i].exists()) {
+                    FileIOUtility.deleteFile(f[i]);
+                }
+            }
 
             SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
             smef.goTill = SimulatedMessageEndpointFactory.GoTill.consume;

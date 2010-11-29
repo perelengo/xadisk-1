@@ -19,9 +19,9 @@ public class TestCoreXAFileSystem {
     private static final String forRunningTests = "forRunningTests";
     private static final String transactionDemarcatingThread = "TestThreadObservedByJDI";
     static boolean testCrashRecovery;
-    static int concurrencyLevel;
-    static int numberOfCrashes;
-    static int maxConcurrentDeliveries;
+    static int concurrencyLevel = 1;
+    static int numberOfCrashes = 100;
+    static int maxConcurrentDeliveries = 2;
 
     public static void main(String args[]) {
         try {

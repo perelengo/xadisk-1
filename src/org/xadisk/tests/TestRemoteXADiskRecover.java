@@ -24,6 +24,8 @@ public class TestRemoteXADiskRecover {
         try {
             TestUtility.cleanupDirectory(new File(XADiskSystemDirectory));
             TestUtility.cleanupDirectory(new File(RemoteXADiskSystemDirectory));
+
+            System.out.println("Remember to set the cleanupSystemDir flag in RemoteXADiskBootup class to false");
             NativeXAFileSystem nativeXAFS = bootLocalXADisk();
 
             Process remoteXADisk = bootRemoteXADisk();
@@ -34,11 +36,11 @@ public class TestRemoteXADiskRecover {
             XADiskActivationSpecImpl as = new XADiskActivationSpecImpl();
             as.setAreFilesRemote("true");
             as.setRemoteServerAddress("localhost");
-            as.setRemoteServerPort("9998");
+            as.setRemoteServerPort(RemoteXADiskBootup.DEFAULT_PORT + "");
             as.setFileNamesAndEventInterests(currentWorkingDirectory + "\\::111");
             EndPointActivation activation = new EndPointActivation(mef, as);
 
-            RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", 9998);
+            RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
             xafs.registerEndPointActivation(activation);
 
             Session session = xafs.createSessionForLocalTransaction();
@@ -68,11 +70,11 @@ public class TestRemoteXADiskRecover {
 
             Thread.sleep(2000);
 
-            xafs = new RemoteXAFileSystem("localhost", 9998);
+            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
             Xid xids[] = xafs.recover(XAResource.TMSTARTRSCAN);
             XADiskRemoteManagedConnectionFactory mcf = new XADiskRemoteManagedConnectionFactory();
             mcf.setServerAddress("localhost");
-            mcf.setServerPort(9998);
+            mcf.setServerPort(RemoteXADiskBootup.DEFAULT_PORT);
             XAResource xar = mcf.createManagedConnection(null, null).getXAResource();
             for (Xid xid : xids) {
                 System.out.println("Committing after crash...");
@@ -97,7 +99,7 @@ public class TestRemoteXADiskRecover {
             crashRemoteXADisk(remoteXADisk);
             remoteXADisk = bootRemoteXADisk();
             Thread.sleep(2000);
-            xafs = new RemoteXAFileSystem("localhost", 9998);
+            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
 
             session = xafs.createSessionForLocalTransaction();
             c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
