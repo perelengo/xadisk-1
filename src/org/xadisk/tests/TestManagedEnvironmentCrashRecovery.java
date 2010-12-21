@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.tests;
 
 import java.io.File;
@@ -10,6 +18,7 @@ import org.xadisk.connector.outbound.XADiskConnection;
 import org.xadisk.connector.outbound.XADiskManagedConnection;
 import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 import org.xadisk.filesystem.utilities.FileIOUtility;
@@ -22,7 +31,7 @@ public class TestManagedEnvironmentCrashRecovery {
     private static long txnId = System.currentTimeMillis();
 
     public static void main(String args[]) {
-        XAFileSystem xaFileSystem = null;
+        XAFileSystemCommonness xaFileSystem = null;
         try {
             boolean commitDuringRecovery = false;
             File f[] = new File[3];
@@ -183,16 +192,16 @@ public class TestManagedEnvironmentCrashRecovery {
         }
     }
 
-    private static XAFileSystem bootXAFileSystem() throws Exception {
-        XAFileSystem xaFS;
-        StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
+    private static XAFileSystemCommonness bootXAFileSystem() throws Exception {
+        XAFileSystemCommonness xaFS;
+        StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
         configuration.setServerPort(9998);
         xaFS = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
         return xaFS;
     }
 
-    private static XAFileSystem bootXAFileSystemCompletely() throws Exception {
-        XAFileSystem xaFS = bootXAFileSystem();
+    private static XAFileSystemCommonness bootXAFileSystemCompletely() throws Exception {
+        XAFileSystemCommonness xaFS = bootXAFileSystem();
         xaFS.waitForBootup(-1L);
         System.out.println("XADisk System is up...");
         return xaFS;

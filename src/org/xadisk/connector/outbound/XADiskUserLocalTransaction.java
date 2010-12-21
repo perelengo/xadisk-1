@@ -1,13 +1,28 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.outbound;
 
 import javax.resource.spi.ConnectionEvent;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.FileSystemConfiguration;
 
 /**
- * This represents a transaction object which can be used by JavaEE applications
- * when they want to control the transaction on XADisk by themselves and in a resource-local
- * way (means, not using XA transaction).
+ * This class is applicable only when invoking XADisk as a JCA Resource Adapter.
+ * <p> This represents a transaction object which can be used by JavaEE applications
+ * when they want to control the transaction on an {@link XADiskConnection} by themselves
+ * (in a resource-local way, not using XA transaction). Applications need to call
+ * {@link XADiskConnection#getUserLocalTransaction getUserLocalTransaction} to obtain a handle
+ * to this transaction object.
+ *
+ * @since 1.0
  */
+
 public class XADiskUserLocalTransaction {
 
     private final XADiskLocalTransaction localTxnImpl;
@@ -29,24 +44,26 @@ public class XADiskUserLocalTransaction {
 
     /**
      * Commits the local transaction bound to this object.
-     * @throws TransactionRolledbackException
+     * @throws NoTransactionAssociatedException
      */
-    public void commitLocalTransaction() throws TransactionRolledbackException {
+    public void commitLocalTransaction() throws NoTransactionAssociatedException {
         localTxnImpl._commit();
         mc.raiseUserLocalTransactionEvent(ConnectionEvent.LOCAL_TRANSACTION_COMMITTED);
     }
 
     /**
      * Rolls back the local transaction bound to this object.
-     * @throws TransactionRolledbackException
+     * @throws NoTransactionAssociatedException
      */
-    public void rollbackLocalTransaction() throws TransactionRolledbackException {
+    public void rollbackLocalTransaction() throws NoTransactionAssociatedException {
         localTxnImpl._rollback();
         mc.raiseUserLocalTransactionEvent(ConnectionEvent.LOCAL_TRANSACTION_ROLLEDBACK);
     }
 
     /**
      * Gets the transaction timeout value for the current transaction.
+     * <p> Default value is obtained from the {@link FileSystemConfiguration#getTransactionTimeout()
+     * global-configuration}.
      * @return the transaction timeout value, in seconds.
      */
     public int getTransactionTimeOut() {
@@ -55,7 +72,9 @@ public class XADiskUserLocalTransaction {
 
     /**
      * Sets the transaction timeout value for the current transaction.
-     * @param transactionTimeOut
+     * <p> Default value is obtained from the {@link FileSystemConfiguration#getTransactionTimeout()
+     * global-configuration}.
+     * @param transactionTimeOut the new transaction timeout value, in seconds.
      */
     public void setTransactionTimeOut(int transactionTimeOut) {
         localTxnImpl.setTransactionTimeOut(transactionTimeOut);

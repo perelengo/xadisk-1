@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.inbound;
 
 import java.io.File;
@@ -8,7 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
 import org.xadisk.filesystem.XidImpl;
@@ -18,21 +26,23 @@ public class DeadLetterMessageEndpoint {
     private final File deadLetterDir;
     private FileChannel deadLetterChannel;
     private int currentLetterIndex;
+    private final NativeXAFileSystem xaFileSystem;
 
-    public DeadLetterMessageEndpoint(File deadLetterDir) throws FileNotFoundException {
+    public DeadLetterMessageEndpoint(File deadLetterDir, NativeXAFileSystem xaFileSystem) throws FileNotFoundException {
+        this.xaFileSystem = xaFileSystem;
         this.deadLetterDir = deadLetterDir;
         this.currentLetterIndex = deadLetterDir.listFiles().length;
         this.deadLetterChannel = new FileOutputStream(new File(deadLetterDir, "letter_" + currentLetterIndex)).getChannel();
     }
 
-    public void dumpAndCommitMessage(FileStateChangeEvent event, XAResource xar) throws IOException,
+    public void dumpAndCommitMessage(FileSystemStateChangeEvent event, XAResource xar) throws IOException,
             XAException {
         synchronized (this) {
             ensureDeadLetterCapacity();
             byte[] content = event.toString().getBytes(TransactionLogEntry.UTF8Charset);
             deadLetterChannel.write(ByteBuffer.wrap(content));
         }
-        xar.commit(XidImpl.getXidInstanceForLocalTransaction(NativeXAFileSystem.getXAFileSystem().getNextLocalTransactionId()), true);
+        xar.commit(XidImpl.getXidInstanceForLocalTransaction(xaFileSystem.getNextLocalTransactionId()), true);
     }
 
     private void ensureDeadLetterCapacity() throws IOException {

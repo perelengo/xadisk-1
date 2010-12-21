@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.virtual;
 
 import org.xadisk.filesystem.utilities.FileIOUtility;
@@ -36,22 +44,23 @@ public class VirtualViewFile {
     private File physicalFileNameInBackupDir = null;
     private boolean hasBeenDeleted = false;
 
-    VirtualViewFile(File fileName, long length, TransactionVirtualView transactionView) {
+    VirtualViewFile(File fileName, long length, TransactionVirtualView transactionView,
+            NativeXAFileSystem xaFileSystem) {
         this.fileName = fileName;
         this.length = length;
         this.transactionView = transactionView;
         this.xid = this.transactionView.getOwningTransaction();
-        this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+        this.xaFileSystem = xaFileSystem;
         this.originalPhysicalFileSize = -1;
     }
 
     VirtualViewFile(File fileName, long length, TransactionVirtualView transactionView,
-            File mappedToPhysical, long mappedToThePhysicalFileTill) {
+            File mappedToPhysical, long mappedToThePhysicalFileTill, NativeXAFileSystem xaFileSystem) {
         this.fileName = fileName;
         this.length = length;
         this.transactionView = transactionView;
         this.xid = this.transactionView.getOwningTransaction();
-        this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+        this.xaFileSystem = xaFileSystem;
         this.originalPhysicalFileSize = mappedToThePhysicalFileTill;
         this.mappedToThePhysicalFileTill = mappedToThePhysicalFileTill;
         this.smallestTruncationPointInOriginalFile = mappedToThePhysicalFileTill;
@@ -65,7 +74,7 @@ public class VirtualViewFile {
         this.length = length;
     }
 
-    File getFileName() {
+    public File getFileName() {
         return fileName;
     }
 
@@ -109,7 +118,7 @@ public class VirtualViewFile {
         this.mappedToPhysicalFile = mappedToPhysicalFile;
     }
 
-    boolean isUsingHeavyWriteOptimization() {
+    public boolean isUsingHeavyWriteOptimization() {
         return usingHeavyWriteOptimization;
     }
 
@@ -214,7 +223,7 @@ public class VirtualViewFile {
             long logInfo[] = xaFileSystem.getTheGatheringDiskWriter().forceUndoLogAndData(xid, logEntryHeader, fileViewChannel,
                     newLength, lengthOfContentToBackUp);
             OnDiskInfo truncatedContentsFromLogs = new OnDiskInfo((int) logInfo[0], logInfo[1]);
-            Buffer buffer = new Buffer();
+            Buffer buffer = new Buffer(xaFileSystem);
             buffer.setFileContentPosition(newLength);
             buffer.setFileContentLength(lengthOfContentToBackUp);
             buffer.setHeaderLength(logInfo.length);
@@ -353,7 +362,7 @@ public class VirtualViewFile {
         ByteBuffer logEntryHeader = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, sourceFile.getAbsolutePath(),
                 destFile.getAbsolutePath(),
                 TransactionLogEntry.FILE_SPECIAL_MOVE));
-        xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryHeader), xid);
+        xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryHeader, xaFileSystem), xid);
     }
 
     public void forceAndFreePhysicalChannel() {

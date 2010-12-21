@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.pools;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -15,9 +23,11 @@ public class BufferPool implements ResourcePool<PooledBuffer> {
     private final ConcurrentLinkedQueue<PooledBuffer> nonDirectFreeBuffers;
     private final int directBufferIdleTime;
     private final int nonDirectBufferIdleTime;
+    private final NativeXAFileSystem xaFileSystem;
 
     public BufferPool(int directBufferPoolSize, int nonDirectBufferPoolSize, int bufferSize,
             int directBufferIdleTime, int nonDirectBufferIdleTime, NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         this.directBufferMaxPoolSize = directBufferPoolSize;
         this.nonDirectBufferMaxPoolSize = nonDirectBufferPoolSize;
         this.bufferSize = bufferSize;
@@ -83,7 +93,7 @@ public class BufferPool implements ResourcePool<PooledBuffer> {
                 break;
             }
         }
-        newBuffer = new PooledBuffer(bufferSize, inDirectBufferPool);
+        newBuffer = new PooledBuffer(bufferSize, inDirectBufferPool, xaFileSystem);
         return newBuffer;
     }
 

@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.impl;
 
 import java.io.IOException;
@@ -18,10 +26,15 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
     private static final long serialVersionUID = 1L;
 
     private final String xaDiskSystemId;
+    private transient NativeXAFileSystem localXAFileSystem;
 
     public RemoteMessageEndpointFactory(long objectId, String xaDiskSystemId, RemoteMethodInvoker invoker) {
         super(objectId, invoker);
         this.xaDiskSystemId = xaDiskSystemId;
+    }
+
+    public void setLocalXAFileSystem(NativeXAFileSystem localXAFileSystem) {
+        this.localXAFileSystem = localXAFileSystem;
     }
 
     synchronized public boolean isDeliveryTransacted(Method method) throws NoSuchMethodException {
@@ -37,7 +50,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
 
     synchronized public MessageEndpoint createEndpoint(XAResource xar) throws UnavailableException {
         try {
-            HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+            HostedContext globalCallbackContext = localXAFileSystem.getGlobalCallbackContext();
             long objectId = globalCallbackContext.hostObject(xar);
             //one problem was to deHost this xar at an appropriate time when its use is done. But its
             //use may not be done with the end of mep.release(). Who knows, the remote TM sends txn
@@ -46,7 +59,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
             //completes the transaction and sends transaction completion notifications to the
             //XAResource instance".
             RemoteEventProcessingXAResource remoteEventProcessingXAResource = new RemoteEventProcessingXAResource(objectId,
-                    NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
+                    localXAFileSystem.createRemoteMethodInvokerToSelf());
             RemoteMessageEndpoint remoteMEP =
                     (RemoteMessageEndpoint) invokeRemoteMethod("createEndpoint", remoteEventProcessingXAResource);
             remoteMEP.setInvoker((RemoteMethodInvoker) this.invoker.makeCopy());

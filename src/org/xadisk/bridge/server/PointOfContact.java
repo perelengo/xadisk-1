@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.server;
 
 import org.xadisk.bridge.server.conversation.ConversationGateway;
@@ -23,7 +31,7 @@ public class PointOfContact implements Work {
         this.serverSocketChannel = ServerSocketChannel.open();
         this.serverSocket = this.serverSocketChannel.socket();
         this.serverSocket.bind(new InetSocketAddress(port));
-        this.conversationGateway = new ConversationGateway();
+        this.conversationGateway = new ConversationGateway(xaFileSystem);
         this.xaFileSystem = xaFileSystem;
     }
 
@@ -40,7 +48,7 @@ public class PointOfContact implements Work {
                 }
             }
         } catch (Throwable t) {
-            NativeXAFileSystem.getXAFileSystem().notifySystemFailure(t);
+            xaFileSystem.notifySystemFailure(t);
         }
     }
 

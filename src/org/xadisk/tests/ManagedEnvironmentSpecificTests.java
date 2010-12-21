@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.tests;
 
 import java.io.File;
@@ -31,7 +39,7 @@ public class ManagedEnvironmentSpecificTests {
             FileIOUtility.createDirectory(testDirectory2);
             FileIOUtility.deleteDirectoryRecursively(systemDirectory);
             StandaloneFileSystemConfiguration saConfig =
-                    new StandaloneFileSystemConfiguration(systemDirectory.getAbsolutePath());
+                    new StandaloneFileSystemConfiguration(systemDirectory.getAbsolutePath(), "");
 
             xaFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(saConfig);
             waitForXAFileSystemToBeUp(xaFileSystem);

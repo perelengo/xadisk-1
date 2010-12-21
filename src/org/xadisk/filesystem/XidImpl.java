@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem;
 
 import java.io.Serializable;
@@ -9,6 +17,7 @@ import org.xadisk.filesystem.ResourceDependencyGraph.Node;
 public class XidImpl implements Xid, Serializable {
 
     private static final long serialVersionUID = 1L;
+    
     public static final byte INTERRUPTED_DUE_TO_DEADLOCK = 1;
     public static final byte INTERRUPTED_DUE_TO_TIMEOUT = 2;
     private final byte[] gid;

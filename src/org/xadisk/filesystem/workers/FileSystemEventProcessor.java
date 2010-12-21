@@ -1,7 +1,14 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.workers;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.LinkedBlockingQueue;
 import javax.resource.spi.UnavailableException;
 import javax.resource.spi.endpoint.MessageEndpoint;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
@@ -12,16 +19,16 @@ import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.bridge.server.conversation.HostedContext;
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.connector.inbound.FileSystemEventListener;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class FileSystemEventProcessor implements Work {
 
     private final MessageEndpointFactory mef;
-    private final FileStateChangeEvent event;
+    private final FileSystemStateChangeEvent event;
     private final NativeXAFileSystem xaFileSystem;
 
-    FileSystemEventProcessor(MessageEndpointFactory mef, FileStateChangeEvent event, NativeXAFileSystem xaFileSystem) {
+    FileSystemEventProcessor(MessageEndpointFactory mef, FileSystemStateChangeEvent event, NativeXAFileSystem xaFileSystem) {
         this.mef = mef;
         this.event = event;
         this.xaFileSystem = xaFileSystem;
@@ -47,13 +54,13 @@ public class FileSystemEventProcessor implements Work {
                 }
             }
             Method methodToInvoke = FileSystemEventListener.class.getMethod("onFileSystemEvent",
-                    FileStateChangeEvent.class);
+                    FileSystemStateChangeEvent.class);
             mep.beforeDelivery(methodToInvoke);
             methodToInvoke.invoke(mep, event);
             mep.afterDelivery();
 
             if(mef instanceof RemoteMessageEndpointFactory) {
-                HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+                HostedContext globalCallbackContext = xaFileSystem.getGlobalCallbackContext();
                 globalCallbackContext.deHostObject(epXAR);
             }
 

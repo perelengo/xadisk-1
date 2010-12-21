@@ -1,9 +1,17 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.outbound;
 
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import javax.resource.ResourceException;
 import javax.resource.spi.LocalTransaction;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.XAFileSystemCommonness;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 public class XADiskLocalTransaction implements LocalTransaction {
 
@@ -12,12 +20,12 @@ public class XADiskLocalTransaction implements LocalTransaction {
 
     public XADiskLocalTransaction(XADiskManagedConnection mc) {
         this.mc = mc;
-        XAFileSystem xaFileSystem = mc.getTheUnderlyingXAFileSystem();
+        XAFileSystemCommonness xaFileSystem = (XAFileSystemCommonness) mc.getTheUnderlyingXAFileSystem();
         this.transactionTimeOut = xaFileSystem.getDefaultTransactionTimeout();
     }
 
     void _begin() {
-        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.LOCAL_TRANSACTION);
+        mc.setTypeOfCurrentTransaction(XADiskManagedConnection.LOCAL_TRANSACTION);
         mc.refreshSessionForBeginLocalTransaction().setTransactionTimeout(transactionTimeOut);
     }
 
@@ -25,29 +33,29 @@ public class XADiskLocalTransaction implements LocalTransaction {
         _begin();
     }
 
-    void _rollback() throws TransactionRolledbackException {
-        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.NO_TRANSACTION);
+    void _rollback() throws NoTransactionAssociatedException {
+        mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().rollback();
     }
 
     public void rollback() throws ResourceException {
         try {
             _rollback();
-        } catch (TransactionRolledbackException taae) {
-            throw new ResourceException(taae);
+        } catch (NoTransactionAssociatedException note) {
+            throw new ResourceException(note);
         }
     }
 
-    void _commit() throws TransactionRolledbackException {
-        mc.setTypeOfOngoingTransaction(XADiskManagedConnection.NO_TRANSACTION);
+    void _commit() throws NoTransactionAssociatedException {
+        mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().commit();
     }
 
     public void commit() throws ResourceException {
         try {
             _commit();
-        } catch (TransactionRolledbackException taae) {
-            throw new ResourceException(taae);
+        } catch (NoTransactionAssociatedException note) {
+            throw new ResourceException(note);
         }
     }
 

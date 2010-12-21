@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.server.conversation;
 
 import java.io.IOException;
@@ -27,12 +35,14 @@ public class ConversationContext {
     private final HostedContext conversationalHostedContext;
     private final HostedContext globalHostedContext;
     private final ArrayList<NativeSession> allSessionsInsideThisConversation = new ArrayList<NativeSession>();
+    private final NativeXAFileSystem xaFileSystem;
 
-    public ConversationContext(SocketChannel conversationChannel) {
+    public ConversationContext(SocketChannel conversationChannel, NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         this.conversationChannel = conversationChannel;
         this.conversationalHostedContext = new ConversationalHostedContext();
-        this.conversationalHostedContext.hostObject(NativeXAFileSystem.getXAFileSystem());
-        this.globalHostedContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+        this.conversationalHostedContext.hostObject(xaFileSystem);
+        this.globalHostedContext = xaFileSystem.getGlobalCallbackContext();
     }
 
     public Object getInvocationTarget(long objectId) {
@@ -79,8 +89,8 @@ public class ConversationContext {
                 currentMethodInvocationBuffer.get(currentMethodInvocation);
                 clearLastConversation();
 
-                Work handleRemoteMethodInvocation = new RemoteMethodInvocationHandler(this);
-                NativeXAFileSystem.getXAFileSystem().startWork(handleRemoteMethodInvocation);
+                Work handleRemoteMethodInvocation = new RemoteMethodInvocationHandler(this, xaFileSystem);
+                xaFileSystem.startWork(handleRemoteMethodInvocation);
             }
         }
     }

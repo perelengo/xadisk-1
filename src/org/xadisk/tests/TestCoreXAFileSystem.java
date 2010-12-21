@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.tests;
 
 import com.sun.jdi.Bootstrap;
@@ -8,6 +16,7 @@ import com.sun.jdi.connect.LaunchingConnector;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Map;
+import org.xadisk.bridge.proxies.interfaces.XAFileSystemProxy;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
@@ -86,7 +95,7 @@ public class TestCoreXAFileSystem {
 
     private static void test(boolean postCrash) {
         try {
-            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
+            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
             configuration.setWorkManagerCorePoolSize(10);
             configuration.setWorkManagerMaxPoolSize(10000);
             configuration.setMaximumConcurrentEventDeliveries(maxConcurrentDeliveries);
@@ -121,7 +130,7 @@ public class TestCoreXAFileSystem {
             }
             TestUtility.waitForAllAtHeaven(allThreads);
             System.out.println("Testing threads completed...Will shutdown the NativeXAFS now.");
-            NativeXAFileSystem.getXAFileSystem().shutdown();
+            XAFileSystemProxy.getNativeXAFileSystemReference("").shutdown();
         } catch (Throwable t) {
             t.printStackTrace();
         }

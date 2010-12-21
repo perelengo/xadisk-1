@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.tests;
 
 import java.io.File;
@@ -13,6 +21,8 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
+import org.xadisk.filesystem.SessionCommonness;
+import org.xadisk.filesystem.XAFileSystemCommonness;
 
 public class CoreXAFileSystemTests {
 
@@ -199,7 +209,7 @@ public class CoreXAFileSystemTests {
             TestUtility.compareDiskAndDisk(baseForRollbackRoot, ioOperationsRoot1);
         } else {
             System.out.println("Committing...");
-            ioOperationsSession.commit(true);
+            ((SessionCommonness)ioOperationsSession).commit(true);
             TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
         }
         System.out.println("Done.");
@@ -220,7 +230,7 @@ public class CoreXAFileSystemTests {
                 //no need for view verification in rollback case; we just need to do it in either place.
                 TestUtility.compareDiskAndView(ioOperationsRoot2, ioOperationsRoot1, ioOperationsSession);
                 System.out.println("Committing...");
-                ioOperationsSession.commit(true);
+                ((SessionCommonness)ioOperationsSession).commit(true);
                 resetIOOperationsSession();
                 TestUtility.compareDiskAndDisk(ioOperationsRoot2, ioOperationsRoot1);
             }
@@ -308,7 +318,7 @@ public class CoreXAFileSystemTests {
             }
         }
         fosSource2.flush();
-        session.commit(true);
+        ((SessionCommonness)session).commit(true);
 
         TestUtility.compareDiskAndDisk(fileRoot2, fileRoot1);
     }
@@ -411,7 +421,7 @@ public class CoreXAFileSystemTests {
         xosPoor.close();
         xosRich.close();
 
-        session.commit(true);
+        ((SessionCommonness)session).commit(true);
     }
 
     private static void verifyMoneyTransfersPostAllCommit(File rich, File poor) throws Exception {
@@ -456,7 +466,7 @@ public class CoreXAFileSystemTests {
 
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
         EndPointActivation epActivation = new EndPointActivation(smef, actSpec);
-        XAFileSystem xaFileSystem = TestUtility.getXAFileSystemForTest();
+        XAFileSystemCommonness xaFileSystem = (XAFileSystemCommonness)TestUtility.getXAFileSystemForTest();
         xaFileSystem.registerEndPointActivation(epActivation);
 
         Session session = xaFileSystem.createSessionForLocalTransaction();
@@ -464,7 +474,7 @@ public class CoreXAFileSystemTests {
         session.createFile(interestingFiles[0], false);
         session.copyFile(interestingFiles[0], interestingFiles[1]);
         session.deleteFile(interestingFiles[0]);
-        session.commit(true);
+        ((SessionCommonness)session).commit(true);
 
         while (smef.getEventsReceivedCount() < 5) {
             System.out.println("Not all events recevied yet. Receieved : " + smef.getEventsReceivedCount());

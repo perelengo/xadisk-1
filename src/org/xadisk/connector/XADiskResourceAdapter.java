@@ -1,9 +1,16 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector;
 
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -16,9 +23,9 @@ import javax.resource.spi.ResourceAdapterInternalException;
 import javax.resource.spi.endpoint.MessageEndpointFactory;
 import javax.transaction.xa.XAResource;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.filesystem.FileSystemConfiguration;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class XADiskResourceAdapter extends FileSystemConfiguration implements ResourceAdapter {
@@ -28,8 +35,7 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
 
     public void start(BootstrapContext bsContext) throws ResourceAdapterInternalException {
         try {
-            NativeXAFileSystem.bootXAFileSystem(this, bsContext.getWorkManager());
-            this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+            this.xaFileSystem = NativeXAFileSystem.bootXAFileSystem(this, bsContext.getWorkManager());
         } catch (XASystemException xase) {
             throw new ResourceAdapterInternalException(xase);
         }
@@ -49,7 +55,7 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
             if (Boolean.valueOf(xadiskAS.getAreFilesRemote())) {
                 String serverAddress = xadiskAS.getRemoteServerAddress();
                 Integer serverPort = Integer.valueOf(xadiskAS.getRemoteServerPort());
-                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort);
+                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort, xaFileSystem);
                 remoteXAFS.registerEndPointActivation(epActivation);
                 remoteXAFS.shutdown();
             } else {
@@ -67,7 +73,7 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
             if (Boolean.valueOf(xadiskAS.getAreFilesRemote())) {
                 String serverAddress = xadiskAS.getRemoteServerAddress();
                 Integer serverPort = Integer.valueOf(xadiskAS.getRemoteServerPort());
-                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort);
+                RemoteXAFileSystem remoteXAFS = new RemoteXAFileSystem(serverAddress, serverPort, xaFileSystem);
                 remoteXAFS.deRegisterEndPointActivation(epActivation);
                 remoteXAFS.shutdown();
             } else {
@@ -98,10 +104,10 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
             }
         }
         for (String xadiskLocations : uniqueXADiskInstances) {
-            XAFileSystem uniqueXAFileSystem;
+            XAFileSystemCommonness uniqueXAFileSystem;
             String location[] = xadiskLocations.split(":");
             if (location.length == 2) {
-                uniqueXAFileSystem = new RemoteXAFileSystem(location[0], Integer.valueOf(location[1]));
+                uniqueXAFileSystem = new RemoteXAFileSystem(location[0], Integer.valueOf(location[1]), xaFileSystem);
             } else {
                 uniqueXAFileSystem = this.xaFileSystem;
             }

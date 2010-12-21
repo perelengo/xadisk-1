@@ -1,10 +1,18 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.impl;
 
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.facilitators.RemoteObjectProxy;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.filesystem.exceptions.ClosedStreamException;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFileOutputStream {
 
@@ -14,10 +22,10 @@ public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFil
         super(objectId, invoker);
     }
 
-    public void write(int b) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(int b) throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             invokeRemoteMethod("write", b);
-        } catch (TransactionRolledbackException tre) {
+        } catch (NoTransactionAssociatedException tre) {
             throw tre;
         } catch (ClosedStreamException cse) {
             throw cse;
@@ -26,10 +34,10 @@ public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFil
         }
     }
 
-    public void write(byte[] b) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(byte[] b) throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             invokeRemoteMethod("write", b);
-        } catch (TransactionRolledbackException tre) {
+        } catch (NoTransactionAssociatedException tre) {
             throw tre;
         } catch (ClosedStreamException cse) {
             throw cse;
@@ -38,12 +46,12 @@ public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFil
         }
     }
 
-    public void write(byte[] b, int off, int len) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(byte[] b, int off, int len) throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             byte[] onWire = new byte[len];
             System.arraycopy(b, off, onWire, 0, len);
             invokeRemoteMethod("write", b, off, len);
-        } catch (TransactionRolledbackException tre) {
+        } catch (NoTransactionAssociatedException tre) {
             throw tre;
         } catch (ClosedStreamException cse) {
             throw cse;
@@ -52,10 +60,10 @@ public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFil
         }
     }
 
-    public void flush() throws ClosedStreamException, TransactionRolledbackException {
+    public void flush() throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             invokeRemoteMethod("flush");
-        } catch (TransactionRolledbackException tre) {
+        } catch (NoTransactionAssociatedException tre) {
             throw tre;
         } catch (ClosedStreamException cse) {
             throw cse;
@@ -64,10 +72,10 @@ public class RemoteXAFileOutputStream extends RemoteObjectProxy implements XAFil
         }
     }
 
-    public void close() throws TransactionRolledbackException {
+    public void close() throws NoTransactionAssociatedException {
         try {
             invokeRemoteMethod("close");
-        } catch (TransactionRolledbackException tre) {
+        } catch (NoTransactionAssociatedException tre) {
             throw tre;
         } catch (Throwable t) {
             throw assertExceptionHandling(t);

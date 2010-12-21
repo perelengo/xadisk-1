@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.virtual;
 
 import org.xadisk.filesystem.workers.GatheringDiskWriter;
@@ -14,14 +22,14 @@ import org.xadisk.filesystem.TransactionLogEntry;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.exceptions.ClosedStreamException;
 import org.xadisk.filesystem.exceptions.FileUnderUseException;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 public class NativeXAFileOutputStream implements XAFileOutputStream {
 
     private final String destination;
     private ByteBuffer byteBuffer;
     private Buffer buffer;
-    private final NativeXAFileSystem theXAFileSystem;
+    private final NativeXAFileSystem xaFileSystem;
     private final XidImpl xid;
     private final GatheringDiskWriter theGatheringDiskWriter;
     private long filePosition;
@@ -30,14 +38,13 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
     private final boolean heavyWrite;
     private final NativeSession owningSession;
     private final ReentrantLock asynchronousRollbackLock;
-    private static final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
 
-    NativeXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
-            NativeSession owningSession) {
-        this.theXAFileSystem = NativeXAFileSystem.getXAFileSystem();
+    public NativeXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
+            NativeSession owningSession, NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         this.destination = vvf.getFileName().getAbsolutePath();
         this.xid = xid;
-        this.theGatheringDiskWriter = this.theXAFileSystem.getTheGatheringDiskWriter();
+        this.theGatheringDiskWriter = this.xaFileSystem.getTheGatheringDiskWriter();
         this.vvf = vvf;
         this.filePosition = vvf.getLength();
         vvf.setBeingWritten(true);
@@ -46,7 +53,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
                 try {
                     vvf.setUpForHeavyWriteOptimization();
                 } catch (IOException ioe) {
-                    theXAFileSystem.notifySystemFailure(ioe);
+                    xaFileSystem.notifySystemFailure(ioe);
                 }
             }
         }
@@ -57,16 +64,16 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
         this.asynchronousRollbackLock = owningSession.getAsynchronousRollbackLock();
     }
 
-    public void write(byte[] b) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(byte[] b) throws ClosedStreamException, NoTransactionAssociatedException {
         write(b, 0, b.length);
     }
 
-    public void write(int b) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(int b) throws ClosedStreamException, NoTransactionAssociatedException {
         byte b1[] = {(byte) b};
         write(b1, 0, 1);
     }
 
-    public void write(byte[] b, int off, int len) throws ClosedStreamException, TransactionRolledbackException {
+    public void write(byte[] b, int off, int len) throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -88,7 +95,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
         }
     }
 
-    public void flush() throws ClosedStreamException, TransactionRolledbackException {
+    public void flush() throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -99,7 +106,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
         }
     }
 
-    public void close() throws TransactionRolledbackException {
+    public void close() throws NoTransactionAssociatedException {
         if (closed) {
             return;
         }
@@ -115,11 +122,11 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
     }
 
     private void allocateByteBuffer() {
-        buffer = theXAFileSystem.getBufferPool().checkOut();
+        buffer = xaFileSystem.getBufferPool().checkOut();
         if (buffer != null) {
             this.byteBuffer = buffer.getBuffer();
         } else {
-            this.buffer = new Buffer(theXAFileSystem.getConfiguredBufferSize(), false);
+            this.buffer = new Buffer(xaFileSystem.getConfiguredBufferSize(), false, xaFileSystem);
             this.byteBuffer = buffer.getBuffer();
         }
         this.byteBuffer.clear();
@@ -151,31 +158,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
                 theGatheringDiskWriter.submitBuffer(buffer, xid);
             }
         } catch (IOException ioe) {
-            theXAFileSystem.notifySystemFailure(ioe);
-        }
-    }
-
-    public static NativeXAFileOutputStream getCachedXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
-            NativeSession owningSession)
-            throws FileUnderUseException {
-        synchronized (fileAndOutputStream) {
-            File f = vvf.getFileName();
-            NativeXAFileOutputStream xaFOS = fileAndOutputStream.get(f);
-            if (xaFOS == null || xaFOS.isClosed()) {
-                xaFOS = new NativeXAFileOutputStream(vvf, xid, heavyWrite, owningSession);
-                fileAndOutputStream.put(f, xaFOS);
-            } else {
-                if (!vvf.isUsingHeavyWriteOptimization() && heavyWrite) {
-                    throw new FileUnderUseException();
-                }
-            }
-            return xaFOS;
-        }
-    }
-
-    public static void deCacheXAFileOutputStream(File f) {
-        synchronized (fileAndOutputStream) {
-            fileAndOutputStream.remove(f);
+            xaFileSystem.notifySystemFailure(ioe);
         }
     }
 
@@ -183,7 +166,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
         return new File(destination);
     }
 
-    private void checkIfCanContinue() throws TransactionRolledbackException, ClosedStreamException {
+    private void checkIfCanContinue() throws NoTransactionAssociatedException, ClosedStreamException {
         if (closed) {
             throw new ClosedStreamException();
         }

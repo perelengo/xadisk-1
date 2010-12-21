@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.virtual;
 
 import org.xadisk.filesystem.pools.PooledBuffer;
@@ -15,13 +23,13 @@ import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.exceptions.ClosedStreamException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 public class NativeXAFileInputStream implements XAFileInputStream {
 
     private FileChannel physicalFileChannel;
     private ByteBuffer byteBuffer;
-    private final NativeXAFileSystem theXAFileSystem;
+    private final NativeXAFileSystem xaFileSystem;
     private boolean filledAtleastOnce = false;
     private final VirtualViewFile vvf;
     private boolean closed = false;
@@ -32,13 +40,14 @@ public class NativeXAFileInputStream implements XAFileInputStream {
     private final ReentrantLock asynchronousRollbackLock;
     private final PooledBuffer pooledBuffer;
 
-    public NativeXAFileInputStream(VirtualViewFile vvf, NativeSession owningSession) throws FileNotExistsException {
-        this.theXAFileSystem = NativeXAFileSystem.getXAFileSystem();
-        pooledBuffer = this.theXAFileSystem.getBufferPool().checkOut();
+    public NativeXAFileInputStream(VirtualViewFile vvf, NativeSession owningSession, NativeXAFileSystem xaFileSystem)
+            throws FileNotExistsException {
+        this.xaFileSystem = xaFileSystem;
+        pooledBuffer = this.xaFileSystem.getBufferPool().checkOut();
         if (pooledBuffer != null) {
             this.byteBuffer = pooledBuffer.getBuffer();
         } else {
-            this.byteBuffer = (new Buffer(theXAFileSystem.getConfiguredBufferSize(), false)).getBuffer();
+            this.byteBuffer = (new Buffer(xaFileSystem.getConfiguredBufferSize(), false, xaFileSystem)).getBuffer();
         }
         this.cachedWritableByteBuffer = this.byteBuffer;
         assert cachedWritableByteBuffer != null;//to debug a strange issue where refillBuffer was reporting
@@ -53,12 +62,12 @@ public class NativeXAFileInputStream implements XAFileInputStream {
             try {
                 this.physicalFileChannel = new FileInputStream(vvf.getMappedToPhysicalFile()).getChannel();
             } catch (FileNotFoundException fnfe) {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(vvf.getFileName().getAbsolutePath());
             }
         }
     }
 
-    public int available() throws TransactionRolledbackException, ClosedStreamException {
+    public int available() throws NoTransactionAssociatedException, ClosedStreamException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -71,7 +80,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
-    public void close() throws TransactionRolledbackException {
+    public void close() throws NoTransactionAssociatedException {
         if (closed) {
             return;
         }
@@ -82,12 +91,12 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                 try {
                     physicalFileChannel.close();
                 } catch (IOException ioe) {
-                    theXAFileSystem.notifySystemFailure(ioe);
+                    xaFileSystem.notifySystemFailure(ioe);
                 }
             }
             vvf.reduceBeingRead();
             if (pooledBuffer != null) {
-                theXAFileSystem.getBufferPool().checkIn(pooledBuffer);
+                xaFileSystem.getBufferPool().checkIn(pooledBuffer);
             }
             closed = true;
         } finally {
@@ -95,7 +104,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
-    public int read() throws ClosedStreamException, TransactionRolledbackException {
+    public int read() throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             int eofMark;
             asynchronousRollbackLock.lock();
@@ -122,11 +131,11 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
-    public int read(byte[] b) throws ClosedStreamException, TransactionRolledbackException {
+    public int read(byte[] b) throws ClosedStreamException, NoTransactionAssociatedException {
         return read(b, 0, b.length);
     }
 
-    public int read(byte[] b, int off, int len) throws ClosedStreamException, TransactionRolledbackException {
+    public int read(byte[] b, int off, int len) throws ClosedStreamException, NoTransactionAssociatedException {
         try {
             int eofMark;
             asynchronousRollbackLock.lock();
@@ -155,7 +164,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
-    public long skip(long n) throws TransactionRolledbackException, ClosedStreamException {
+    public long skip(long n) throws NoTransactionAssociatedException, ClosedStreamException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -175,7 +184,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         }
     }
 
-    public void position(long n) throws TransactionRolledbackException, ClosedStreamException {
+    public void position(long n) throws NoTransactionAssociatedException, ClosedStreamException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -292,7 +301,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                 return 0;
             }
         } catch (IOException ioe) {
-            theXAFileSystem.notifySystemFailure(ioe);
+            xaFileSystem.notifySystemFailure(ioe);
             return -1;
         }
     }
@@ -301,7 +310,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         return closed;
     }
 
-    private void checkIfCanContinue() throws TransactionRolledbackException, ClosedStreamException {
+    private void checkIfCanContinue() throws NoTransactionAssociatedException, ClosedStreamException {
         if (closed) {
             throw new ClosedStreamException();
         }

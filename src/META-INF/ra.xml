@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+“Eclipse Public License 1.0” located at http://www.opensource.org/licenses/eclipse-1.0.php.
+-->
+
 
 <connector xmlns="http://java.sun.com/xml/ns/j2ee"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -37,6 +44,11 @@
             <config-property-name>xaDiskHome</config-property-name>
             <config-property-type>java.lang.String</config-property-type>
             <config-property-value>C:\\XADisk</config-property-value>
+        </config-property>
+        <config-property>
+            <config-property-name>instanceId</config-property-name>
+            <config-property-type>java.lang.String</config-property-type>
+            <config-property-value>id-1</config-property-value>
         </config-property>
         <config-property>
             <config-property-name>transactionLogFileMaxSize</config-property-name>
@@ -84,14 +96,14 @@
             <config-property-value>20</config-property-value>
         </config-property>
         <config-property>
-            <config-property-name>logLevel</config-property-name>
-            <config-property-type>java.lang.Integer</config-property-type>
-            <config-property-value>3</config-property-value>
-        </config-property>
-        <config-property>
             <config-property-name>transactionTimeout</config-property-name>
             <config-property-type>java.lang.Integer</config-property-type>
             <config-property-value>60</config-property-value>
+        </config-property>
+        <config-property>
+            <config-property-name>enableRemoteInvocations</config-property-name>
+            <config-property-type>java.lang.Boolean</config-property-type>
+            <config-property-value>false</config-property-value>
         </config-property>
         <config-property>
             <config-property-name>serverAddress</config-property-name>
@@ -108,6 +120,27 @@
         <outbound-resourceadapter>
             <connection-definition>
                 <managedconnectionfactory-class>
+                    org.xadisk.connector.outbound.XADiskManagedConnectionFactory
+                </managedconnectionfactory-class>
+                <config-property>
+                    <config-property-name>instanceId</config-property-name>
+                    <config-property-type>java.lang.String</config-property-type>
+                </config-property>
+                <connectionfactory-interface>
+                    org.xadisk.connector.outbound.XADiskConnectionFactory
+                </connectionfactory-interface>
+                <connectionfactory-impl-class>
+                    org.xadisk.connector.outbound.XADiskConnectionFactoryImpl
+                </connectionfactory-impl-class>
+                <connection-interface>
+                    org.xadisk.connector.outbound.XADiskConnection
+                </connection-interface>
+                <connection-impl-class>
+                    org.xadisk.connector.outbound.XADiskConnectionImpl
+                </connection-impl-class>
+            </connection-definition>
+            <connection-definition>
+                <managedconnectionfactory-class>
                     org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnectionFactory
                 </managedconnectionfactory-class>
                 <config-property>
@@ -118,6 +151,10 @@
                     <config-property-name>serverPort</config-property-name>
                     <config-property-type>java.lang.Integer</config-property-type>
                 </config-property>
+                <config-property>
+                    <config-property-name>instanceId</config-property-name>
+                    <config-property-type>java.lang.String</config-property-type>
+                </config-property>
                 <connectionfactory-interface>
                     org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnectionFactory
                 </connectionfactory-interface>
@@ -126,23 +163,6 @@
                 </connectionfactory-impl-class>
                 <connection-interface>
                     org.xadisk.bridge.proxies.interfaces.XADiskRemoteConnection
-                </connection-interface>
-                <connection-impl-class>
-                    org.xadisk.connector.outbound.XADiskConnectionImpl
-                </connection-impl-class>
-            </connection-definition>
-            <connection-definition>
-                <managedconnectionfactory-class>
-                    org.xadisk.connector.outbound.XADiskManagedConnectionFactory
-                </managedconnectionfactory-class>
-                <connectionfactory-interface>
-                    org.xadisk.connector.outbound.XADiskConnectionFactory
-                </connectionfactory-interface>
-                <connectionfactory-impl-class>
-                    org.xadisk.connector.outbound.XADiskConnectionFactoryImpl
-                </connectionfactory-impl-class>
-                <connection-interface>
-                    org.xadisk.connector.outbound.XADiskConnection
                 </connection-interface>
                 <connection-impl-class>
                     org.xadisk.connector.outbound.XADiskConnectionImpl

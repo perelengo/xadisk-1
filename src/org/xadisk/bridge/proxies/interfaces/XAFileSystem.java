@@ -1,92 +1,63 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.interfaces;
 
 import java.io.IOException;
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.XAResource;
-import javax.transaction.xa.Xid;
-import org.xadisk.connector.inbound.EndPointActivation;
+import org.xadisk.filesystem.exceptions.RecoveryInProgressException;
+import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 
 /**
- * This interface is used only in standalone Java applications, and most of these methods are
- * for internal use only.
+ * This interface represents a reference to an XADisk instance.
+ * <p> An implementation of this interface is obtained using any of these methods:
+ * <ol>
+ * <li> {@link XAFileSystemProxy#bootNativeXAFileSystem(StandaloneFileSystemConfiguration) bootNativeXAFileSystem}
+ * (for XADisk instance in the same JVM, i.e. a native XADisk instance)
+ * <li> {@link XAFileSystemProxy#getNativeXAFileSystemReference(String) getNativeXAFileSystemReference}
+ * (for XADisk instance in the same JVM, i.e. a native XADisk instance)
+ * <li> {@link XAFileSystemProxy#getRemoteXAFileSystemReference(String, int) getRemoteXAFileSystemReference}
+ * (for connecting to an XADisk instance running on a separate JVM, i.e. remote XADisk instance).
+ * </ol>
+ *
+ * @since 1.0
  */
+
 public interface XAFileSystem {
 
     /**
-     * Creates a new Session.
-     * @return The new Session.
+     * Creates a new session and associates a local (non-XA) transaction with it.
+     * @return the new session.
      */
     public Session createSessionForLocalTransaction();
 
     /**
-     * For internal use only.
-     * @param xid
-     * @return
-     */
-    public Session createSessionForXATransaction(Xid xid);
-
-    /**
-     * For internal use only.
-     * @param xid
-     * @return
-     */
-    public Session getSessionForTransaction(Xid xid);
-
-    /**
      * Waits for this XADisk instance to complete its booting and become ready to use. The timeout
-     * specifies the maximum amount of time to wait; if timeout expires an appropriate exception is
-     * thrown indicating the reason of why the booting hasn't yet completed. Note that XADisk completes
-     * all of its local transactions and XA transactions before calling it a "boot completion".
-     * For in-doubt XA transactions, an XADisk instance waits for the Transaction Manager to
-     * know the transaction decision; this waiting further delays the boot completion.
-     * @param timeout Number of milliseconds to wait.
+     * specifies the maximum amount of time to wait.
+     * <p> If the timeout expires before boot completion, the {@link RecoveryInProgressException}
+     * is thrown.
+     * <p> If a booting problem is encountered before timeout, an instance of
+     * {@link XASystemNoMoreAvailableException} is thrown with appropriate <i>cause</i> set.
+     * <p> Note that XADisk completes (rollback or commit) all of its <i>ongoing</i> (which were running during
+     * last shutdown/crash of XADisk) local transactions and XA transactions as a part of its boot process.
+     * For in-doubt XA transactions, an XADisk instance waits for the Transaction Manager
+     * to inform it about the transaction decision; XADisk keeps boot-completion on hold
+     * due to these in-doubt XA transactions.
+     * @param timeout number of milliseconds to wait.
      * @throws InterruptedException
      */
     public void waitForBootup(long timeout) throws InterruptedException;
 
     /**
-     * For internal use only.
-     * @param t
-     */
-    public void notifySystemFailureAndContinue(Throwable t);
-
-    /**
-     * For internal use only.
-     * @return
-     */
-    public int getDefaultTransactionTimeout();
-
-    /**
-     * For internal use only.
-     * @param flag
-     * @return
-     * @throws XAException
-     */
-    public Xid[] recover(int flag) throws XAException;
-
-    /**
-     * For internal use only.
-     * @param epActivation
-     */
-    public void registerEndPointActivation(EndPointActivation epActivation) throws IOException;
-
-    /**
-     * For internal use only.
-     * @param epActivation
-     */
-    public void deRegisterEndPointActivation(EndPointActivation epActivation) throws IOException;
-
-    /**
-     * If this is a NativeXAFileSystem object, this method shuts down the XADisk instance.
-     * If this is a remote proxy for some XADisk instance, this method only disconnects from
-     * the remote XADisk instance.
+     * If this is a reference to a native XADisk instance, this method shuts down the XADisk instance
+     * referenced by <i>this</i> object.
+     * <p> If this is a reference to a remote XADisk instance, this method only disconnects from
+     * the remote XADisk instance referenced by <i>this</i> object.
      * @throws IOException
      */
     public void shutdown() throws IOException;
-
-    /**
-     * For internal use only.
-     * @return
-     */
-    public XAResource getEventProcessingXAResourceForRecovery();
 }

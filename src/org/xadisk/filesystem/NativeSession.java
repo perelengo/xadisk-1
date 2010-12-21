@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+ */
+
+
 package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.pools.PooledBuffer;
@@ -17,7 +25,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
-import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
@@ -25,20 +32,21 @@ import org.xadisk.filesystem.exceptions.FileNotExistsException;
 import org.xadisk.filesystem.exceptions.FileUnderUseException;
 import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 import org.xadisk.filesystem.exceptions.LockingFailedException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.XASystemException;
+import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 
-public class NativeSession implements Session {
+public class NativeSession implements SessionCommonness {
 
-    private static final int WRITE_FILE = 0;
-    private static final int READ_FILE = 1;
     private final HashMap<File, Lock> allAcquiredLocks = new HashMap<File, Lock>(1000);
     private final ArrayList<NativeXAFileInputStream> allAcquiredInputStreams = new ArrayList<NativeXAFileInputStream>(5);
     private final ArrayList<NativeXAFileOutputStream> allAcquiredOutputStreams = new ArrayList<NativeXAFileOutputStream>(5);
     private final NativeXAFileSystem xaFileSystem;
     private volatile int transactionTimeout = 0;
     private final XidImpl xid;
-    private boolean rolledback = false;
+    private boolean rolledbackPrematurely = false;
+    private boolean sessionIsUseless = false;
     private volatile boolean startedCommitting = false;
     private Throwable rollbackCause = null;
     private volatile boolean systemHasFailed = false;
@@ -47,7 +55,7 @@ public class NativeSession implements Session {
     private long fileLockWaitTimeout = 200;
     private final ResourceDependencyGraph RDG;
     private boolean createdForRecovery = false;
-    private ArrayList<FileStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileStateChangeEvent>(10);
+    private ArrayList<FileSystemStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileSystemStateChangeEvent>(10);
     private final ArrayList<File> directoriesPinnedInThisSession = new ArrayList<File>(5);
     private final long timeOfEntryToTransaction;
     private final ReentrantLock asynchronousRollbackLock = new ReentrantLock(false);
@@ -55,11 +63,12 @@ public class NativeSession implements Session {
     private final ArrayList<Buffer> transactionInMemoryBuffers = new ArrayList<Buffer>(25);
     private int numOwnedExclusiveLocks = 0;
     private boolean publishFileStateChangeEventsOnCommit = false;
+    private final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
 
-    NativeSession(XidImpl xid, boolean createdForRecovery) {
+    NativeSession(XidImpl xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
         xid.setOwningSession(this);
-        this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+        this.xaFileSystem = xaFileSystem;
         this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = createdForRecovery;
         if (createdForRecovery) {
@@ -69,17 +78,17 @@ public class NativeSession implements Session {
         } else {
             this.transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
             this.fileLockWaitTimeout = this.xaFileSystem.getLockTimeOut();
-            view = new TransactionVirtualView(xid, this);
+            view = new TransactionVirtualView(xid, this, xaFileSystem);
             RDG.createNodeForTransaction(xid);
             timeOfEntryToTransaction = System.currentTimeMillis();
             xaFileSystem.assignSessionToTransaction(xid, this);
         }
     }
 
-    public NativeSession(XidImpl xid, ArrayList<FileStateChangeEvent> events) {
+    public NativeSession(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
         xid.setOwningSession(this);
-        this.xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+        this.xaFileSystem = xaFileSystem;
         this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = true;
         this.transactionTimeout = 0;
@@ -103,9 +112,10 @@ public class NativeSession implements Session {
     void rollbackPrematurely(Throwable rollbackCause) {
         try {
             rollback();
-            this.rolledback = true;
+            this.rolledbackPrematurely = true;
             this.rollbackCause = rollbackCause;
         } catch (TransactionRolledbackException trbe) {
+        } catch (NoTransactionAssociatedException note) {
         }
     }
 
@@ -116,7 +126,7 @@ public class NativeSession implements Session {
 
     public NativeXAFileInputStream createXAFileInputStream(File f, boolean lockExclusively)
             throws FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -124,9 +134,9 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, lockExclusively);
-            checkPermission(READ_FILE, f);
+            checkPermission(PermissionType.READ_FILE, f);
             VirtualViewFile vvf = view.getVirtualViewFile(f);
-            NativeXAFileInputStream temp = new NativeXAFileInputStream(vvf, this);
+            NativeXAFileInputStream temp = new NativeXAFileInputStream(vvf, this, xaFileSystem);
             allAcquiredInputStreams.add(temp);
             addLocks(newLock);
             success = true;
@@ -147,7 +157,7 @@ public class NativeSession implements Session {
 
     public NativeXAFileOutputStream createXAFileOutputStream(File f, boolean heavyWrite) throws FileNotExistsException,
             FileUnderUseException, InsufficientPermissionOnFileException, LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -155,12 +165,12 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, true);
-            checkPermission(WRITE_FILE, f);
+            checkPermission(PermissionType.WRITE_FILE, f);
             VirtualViewFile vvf = view.getVirtualViewFile(f);
-            NativeXAFileOutputStream temp = NativeXAFileOutputStream.getCachedXAFileOutputStream(vvf, xid, heavyWrite, this);
+            NativeXAFileOutputStream temp = getCachedXAFileOutputStream(vvf, xid, heavyWrite, this);
             addLocks(newLock);
             allAcquiredOutputStreams.add(temp);
-            addToFileSystemEvents(FileStateChangeEvent.FILE_MODIFIED, f, false);
+            addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
             success = true;
             return temp;
         } catch (XASystemException xase) {
@@ -178,8 +188,8 @@ public class NativeSession implements Session {
     }
 
     public void createFile(File f, boolean isDirectory) throws FileAlreadyExistsException, FileNotExistsException,
-            InsufficientPermissionOnFileException, LockingFailedException, TransactionRolledbackException,
-            InterruptedException {
+            InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLocks[] = new Lock[2];
         boolean success = false;
@@ -190,14 +200,15 @@ public class NativeSession implements Session {
             File parentFile = f.getParentFile();
             checkValidParent(f);
             newLocks[1] = acquireLockIfRequired(parentFile, true);
+            checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             view.createFile(f, isDirectory);
             byte operation = isDirectory ? TransactionLogEntry.DIR_CREATE : TransactionLogEntry.FILE_CREATE;
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
                     operation));
-            Buffer logEntry = new Buffer(logEntryBytes);
+            Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            addToFileSystemEvents(FileStateChangeEvent.FILE_CREATED, f, isDirectory);
+            addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.CREATED, f, isDirectory);
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -214,8 +225,8 @@ public class NativeSession implements Session {
     }
 
     public void deleteFile(File f) throws DirectoryNotEmptyException, FileNotExistsException, FileUnderUseException,
-            InsufficientPermissionOnFileException, LockingFailedException, TransactionRolledbackException,
-            InterruptedException {
+            InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLocks[] = new Lock[2];
         boolean success = false;
@@ -227,13 +238,14 @@ public class NativeSession implements Session {
             File parentFile = f.getParentFile();
             checkValidParent(f);
             newLocks[1] = acquireLockIfRequired(parentFile, true);
+            checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             isDirectory = view.deleteFile(f);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
                     TransactionLogEntry.FILE_DELETE));
-            Buffer logEntry = new Buffer(logEntryBytes);
+            Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
-            addToFileSystemEvents(FileStateChangeEvent.FILE_DELETED, f, isDirectory);
+            addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.DELETED, f, isDirectory);
             success = true;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -251,7 +263,7 @@ public class NativeSession implements Session {
 
     public void moveFile(File src, File dest) throws FileAlreadyExistsException, FileNotExistsException,
             FileUnderUseException, InsufficientPermissionOnFileException, LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
         Lock newLocks[] = new Lock[4];
@@ -268,6 +280,8 @@ public class NativeSession implements Session {
             checkValidParent(dest);
             newLocks[2] = acquireLockIfRequired(srcParentFile, true);
             newLocks[3] = acquireLockIfRequired(destParentFile, true);
+            checkPermission(PermissionType.WRITE_DIRECTORY, srcParentFile);
+            checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
 
             if (view.fileExistsAndIsNormal(src)) {
                 view.moveNormalFile(src, dest);
@@ -278,16 +292,16 @@ public class NativeSession implements Session {
                 directoriesPinnedInThisSession.add(src);
                 view.moveDirectory(src, dest);
             } else {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(src.getAbsolutePath());
             }
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, src.getAbsolutePath(),
                     dest.getAbsolutePath(), TransactionLogEntry.FILE_MOVE));
-            Buffer logEntry = new Buffer(logEntryBytes);
+            Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
 
-            addToFileSystemEvents(new byte[]{FileStateChangeEvent.FILE_DELETED,
-                        FileStateChangeEvent.FILE_CREATED, FileStateChangeEvent.FILE_MODIFIED},
+            addToFileSystemEvents(new FileSystemStateChangeEvent.FileSystemEventType[]{FileSystemStateChangeEvent.FileSystemEventType.DELETED,
+                        FileSystemStateChangeEvent.FileSystemEventType.CREATED, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED},
                     new File[]{src, dest, dest}, isDirectoryMove);
 
             success = true;
@@ -298,7 +312,7 @@ public class NativeSession implements Session {
             try {
                 if (!success) {
                     releaseLocks(newLocks);
-                    if(isDirectoryMove) {
+                    if (isDirectoryMove) {
                         xaFileSystem.releaseRenamePinOnDirectory(src);
                     }
                 }
@@ -309,8 +323,8 @@ public class NativeSession implements Session {
     }
 
     public void copyFile(File src, File dest) throws FileAlreadyExistsException, FileNotExistsException,
-            InsufficientPermissionOnFileException, LockingFailedException, TransactionRolledbackException,
-            InterruptedException {
+            InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
         Lock newLocks[] = new Lock[3];
@@ -324,18 +338,19 @@ public class NativeSession implements Session {
             checkValidParent(src);
             checkValidParent(dest);
             newLocks[2] = acquireLockIfRequired(destParentFile, true);
-            checkPermission(READ_FILE, src);
+            checkPermission(PermissionType.READ_FILE, src);
+            checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
             view.createFile(dest, false);
             VirtualViewFile srcFileInView = view.getVirtualViewFile(src);
             VirtualViewFile destFileInView = view.getVirtualViewFile(dest);
             srcFileInView.takeSnapshotInto(destFileInView);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, src.getAbsolutePath(),
                     dest.getAbsolutePath(), TransactionLogEntry.FILE_COPY));
-            Buffer logEntry = new Buffer(logEntryBytes);
+            Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLocks);
 
-            addToFileSystemEvents(new byte[]{FileStateChangeEvent.FILE_CREATED, FileStateChangeEvent.FILE_MODIFIED},
+            addToFileSystemEvents(new FileSystemStateChangeEvent.FileSystemEventType[]{FileSystemStateChangeEvent.FileSystemEventType.CREATED, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED},
                     new File[]{dest, dest}, false);
 
             success = true;
@@ -354,7 +369,8 @@ public class NativeSession implements Session {
     }
 
     public boolean fileExists(File f, boolean lockExclusively) throws LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -364,6 +380,7 @@ public class NativeSession implements Session {
             File parentDir = f.getParentFile();
             if (parentDir != null) {
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 addLocks(newLock);
                 success = true;
                 return view.fileExists(f);
@@ -386,7 +403,8 @@ public class NativeSession implements Session {
     }
 
     public boolean fileExistsAndIsDirectory(File f, boolean lockExclusively) throws
-            LockingFailedException, TransactionRolledbackException, InterruptedException {
+            LockingFailedException, InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -396,6 +414,7 @@ public class NativeSession implements Session {
             File parentDir = f.getParentFile();
             if (parentDir != null) {
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 addLocks(newLock);
                 success = true;
                 return view.fileExistsAndIsDirectory(f);
@@ -418,7 +437,8 @@ public class NativeSession implements Session {
     }
 
     public String[] listFiles(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -426,6 +446,7 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, lockExclusively);
+            checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
             addLocks(newLock);
             success = true;
             return view.listFiles(f);
@@ -444,7 +465,8 @@ public class NativeSession implements Session {
     }
 
     public long getFileLength(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
-            TransactionRolledbackException, InterruptedException {
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -452,8 +474,9 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, lockExclusively);
+            checkPermission(PermissionType.READ_FILE, f);
             if (!view.fileExistsAndIsNormal(f)) {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(f.getAbsolutePath());
             }
             addLocks(newLock);
             long length = view.getVirtualViewFile(f).getLength();
@@ -473,8 +496,9 @@ public class NativeSession implements Session {
         }
     }
 
-    public void truncateFile(File f, long newLength) throws FileNotExistsException, FileUnderUseException,
-            InsufficientPermissionOnFileException, LockingFailedException, TransactionRolledbackException, InterruptedException {
+    public void truncateFile(File f, long newLength) throws FileNotExistsException,
+            InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
         Lock newLock = null;
         boolean success = false;
@@ -482,22 +506,22 @@ public class NativeSession implements Session {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, true);
-            checkPermission(WRITE_FILE, f);
+            checkPermission(PermissionType.WRITE_FILE, f);
             if (view.isNormalFileBeingReadOrWritten(f)) {
                 //earlier we threw an exception here.
             }
             if (!view.fileExistsAndIsNormal(f)) {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(f.getAbsolutePath());
             }
             VirtualViewFile vvf = view.getVirtualViewFile(f);
             vvf.truncate(newLength);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(), newLength,
                     TransactionLogEntry.FILE_TRUNCATE));
-            Buffer logEntry = new Buffer(logEntryBytes);
+            Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
             addLocks(newLock);
 
-            addToFileSystemEvents(FileStateChangeEvent.FILE_MODIFIED, f, false);
+            addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
 
             success = true;
         } catch (XASystemException xase) {
@@ -514,7 +538,7 @@ public class NativeSession implements Session {
         }
     }
 
-    private void submitPreCommitInformationForLogging() throws TransactionRolledbackException,
+    private void submitPreCommitInformationForLogging() throws NoTransactionAssociatedException,
             IOException {
         releaseAllStreams();
         Iterator<VirtualViewFile> vvfsUpdatedDirectly = view.getViewFilesWithLatestViewOnDisk().iterator();
@@ -523,25 +547,25 @@ public class NativeSession implements Session {
         }
         HashSet<File> filesOnDisk = view.getFilesWithLatestViewOnDisk();
         ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, filesOnDisk));
-        xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes), xid);
+        xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes, xaFileSystem), xid);
 
         if (publishFileStateChangeEventsOnCommit) {
             fileStateChangeEventsToRaise = xaFileSystem.getFileSystemEventDelegator().retainOnlyInterestingEvents(fileStateChangeEventsToRaise);
             logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, fileStateChangeEventsToRaise,
                     TransactionLogEntry.EVENT_ENQUEUE));
-            xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes), xid);
+            xaFileSystem.getTheGatheringDiskWriter().submitBuffer(new Buffer(logEntryBytes, xaFileSystem), xid);
         }
         xaFileSystem.getTheGatheringDiskWriter().writeRemainingBuffersNow(xid);
     }
 
-    public void prepare() throws TransactionRolledbackException {
+    public void prepare() throws NoTransactionAssociatedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
             submitPreCommitInformationForLogging();
             xaFileSystem.getTheGatheringDiskWriter().transactionPrepareCompletes(xid);
-        } catch (TransactionRolledbackException trbe) {
-            throw trbe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
@@ -549,7 +573,7 @@ public class NativeSession implements Session {
         }
     }
 
-    public void commit(boolean onePhase) throws TransactionRolledbackException {
+    public void commit(boolean onePhase) throws NoTransactionAssociatedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -788,7 +812,7 @@ public class NativeSession implements Session {
         }
     }
 
-    public void rollback() throws TransactionRolledbackException {
+    public void rollback() throws NoTransactionAssociatedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -878,6 +902,7 @@ public class NativeSession implements Session {
     }
 
     private void cleanup() throws IOException {
+        this.sessionIsUseless = true;
         if (createdForRecovery) {
             xaFileSystem.getRecoveryWorker().cleanupTransactionInfo(xid);
         } else {
@@ -911,14 +936,14 @@ public class NativeSession implements Session {
         RDG.removeNodeForTransaction(xid);
     }
 
-    private void releaseAllStreams() throws TransactionRolledbackException {
+    private void releaseAllStreams() throws NoTransactionAssociatedException {
         for (XAFileInputStream xafis : allAcquiredInputStreams) {
             xafis.close();
         }
 
         for (NativeXAFileOutputStream xafos : allAcquiredOutputStreams) {
             xafos.close();
-            NativeXAFileOutputStream.deCacheXAFileOutputStream(xafos.getDestinationFile());
+            deCacheXAFileOutputStream(xafos.getDestinationFile());
         }
 
     }
@@ -932,23 +957,30 @@ public class NativeSession implements Session {
         return true;
     }
 
-    private void checkPermission(int operation, File f) throws InsufficientPermissionOnFileException {
+    private void checkPermission(PermissionType operation, File f) throws InsufficientPermissionOnFileException {
         switch (operation) {
             case READ_FILE:
                 if (view.isNormalFileReadable(f)) {
                     return;
                 }
-
                 break;
             case WRITE_FILE:
                 if (view.isNormalFileWritable(f)) {
                     return;
                 }
-
+                break;
+            case READ_DIRECTORY:
+                if (view.isDirectoryReadable(f)) {
+                    return;
+                }
+                break;
+            case WRITE_DIRECTORY:
+                if (view.isDirectoryWritable(f)) {
+                    return;
+                }
                 break;
         }
-
-        throw new InsufficientPermissionOnFileException();
+        throw new InsufficientPermissionOnFileException(operation, f.getAbsolutePath());
     }
 
     private Lock acquireLockIfRequired(File f, boolean exclusive) throws LockingFailedException,
@@ -980,7 +1012,7 @@ public class NativeSession implements Session {
 
     private void checkValidParent(File f) throws FileNotExistsException {
         if (f.getParentFile() == null) {
-            throw new FileNotExistsException(f.getParentFile());
+            throw new FileNotExistsException(f.getParentFile().getAbsolutePath());
         }
     }
 
@@ -1024,13 +1056,15 @@ public class NativeSession implements Session {
         this.fileLockWaitTimeout = fileLockWaitTimeout;
     }
 
-    public void checkIfCanContinue() throws TransactionRolledbackException {
-        if (rolledback) {
+    public void checkIfCanContinue() throws NoTransactionAssociatedException {
+        if (rolledbackPrematurely) {
             throw new TransactionRolledbackException(rollbackCause);
         }
-
+        if (sessionIsUseless) {
+            throw new NoTransactionAssociatedException();
+        }
         if (systemHasFailed) {
-            throw new XASystemException(systemFailureCause);
+            throw new XASystemNoMoreAvailableException(systemFailureCause);
         }
     }
 
@@ -1078,12 +1112,12 @@ public class NativeSession implements Session {
     private void checkAnyOpenStreamToDescendantFiles(File ancestor) throws FileUnderUseException {
         for (NativeXAFileInputStream is : allAcquiredInputStreams) {
             if (NativeXAFileSystem.isAncestorOf(ancestor, is.getSourceFileName()) && !is.isClosed()) {
-                throw new FileUnderUseException("First close the input stream to file: " + is.getSourceFileName());
+                throw new FileUnderUseException(is.getSourceFileName().getAbsolutePath(), false);
             }
         }
         for (NativeXAFileOutputStream os : allAcquiredOutputStreams) {
             if (NativeXAFileSystem.isAncestorOf(ancestor, os.getDestinationFile()) && !os.isClosed()) {
-                throw new FileUnderUseException("First close the input stream to file: " + os.getDestinationFile());
+                throw new FileUnderUseException(os.getDestinationFile().getAbsolutePath(), false);
             }
         }
     }
@@ -1105,36 +1139,62 @@ public class NativeSession implements Session {
         }
     }
 
-    private void addToFileSystemEvents(byte actionType, File affectedObject, boolean isDirectory) {
+    private void addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType actionType, File affectedObject, boolean isDirectory) {
         File parentDirectory = null;
-        switch (actionType) {
-            case FileStateChangeEvent.FILE_CREATED:
-                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_CREATED, xid));
-                parentDirectory = affectedObject.getParentFile();
-                if (parentDirectory != null) {
-                    fileStateChangeEventsToRaise.add(new FileStateChangeEvent(parentDirectory, true, FileStateChangeEvent.FILE_MODIFIED, xid));
-                }
-                break;
-            case FileStateChangeEvent.FILE_DELETED:
-                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_DELETED, xid));
-                parentDirectory = affectedObject.getParentFile();
-                if (parentDirectory != null) {
-                    fileStateChangeEventsToRaise.add(new FileStateChangeEvent(parentDirectory, true, FileStateChangeEvent.FILE_MODIFIED, xid));
-                }
-                break;
-            case FileStateChangeEvent.FILE_MODIFIED:
-                fileStateChangeEventsToRaise.add(new FileStateChangeEvent(affectedObject, isDirectory, FileStateChangeEvent.FILE_MODIFIED, xid));
-                break;
+
+        if (actionType.equals(FileSystemStateChangeEvent.FileSystemEventType.CREATED)) {
+            fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(affectedObject, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.CREATED, xid));
+            parentDirectory = affectedObject.getParentFile();
+            if (parentDirectory != null) {
+                fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
+            }
+            return;
+        }
+        if (actionType.equals(FileSystemStateChangeEvent.FileSystemEventType.DELETED)) {
+            fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(affectedObject, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.DELETED, xid));
+            parentDirectory = affectedObject.getParentFile();
+            if (parentDirectory != null) {
+                fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
+            }
+            return;
+        }
+        if (actionType.equals(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED)) {
+            fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(affectedObject, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
+            return;
         }
     }
 
-    private void addToFileSystemEvents(byte[] actionType, File[] affectedObject, boolean areDirectories) {
+    private void addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType[] actionType, File[] affectedObject, boolean areDirectories) {
         for (int i = 0; i < actionType.length; i++) {
             addToFileSystemEvents(actionType[i], affectedObject[i], areDirectories);
         }
     }
 
-    public void commit() throws TransactionRolledbackException {
+    public void commit() throws NoTransactionAssociatedException {
         this.commit(true);
+    }
+
+    public NativeXAFileOutputStream getCachedXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
+            NativeSession owningSession)
+            throws FileUnderUseException {
+        synchronized (fileAndOutputStream) {
+            File f = vvf.getFileName();
+            NativeXAFileOutputStream xaFOS = fileAndOutputStream.get(f);
+            if (xaFOS == null || xaFOS.isClosed()) {
+                xaFOS = new NativeXAFileOutputStream(vvf, xid, heavyWrite, owningSession, xaFileSystem);
+                fileAndOutputStream.put(f, xaFOS);
+            } else {
+                if (!vvf.isUsingHeavyWriteOptimization() && heavyWrite) {
+                    throw new FileUnderUseException(f.getAbsolutePath(), true);
+                }
+            }
+            return xaFOS;
+        }
+    }
+
+    public void deCacheXAFileOutputStream(File f) {
+        synchronized (fileAndOutputStream) {
+            fileAndOutputStream.remove(f);
+        }
     }
 }

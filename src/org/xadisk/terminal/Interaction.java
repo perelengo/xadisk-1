@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.terminal;
 
 import java.io.BufferedReader;
@@ -13,6 +21,7 @@ import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
 public class Interaction {
@@ -51,7 +60,7 @@ public class Interaction {
                     prompt("And, the Port : ");
                     int localPort = readInteger();
                     StandaloneFileSystemConfiguration configuration =
-                            new StandaloneFileSystemConfiguration(xaSystemDirectory);
+                            new StandaloneFileSystemConfiguration(xaSystemDirectory, "");
                     configuration.setServerAddress(localAddress);
                     configuration.setServerPort(localPort);
                     configuration.setTransactionTimeout(Integer.MAX_VALUE);
@@ -221,7 +230,7 @@ public class Interaction {
         } else if (args[0].equalsIgnoreCase("begin")) {
             assertArgumentsCount(args, 1);
             if (session != null) {
-                printFormatted("There is an ongoing transaction already. You can't start a new "
+                printFormatted("There is a current transaction already associated. You can't start a new "
                         + "transaction without committing/rolling back this transaction.");
             } else {
                 session = xaFileSystem.createSessionForLocalTransaction();
@@ -229,7 +238,7 @@ public class Interaction {
         } else if (args[0].equalsIgnoreCase("commit")) {
             assertArgumentsCount(args, 1);
             assertSession();
-            session.commit(true);
+            ((SessionCommonness)session).commit(true);
             session = null;
         } else if (args[0].equalsIgnoreCase("rollback")) {
             assertArgumentsCount(args, 1);
@@ -239,7 +248,7 @@ public class Interaction {
         } else if (args[0].equalsIgnoreCase("shutdown")) {
             assertArgumentsCount(args, 1);
             if (session != null) {
-                System.out.println("There is an ongoing transaction. Please commit/rollback that first.");
+                System.out.println("There is a current transaction already associated. Please commit/rollback that first.");
             } else {
                 if (xaFileSystem instanceof RemoteXAFileSystem) {
                     System.out.println("Will not shutdown the remote XADisk instance. Only disconnecting from it..");
@@ -371,7 +380,7 @@ public class Interaction {
 
     private static void assertSession() throws InvalidInputException {
         if (session == null) {
-            throw new InvalidInputException("No ongoing transaction. Use \"begin\" to start a transaction.", null);
+            throw new InvalidInputException("No associated transaction was found. Use \"begin\" to start a transaction.", null);
         }
     }
 }

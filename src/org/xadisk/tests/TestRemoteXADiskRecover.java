@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.tests;
 
 import java.io.File;
@@ -11,6 +19,7 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
 public class TestRemoteXADiskRecover {
@@ -59,7 +68,7 @@ public class TestRemoteXADiskRecover {
             }
             session.createFile(c, false);
             session.setPublishFileStateChangeEventsOnCommit(true);
-            session.prepare();
+            ((SessionCommonness)session).prepare();
 
             createSpaceForMessageDelivery();
 
@@ -140,7 +149,7 @@ public class TestRemoteXADiskRecover {
     }
 
     private static NativeXAFileSystem bootLocalXADisk() throws InterruptedException {
-        StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory);
+        StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
         configuration.setWorkManagerCorePoolSize(100);
         configuration.setWorkManagerMaxPoolSize(100);
         configuration.setServerPort(2345);

@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.server.conversation;
 
 import org.xadisk.filesystem.pools.PooledSelector;
@@ -24,7 +32,6 @@ import org.xadisk.bridge.proxies.facilitators.ByteArrayRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.MethodSerializabler;
 import org.xadisk.bridge.proxies.facilitators.OptimizedRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.SerializedMethod;
-import org.xadisk.filesystem.exceptions.ContextOutOfSyncException;
 
 public class RemoteMethodInvocationHandler implements Work {
 
@@ -34,10 +41,12 @@ public class RemoteMethodInvocationHandler implements Work {
     private final Selector writeSelector;
     private volatile boolean enabled = true;
     private final SelectorPool selectorPool;
+    private final NativeXAFileSystem xaFileSystem;
 
-    public RemoteMethodInvocationHandler(ConversationContext context) throws IOException {
+    public RemoteMethodInvocationHandler(ConversationContext context, NativeXAFileSystem xaFileSystem) throws IOException {
+        this.xaFileSystem = xaFileSystem;
         this.context = context;
-        this.selectorPool = NativeXAFileSystem.getXAFileSystem().getSelectorPool();
+        this.selectorPool = xaFileSystem.getSelectorPool();
         this.pooledWriteSelector = selectorPool.checkOut();
         if (pooledWriteSelector == null) {
             System.err.println("No more Selectors could be created.");
@@ -177,7 +186,7 @@ public class RemoteMethodInvocationHandler implements Work {
 
     private void checkForMessageEndpointRelease(Object targetObject, Method method) throws NoSuchMethodException {
         if(method.equals(MessageEndpoint.class.getMethod("release", new Class[0]))) {
-            HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+            HostedContext globalCallbackContext = xaFileSystem.getGlobalCallbackContext();
             globalCallbackContext.deHostObject(targetObject);
         }
     }

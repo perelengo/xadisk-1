@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.workers;
 
 import org.xadisk.filesystem.utilities.FileIOUtility;
@@ -14,12 +22,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.resource.spi.work.Work;
 import javax.resource.spi.work.WorkManager;
 import org.xadisk.connector.inbound.EndPointActivation;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
 import org.xadisk.filesystem.XidImpl;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.utilities.TransactionLogsUtility;
 
 public class CrashRecoveryWorker implements Work {
@@ -34,12 +42,12 @@ public class CrashRecoveryWorker implements Work {
     private volatile boolean logFilesCleaned = false;
     private final HashMap<XidImpl, HashSet<File>> transactionsAndFilesWithLatestViewOnDisk = new HashMap<XidImpl, HashSet<File>>(1000);
     private final ArrayList<XidImpl> committedTransactions = new ArrayList<XidImpl>(1000);
-    private final HashMap<XidImpl, ArrayList<FileStateChangeEvent>> eventsEnqueuePreparedOnly =
-            new HashMap<XidImpl, ArrayList<FileStateChangeEvent>>(1000);
-    private final ArrayList<FileStateChangeEvent> eventsEnqueueCommittedNotDequeued =
-            new ArrayList<FileStateChangeEvent>(1000);
-    private final ArrayList<FileStateChangeEvent> eventsDequeueCommitted = new ArrayList<FileStateChangeEvent>(1000);
-    private final HashMap<XidImpl, FileStateChangeEvent> eventsDequeuePrepared = new HashMap<XidImpl, FileStateChangeEvent>(1000);
+    private final HashMap<XidImpl, ArrayList<FileSystemStateChangeEvent>> eventsEnqueuePreparedOnly =
+            new HashMap<XidImpl, ArrayList<FileSystemStateChangeEvent>>(1000);
+    private final ArrayList<FileSystemStateChangeEvent> eventsEnqueueCommittedNotDequeued =
+            new ArrayList<FileSystemStateChangeEvent>(1000);
+    private final ArrayList<FileSystemStateChangeEvent> eventsDequeueCommitted = new ArrayList<FileSystemStateChangeEvent>(1000);
+    private final HashMap<XidImpl, FileSystemStateChangeEvent> eventsDequeuePrepared = new HashMap<XidImpl, FileSystemStateChangeEvent>(1000);
     private final HashMap<XidImpl, Integer> transactionsLatestCheckPoint = new HashMap<XidImpl, Integer>(1000);
     private final ArrayList<EndPointActivation> remoteActivations = new ArrayList<EndPointActivation>();
     private final AtomicInteger distanceFromRecoveryCompletion = new AtomicInteger(0);
@@ -150,7 +158,7 @@ public class CrashRecoveryWorker implements Work {
                     heavyWriteTransactionsForRollback.remove(xid);
                     committedTransactions.add(xid);
                     eventsDequeuePrepared.remove(xid);
-                    ArrayList<FileStateChangeEvent> events = eventsEnqueuePreparedOnly.remove(xid);
+                    ArrayList<FileSystemStateChangeEvent> events = eventsEnqueuePreparedOnly.remove(xid);
                     if (events != null) {
                         eventsEnqueueCommittedNotDequeued.addAll(events);
                     }
@@ -181,10 +189,10 @@ public class CrashRecoveryWorker implements Work {
                 case TransactionLogEntry.REMOTE_ENDPOINT_ACTIVATES:
                     //we need not preserve the txn logs for these entries because we are now calling
                     //the epActivation again, so another log will get created.
-                    remoteActivations.add(logEntry.getRemoteActivation());
+                    remoteActivations.add(logEntry.getRemoteActivation(xaFileSystem));
                     break;
                 case TransactionLogEntry.REMOTE_ENDPOINT_DEACTIVATES:
-                    remoteActivations.remove(logEntry.getRemoteActivation());
+                    remoteActivations.remove(logEntry.getRemoteActivation(xaFileSystem));
                     break;
             }
         }
@@ -228,13 +236,13 @@ public class CrashRecoveryWorker implements Work {
     }
 
     private void recoverOnePhaseTransactions() throws Exception {
-        WorkManager workManager = NativeXAFileSystem.getWorkManager();
+        WorkManager workManager = xaFileSystem.getWorkManager();
         for (XidImpl xid : onePhaseCommittingTransactions) {
             if (released) {
                 return;
             }
             NativeSession recoverySession;
-            ArrayList<FileStateChangeEvent> events = getEventsFromPreparedTransaction(xid);
+            ArrayList<FileSystemStateChangeEvent> events = getEventsFromPreparedTransaction(xid);
             recoverySession = xaFileSystem.createRecoverySession(xid, events);
 
             TransactionCompleter commitWork = new TransactionCompleter(recoverySession, true);
@@ -243,7 +251,7 @@ public class CrashRecoveryWorker implements Work {
     }
 
     private void recoverHeavyWriteTransactionsForRollback() throws Exception {
-        WorkManager workManager = NativeXAFileSystem.getWorkManager();
+        WorkManager workManager = xaFileSystem.getWorkManager();
         for (XidImpl xid : heavyWriteTransactionsForRollback) {
             if (released) {
                 return;
@@ -254,18 +262,18 @@ public class CrashRecoveryWorker implements Work {
         }
     }
 
-    public ArrayList<FileStateChangeEvent> getEventsFromPreparedTransaction(XidImpl xid) {
+    public ArrayList<FileSystemStateChangeEvent> getEventsFromPreparedTransaction(XidImpl xid) {
         return eventsEnqueuePreparedOnly.get(xid);
     }
 
     private void prepareEventsToPopulate() {
-        ArrayList<FileStateChangeEvent> eventsNotToPopulate = new ArrayList<FileStateChangeEvent>();
+        ArrayList<FileSystemStateChangeEvent> eventsNotToPopulate = new ArrayList<FileSystemStateChangeEvent>();
         eventsNotToPopulate.addAll(eventsDequeueCommitted);
         eventsNotToPopulate.addAll(eventsDequeuePrepared.values());
         eventsEnqueueCommittedNotDequeued.removeAll(eventsNotToPopulate);
     }
 
-    public ArrayList<FileStateChangeEvent> getEventsEnqueueCommittedNotDequeued() {
+    public ArrayList<FileSystemStateChangeEvent> getEventsEnqueueCommittedNotDequeued() {
         return eventsEnqueueCommittedNotDequeued;
     }
 
@@ -295,7 +303,7 @@ public class CrashRecoveryWorker implements Work {
         return preparedInDoubtTransactions;
     }
 
-    public HashMap<XidImpl, FileStateChangeEvent> getPreparedInDoubtTransactionsOfDequeue() {
+    public HashMap<XidImpl, FileSystemStateChangeEvent> getPreparedInDoubtTransactionsOfDequeue() {
         return eventsDequeuePrepared;
     }
 
@@ -323,7 +331,7 @@ public class CrashRecoveryWorker implements Work {
                 } else {
                     session.rollback();
                 }
-            } catch (TransactionRolledbackException trbe) {
+            } catch (NoTransactionAssociatedException note) {
             }
         }
     }

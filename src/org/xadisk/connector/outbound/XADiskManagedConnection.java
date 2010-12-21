@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.outbound;
 
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
@@ -15,8 +23,9 @@ import javax.security.auth.Subject;
 import javax.transaction.xa.XAResource;
 import org.xadisk.connector.XAResourceImpl;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.XidImpl;
-import org.xadisk.filesystem.exceptions.NoOngoingTransactionException;
+import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 public class XADiskManagedConnection implements ManagedConnection {
 
@@ -25,8 +34,9 @@ public class XADiskManagedConnection implements ManagedConnection {
     private final HashSet<XADiskConnection> connectionHandles = new HashSet<XADiskConnection>(2);
     private volatile Session sessionOfXATransaction;
     private volatile Session sessionOfLocalTransaction;
-    private volatile byte typeOfOngoingTransaction = NO_TRANSACTION;
+    private volatile byte typeOfCurrentTransaction = NO_TRANSACTION;
     private boolean publishFileStateChangeEventsOnCommit = false;
+    private long fileLockWaitTimeout = 100;
     protected volatile XAFileSystem theXAFileSystem;
     protected volatile XAResourceImpl xaResourceImpl;
     private volatile XADiskLocalTransaction localTransactionImpl;
@@ -34,12 +44,6 @@ public class XADiskManagedConnection implements ManagedConnection {
     public static final byte NO_TRANSACTION = 0;
     public static final byte LOCAL_TRANSACTION = 1;
     public static final byte XA_TRANSACTION = 2;
-
-    public XADiskManagedConnection() {
-        this.theXAFileSystem = NativeXAFileSystem.getXAFileSystem();
-        this.xaResourceImpl = new XAResourceImpl(this);
-        this.localTransactionImpl = new XADiskLocalTransaction(this);
-    }
 
     public XADiskManagedConnection(XAFileSystem xaFileSystem) {
         this.theXAFileSystem = xaFileSystem;
@@ -68,9 +72,10 @@ public class XADiskManagedConnection implements ManagedConnection {
         //DO NOT clear the listeners. When trying to implement pooling, this guy
         //tested my patience. [this.listeners.clear();]
         this.publishFileStateChangeEventsOnCommit = false;
+        this.fileLockWaitTimeout = 100;
         this.sessionOfLocalTransaction = null;
         this.sessionOfXATransaction = null;
-        this.typeOfOngoingTransaction = NO_TRANSACTION;
+        this.typeOfCurrentTransaction = NO_TRANSACTION;
     }
 
     public void destroy() throws ResourceException {
@@ -164,29 +169,31 @@ public class XADiskManagedConnection implements ManagedConnection {
     }
 
     public Session refreshSessionForNewXATransaction(XidImpl xid) {
-        this.sessionOfXATransaction = theXAFileSystem.createSessionForXATransaction(xid);
+        this.sessionOfXATransaction = ((XAFileSystemCommonness)theXAFileSystem).createSessionForXATransaction(xid);
         this.sessionOfXATransaction.setPublishFileStateChangeEventsOnCommit(publishFileStateChangeEventsOnCommit);
+        this.sessionOfXATransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
         return this.sessionOfXATransaction;
     }
 
     public Session refreshSessionForBeginLocalTransaction() {
         this.sessionOfLocalTransaction = theXAFileSystem.createSessionForLocalTransaction();
         this.sessionOfLocalTransaction.setPublishFileStateChangeEventsOnCommit(publishFileStateChangeEventsOnCommit);
+        this.sessionOfLocalTransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
         return this.sessionOfLocalTransaction;
     }
 
-    public void setTypeOfOngoingTransaction(byte typeOfOngoingTransaction) {
-        this.typeOfOngoingTransaction = typeOfOngoingTransaction;
+    public void setTypeOfCurrentTransaction(byte typeOfCurrentTransaction) {
+        this.typeOfCurrentTransaction = typeOfCurrentTransaction;
     }
 
-    Session getSessionForCurrentWorkAssociation() throws NoOngoingTransactionException {
-        switch (typeOfOngoingTransaction) {
+    Session getSessionForCurrentWorkAssociation() throws NoTransactionAssociatedException {
+        switch (typeOfCurrentTransaction) {
             case LOCAL_TRANSACTION:
                 return sessionOfLocalTransaction;
             case XA_TRANSACTION:
                 return sessionOfXATransaction;
         }
-        throw new NoOngoingTransactionException();
+        throw new NoTransactionAssociatedException();
     }
 
     private void flushCacheToMainMemory() {
@@ -197,13 +204,9 @@ public class XADiskManagedConnection implements ManagedConnection {
         boolean temp = memorySynchTrigger;
     }
 
-    boolean isPublishFileStateChangeEventsOnCommit() {
-        return publishFileStateChangeEventsOnCommit;
-    }
-
     void setPublishFileStateChangeEventsOnCommit(boolean publishFileStateChangeEventsOnCommit) {
         this.publishFileStateChangeEventsOnCommit = publishFileStateChangeEventsOnCommit;
-        switch (typeOfOngoingTransaction) {
+        switch (typeOfCurrentTransaction) {
             case LOCAL_TRANSACTION:
                 sessionOfLocalTransaction.setPublishFileStateChangeEventsOnCommit(
                         publishFileStateChangeEventsOnCommit);
@@ -211,6 +214,18 @@ public class XADiskManagedConnection implements ManagedConnection {
             case XA_TRANSACTION:
                 sessionOfXATransaction.setPublishFileStateChangeEventsOnCommit(
                         publishFileStateChangeEventsOnCommit);
+                break;
+        }
+    }
+
+    public void setFileLockWaitTimeout(long fileLockWaitTimeout) {
+        this.fileLockWaitTimeout = fileLockWaitTimeout;
+        switch (typeOfCurrentTransaction) {
+            case LOCAL_TRANSACTION:
+                sessionOfLocalTransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
+                break;
+            case XA_TRANSACTION:
+                sessionOfXATransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
                 break;
         }
     }

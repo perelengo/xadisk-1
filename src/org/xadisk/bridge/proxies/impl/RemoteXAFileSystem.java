@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.impl;
 
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
@@ -11,20 +19,28 @@ import javax.transaction.xa.Xid;
 import org.xadisk.bridge.proxies.facilitators.RemoteXADiskActivationSpecImpl;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.bridge.proxies.interfaces.Session;
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.server.conversation.HostedContext;
 import org.xadisk.filesystem.NativeXAFileSystem;
+import org.xadisk.filesystem.XAFileSystemCommonness;
 
-public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSystem {
+public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSystemCommonness {
 
     private static final long serialVersionUID = 1L;
     
+    private NativeXAFileSystem localXAFileSystem;
+    
+    public RemoteXAFileSystem(String serverAddress, int serverPort, NativeXAFileSystem localXAFileSystem) {
+        super(0, new RemoteMethodInvoker(serverAddress, serverPort));
+        this.localXAFileSystem = localXAFileSystem;
+    }
+
     public RemoteXAFileSystem(String serverAddress, int serverPort) {
         super(0, new RemoteMethodInvoker(serverAddress, serverPort));
     }
 
-    public RemoteXAFileSystem(long objectId, RemoteMethodInvoker invoker) {
+    public RemoteXAFileSystem(long objectId, RemoteMethodInvoker invoker, NativeXAFileSystem localXAFileSystem) {
         super(objectId, invoker);
+        this.localXAFileSystem = localXAFileSystem;
     }
 
     public Session createSessionForLocalTransaction() {
@@ -98,11 +114,11 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
     public void registerEndPointActivation(EndPointActivation epActivation) throws IOException {
         try {
             MessageEndpointFactory messageEndpointFactory = epActivation.getMessageEndpointFactory();
-            HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+            HostedContext globalCallbackContext = localXAFileSystem.getGlobalCallbackContext();
             long objectId = globalCallbackContext.hostObject(messageEndpointFactory);
-            String xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
+            String xaDiskSystemId = localXAFileSystem.getXADiskSystemId();
             RemoteMessageEndpointFactory remoteMessageEndpointFactory = new RemoteMessageEndpointFactory(objectId, xaDiskSystemId,
-                    NativeXAFileSystem.getXAFileSystem().createRemoteMethodInvokerToSelf());
+                    localXAFileSystem.createRemoteMethodInvokerToSelf());
 
             RemoteXADiskActivationSpecImpl ras = new RemoteXADiskActivationSpecImpl(epActivation.getActivationSpecImpl());
             EndPointActivation callbackEndPointActivation = new EndPointActivation(remoteMessageEndpointFactory,
@@ -118,9 +134,9 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
     public void deRegisterEndPointActivation(EndPointActivation epActivation) throws IOException {
         try {
             MessageEndpointFactory messageEndpointFactory = epActivation.getMessageEndpointFactory();
-            HostedContext globalCallbackContext = NativeXAFileSystem.getXAFileSystem().getGlobalCallbackContext();
+            HostedContext globalCallbackContext = localXAFileSystem.getGlobalCallbackContext();
             long objectId = globalCallbackContext.deHostObject(messageEndpointFactory);
-            String xaDiskSystemId = NativeXAFileSystem.getXAFileSystem().getXADiskSystemId();
+            String xaDiskSystemId = localXAFileSystem.getXADiskSystemId();
             RemoteMessageEndpointFactory remoteMessageEndpointFactory =
                     new RemoteMessageEndpointFactory(objectId, xaDiskSystemId, null);
 

@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.facilitators;
 
 import java.io.ByteArrayOutputStream;
@@ -11,7 +19,6 @@ import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import org.xadisk.filesystem.exceptions.ConnectionException;
-import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class RemoteMethodInvoker implements Serializable {
 
@@ -108,7 +115,7 @@ public class RemoteMethodInvoker implements Serializable {
             this.disconnect();
             throw new ConnectionException(ioe);
         } catch (ClassNotFoundException cnfe) {
-            throw new XASystemException(cnfe);
+            throw new InternalXASystemException(cnfe);
         }
         if (isError) {
             throw (Throwable) returnObject;

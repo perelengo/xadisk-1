@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.inbound;
 
 import java.io.IOException;
@@ -10,7 +18,7 @@ import javax.transaction.Status;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
 import org.xadisk.filesystem.XidImpl;
@@ -20,13 +28,13 @@ public class LocalEventProcessingXAResource implements XAResource {
     private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>(1000);
     private final Object lockOnInternalXids = new ArrayList<Object>(0);
     private final NativeXAFileSystem xaFileSystem;
-    private final FileStateChangeEvent event;
+    private final FileSystemStateChangeEvent event;
     private volatile boolean returnedAllPreparedTransactions = false;
     private final boolean isCreatedForRecovery;
-    private volatile HashMap<XidImpl, FileStateChangeEvent> dequeuingTransactionsPreparedPreCrash;
+    private volatile HashMap<XidImpl, FileSystemStateChangeEvent> dequeuingTransactionsPreparedPreCrash;
     private byte transactionOutcome = Status.STATUS_NO_TRANSACTION;
 
-    public LocalEventProcessingXAResource(NativeXAFileSystem xaFileSystem, FileStateChangeEvent event) {
+    public LocalEventProcessingXAResource(NativeXAFileSystem xaFileSystem, FileSystemStateChangeEvent event) {
         this.xaFileSystem = xaFileSystem;
         this.event = event;
         this.isCreatedForRecovery = false;
@@ -66,14 +74,14 @@ public class LocalEventProcessingXAResource implements XAResource {
 
     public void commit(Xid xid, boolean onePhase) throws XAException {
         XidImpl xidImpl = mapToInternalXid(xid);
-        FileStateChangeEvent eventForTransaction = null;
+        FileSystemStateChangeEvent eventForTransaction = null;
         try {
             if (isCreatedForRecovery) {
                 eventForTransaction = dequeuingTransactionsPreparedPreCrash.get(xidImpl);
             } else {
                 eventForTransaction = this.event;
             }
-            ArrayList<FileStateChangeEvent> events = new ArrayList<FileStateChangeEvent>(1);
+            ArrayList<FileSystemStateChangeEvent> events = new ArrayList<FileSystemStateChangeEvent>(1);
             events.add(eventForTransaction);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xidImpl, events,
                     TransactionLogEntry.EVENT_DEQUEUE));

@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.additional;
 
 import java.io.IOException;
@@ -5,11 +13,23 @@ import java.io.InputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.filesystem.exceptions.XAApplicationException;
 
+/**
+ * This class acts as a wrapper around the {@link XAFileInputStream} for the purpose of
+ * providing the standard {@link InputStream} implementation
+ * (because {@link XAFileInputStream} itself does not extend the {@link InputStream}).
+ *
+ * @since 1.0
+ */
+
 public class XAFileInputStreamWrapper extends InputStream {
 
     private XAFileInputStream xis;
     private long latestMarkPoint = -1;
-    
+
+    /**
+     * The sole constructor which takes the {@link XAFileInputStream} to be wrapped.
+     * @param xis the {@link XAFileInputStream} to be wrapped.
+     */
     public XAFileInputStreamWrapper(XAFileInputStream xis) {
         this.xis = xis;
     }

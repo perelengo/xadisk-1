@@ -1,11 +1,19 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.virtual;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Set;
+import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
-import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 
 class VirtualViewDirectory {
 
@@ -16,11 +24,14 @@ class VirtualViewDirectory {
     private final TransactionVirtualView owningView;
     private File virtualDirName;
     private boolean haveReadDirContents = false;
+    private final NativeXAFileSystem xaFileSystem;
 
-    VirtualViewDirectory(File virtualDirName, File pointsToPhysicalDirectory, TransactionVirtualView owningView) {
+    VirtualViewDirectory(File virtualDirName, File pointsToPhysicalDirectory, TransactionVirtualView owningView,
+            NativeXAFileSystem xaFileSystem) {
         this.owningView = owningView;
         this.virtualDirName = virtualDirName;
         this.pointsToPhysicalDirectory = pointsToPhysicalDirectory;
+        this.xaFileSystem = xaFileSystem;
     }
 
     private void readDirectoryContents() {
@@ -39,13 +50,13 @@ class VirtualViewDirectory {
     }
 
     void createFile(String fileName, boolean isDirectory)
-            throws FileAlreadyExistsException, InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException {
         readDirectoryContents();
         if (fileExists(fileName) || dirExists(fileName)) {
-            throw new FileAlreadyExistsException();
+            throw new FileAlreadyExistsException(fileName);
         }
         if (!isWritable()) {
-            throw new InsufficientPermissionOnFileException();
+            //throw new InsufficientPermissionOnFileException();
         }
         if (isDirectory) {
             allDirs.put(fileName, null);
@@ -55,48 +66,47 @@ class VirtualViewDirectory {
     }
 
     void moveDirectoryInto(String dirName, File pointsToPhysicalDir)
-            throws FileAlreadyExistsException, InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException {
         readDirectoryContents();
         if (fileExists(dirName) || dirExists(dirName)) {
-            throw new FileAlreadyExistsException();
+            throw new FileAlreadyExistsException(dirName);
         }
         if (!isWritable()) {
-            throw new InsufficientPermissionOnFileException();
+            //throw new InsufficientPermissionOnFileException();
         }
         allDirs.put(dirName, pointsToPhysicalDir);
     }
 
     void moveFileInto(String fileName, File pointsToPhysicalFile)
-            throws FileAlreadyExistsException, InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException {
         readDirectoryContents();
         if (fileExists(fileName) || dirExists(fileName)) {
-            throw new FileAlreadyExistsException();
+            throw new FileAlreadyExistsException(fileName);
         }
         if (!isWritable()) {
-            throw new InsufficientPermissionOnFileException();
+            //throw new InsufficientPermissionOnFileException();
         }
         allFiles.put(fileName, pointsToPhysicalFile);
     }
 
-    void deleteFile(String fileName)
-            throws FileNotExistsException, InsufficientPermissionOnFileException {
+    void deleteFile(String fileName) throws FileNotExistsException {
         readDirectoryContents();
         if (!fileExists(fileName)) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + fileName);
         }
         if (!isWritable()) {
-            throw new InsufficientPermissionOnFileException();
+            //throw new InsufficientPermissionOnFileException();
         }
         allFiles.remove(fileName);
     }
 
-    void deleteDir(String fileName) throws FileNotExistsException, InsufficientPermissionOnFileException {
+    void deleteDir(String fileName) throws FileNotExistsException {
         readDirectoryContents();
         if (!dirExists(fileName)) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + fileName);
         }
         if (!this.isWritable()) {
-            throw new InsufficientPermissionOnFileException();
+            //throw new InsufficientPermissionOnFileException();
         }
         allDirs.remove(fileName);
     }
@@ -150,14 +160,14 @@ class VirtualViewDirectory {
 
     File pointsToPhysicalFile(String file) throws FileNotExistsException {
         if (!fileExists(file)) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + file);
         }
         return allFiles.get(file);
     }
 
     File pointsToPhysicalDirectory(String file) throws FileNotExistsException {
         if (!dirExists(file)) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + file);
         }
         return allDirs.get(file);
     }
@@ -254,11 +264,12 @@ class VirtualViewDirectory {
         File pointingToPhysicalFile = pointsToPhysicalFile(fileName);
         File virtualFileName = new File(virtualDirName.getAbsolutePath(), fileName);
         if (pointingToPhysicalFile != null) {
-            vvf = new VirtualViewFile(virtualFileName, pointingToPhysicalFile.length(), owningView, pointingToPhysicalFile, pointingToPhysicalFile.length());
+            vvf = new VirtualViewFile(virtualFileName, pointingToPhysicalFile.length(), owningView, pointingToPhysicalFile, 
+                    pointingToPhysicalFile.length(), xaFileSystem);
             vvf.setMappedToThePhysicalFileTill(pointingToPhysicalFile.length());
             vvf.setMappedToPhysicalFile(pointingToPhysicalFile);
         } else {
-            vvf = new VirtualViewFile(virtualFileName, 0, owningView);
+            vvf = new VirtualViewFile(virtualFileName, 0, owningView, xaFileSystem);
             vvf.setMappedToThePhysicalFileTill(-1);
         }
         virtualViewFiles.put(fileName, vvf);

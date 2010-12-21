@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.server.conversation;
 
 import java.io.EOFException;
@@ -16,8 +24,10 @@ public class ConversationGateway implements Work {
     private volatile boolean enabled = true;
     private final Selector selector;
     private ConcurrentLinkedQueue<SocketChannel> channelsToRegister = new ConcurrentLinkedQueue<SocketChannel>();
+    private final NativeXAFileSystem xaFileSystem;
 
-    public ConversationGateway() throws IOException {
+    public ConversationGateway(NativeXAFileSystem xaFileSystem) throws IOException {
+        this.xaFileSystem = xaFileSystem;
         this.selector = Selector.open();
     }
 
@@ -37,7 +47,7 @@ public class ConversationGateway implements Work {
                     if (newConversationChannel == null) {
                         break;
                     }
-                    ConversationContext context = new ConversationContext(newConversationChannel);
+                    ConversationContext context = new ConversationContext(newConversationChannel, xaFileSystem);
                     newConversationChannel.register(selector, SelectionKey.OP_READ, context);
                 }
                 if (n == 0) {
@@ -64,7 +74,7 @@ public class ConversationGateway implements Work {
             }
             informDisconnectionToClients();
         } catch (Throwable t) {
-            NativeXAFileSystem.getXAFileSystem().notifySystemFailure(t);
+            xaFileSystem.notifySystemFailure(t);
         }
     }
 

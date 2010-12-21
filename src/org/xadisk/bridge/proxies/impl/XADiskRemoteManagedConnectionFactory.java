@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.bridge.proxies.impl;
 
 import java.io.IOException;
@@ -8,6 +16,7 @@ import javax.resource.spi.ManagedConnection;
 import javax.security.auth.Subject;
 import org.xadisk.connector.outbound.XADiskConnectionFactoryImpl;
 import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
+import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class XADiskRemoteManagedConnectionFactory extends XADiskManagedConnectionFactory {
 
@@ -39,7 +48,7 @@ public class XADiskRemoteManagedConnectionFactory extends XADiskManagedConnectio
     public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cri)
             throws ResourceException {
         try {
-            return new XADiskRemoteManagedConnection(serverAddress, serverPort);
+            return new XADiskRemoteManagedConnection(serverAddress, serverPort, NativeXAFileSystem.getXAFileSystem(super.getInstanceId()));
         } catch (IOException ioe) {
             throw new ResourceException(ioe);
         }

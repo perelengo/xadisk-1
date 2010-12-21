@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.pools.PooledBuffer;
@@ -5,7 +13,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class Buffer {
 
@@ -16,13 +23,13 @@ public class Buffer {
     private long fileContentPosition;
     private int fileContentLength;
     private int headerLength;
-    private final static AtomicLong totalNonPooledBufferSize = new AtomicLong(0);
     private FileChannel logFileChannel;
     private int logChannelIndex = -1;
-    private final NativeXAFileSystem xaFileSystem = NativeXAFileSystem.getXAFileSystem();
+    private final NativeXAFileSystem xaFileSystem;
     private volatile boolean memorySynchTrigger = true;
 
-    public Buffer(int bufferSize, boolean isDirect) {
+    public Buffer(int bufferSize, boolean isDirect, NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         if (isDirect) {
             this.buffer = ByteBuffer.allocateDirect(bufferSize);
         } else {
@@ -31,26 +38,24 @@ public class Buffer {
         this.hasItsOwnBytes = true;
         this.isDirect = isDirect;
         if (!(this instanceof PooledBuffer)) {
-            changeTotalNonPooledBufferSize(bufferSize);
+            xaFileSystem.changeTotalNonPooledBufferSize(bufferSize);
         }
     }
 
-    public Buffer(ByteBuffer buffer) {
+    public Buffer(ByteBuffer buffer, NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         this.buffer = buffer;
         this.isDirect = false;
         this.hasItsOwnBytes = true;
         if (!(this instanceof PooledBuffer)) {
-            changeTotalNonPooledBufferSize(buffer.capacity());
+            xaFileSystem.changeTotalNonPooledBufferSize(buffer.capacity());
         }
     }
 
-    public Buffer() {
+    public Buffer(NativeXAFileSystem xaFileSystem) {
+        this.xaFileSystem = xaFileSystem;
         this.hasItsOwnBytes = false;
         this.isDirect = false;
-    }
-
-    private static void changeTotalNonPooledBufferSize(int changeAmount) {
-        totalNonPooledBufferSize.addAndGet(changeAmount);
     }
 
     public void flushByteBufferChanges() {
@@ -68,11 +73,7 @@ public class Buffer {
     boolean isDirect() {
         return isDirect;
     }
-
-    public static long getTotalNonPooledBufferSize() {
-        return totalNonPooledBufferSize.get();
-    }
-
+    
     public void makeOnDisk(OnDiskInfo onDiskInfo) {
         if (onDiskInfo == null) {
             return;
@@ -80,7 +81,7 @@ public class Buffer {
         this.onDiskInfo = onDiskInfo;
         if (!(this instanceof PooledBuffer)) {
             if (hasItsOwnBytes) {
-                changeTotalNonPooledBufferSize(-buffer.capacity());
+                xaFileSystem.changeTotalNonPooledBufferSize(-buffer.capacity());
             }
             buffer = null;
         }
@@ -96,7 +97,7 @@ public class Buffer {
             if (buffer == null) {
             } else {
                 if (hasItsOwnBytes) {
-                    changeTotalNonPooledBufferSize(-buffer.capacity());
+                    xaFileSystem.changeTotalNonPooledBufferSize(-buffer.capacity());
                 }
             }
         }
@@ -131,7 +132,7 @@ public class Buffer {
     }
 
     public Buffer createReadOnlyClone() {
-        Buffer clone = new Buffer();
+        Buffer clone = new Buffer(this.xaFileSystem);
         ByteBuffer referenceToByteBuffer = this.buffer;
         if (referenceToByteBuffer == null) {
             clone.onDiskInfo = this.onDiskInfo;

@@ -1,11 +1,24 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.exceptions;
 
 /**
- * This is the super class of all exceptions which are thrown when the underlying XADisk
- * system is all well, but the specific operation in question cannot be performed. These
- * exception are normal or mild and requires handling at the client application level.
+ * This is an abstract super class of all exceptions which are thrown when
+ * a client-scoped (not system scoped) problem is encountered during an API call to XADisk.
+ * <p> These exceptions are normal and require handling at the client application level.
+ * In other words, these exceptions are not associated with XADisk system wide problems
+ * indicated by {@link XASystemException}.
+ *
+ * @since 1.0
  */
-public class XAApplicationException extends Exception {
+
+public abstract class XAApplicationException extends Exception {
 
     public XAApplicationException() {
     }

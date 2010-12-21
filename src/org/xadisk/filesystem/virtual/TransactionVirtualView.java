@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.virtual;
 
 import java.io.File;
@@ -6,12 +14,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import org.xadisk.filesystem.NativeSession;
+import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
 import org.xadisk.filesystem.exceptions.FileUnderUseException;
-import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 
 public class TransactionVirtualView {
 
@@ -22,30 +30,37 @@ public class TransactionVirtualView {
     private boolean transactionAlreadyDeclaredHeavyWrite = false;
     private final NativeSession owningSession;
     private final HashMap<File, VirtualViewDirectory> virtualViewDirs = new HashMap<File, VirtualViewDirectory>(10);
+    private final NativeXAFileSystem xaFileSystem;
 
-    public TransactionVirtualView(XidImpl owningTransaction, NativeSession owningSession) {
+    public TransactionVirtualView(XidImpl owningTransaction, NativeSession owningSession, NativeXAFileSystem xaFileSystem) {
         this.owningTransaction = owningTransaction;
         this.owningSession = owningSession;
+        this.xaFileSystem = xaFileSystem;
     }
 
     public void createFile(File f, boolean isDirectory)
-            throws FileAlreadyExistsException, FileNotExistsException, InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException, FileNotExistsException {
+        if(f.getParentFile() == null) {
+            throw new FileNotExistsException("<parent directory of the input file is null>");
+        }
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
         parentVVD.createFile(f.getName(), isDirectory);
-        viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(f, 0, this));
+        viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(f, 0, this, xaFileSystem));
         filesWithLatestViewOnDisk.remove(f);
     }
 
     public boolean deleteFile(File f)
-            throws DirectoryNotEmptyException, FileNotExistsException, FileUnderUseException,
-            InsufficientPermissionOnFileException {
+            throws DirectoryNotEmptyException, FileNotExistsException, FileUnderUseException {
+        if(f.getParentFile() == null) {
+            throw new FileNotExistsException("<parent directory of the input file is null>");
+        }
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
         if (parentVVD.isNormalFileBeingReadOrWritten(f.getName())) {
-            throw new FileUnderUseException();
+            throw new FileUnderUseException(f.getAbsolutePath(), false);
         }
         if (parentVVD.dirExists(f.getName())) {
             if (getVirtualViewDirectory(f).listFilesAndDirectories().length > 0) {
-                throw new DirectoryNotEmptyException();
+                throw new DirectoryNotEmptyException(f.getAbsolutePath());
             }
             parentVVD.deleteDir(f.getName());
             virtualViewDirs.remove(f);
@@ -59,11 +74,14 @@ public class TransactionVirtualView {
             }
             return false;
         }
-        throw new FileNotExistsException();
+        throw new FileNotExistsException(f.getAbsolutePath());
     }
 
     public boolean isNormalFileBeingReadOrWritten(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return false;
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.isNormalFileBeingReadOrWritten(f.getName());
         } catch (FileNotExistsException fne) {
@@ -77,6 +95,9 @@ public class TransactionVirtualView {
 
     public boolean fileExistsAndIsNormal(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return false;//a root can never be a file.
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.fileExists(f.getName());
         } catch (FileNotExistsException fne) {
@@ -86,6 +107,9 @@ public class TransactionVirtualView {
 
     public boolean fileExistsAndIsDirectory(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return f.isDirectory(); //f may be a root.
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.dirExists(f.getName());
         } catch (FileNotExistsException fne) {
@@ -98,8 +122,11 @@ public class TransactionVirtualView {
         return vvd.listFilesAndDirectories();
     }
 
-    boolean isDirectoryWritable(File f) {
+    public boolean isDirectoryWritable(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return f.canWrite();
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.isDirWritable(f.getName());
         } catch (FileNotExistsException fne) {
@@ -109,6 +136,9 @@ public class TransactionVirtualView {
 
     public boolean isNormalFileWritable(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return false;
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.isFileWritable(f.getName());
         } catch (FileNotExistsException fne) {
@@ -116,8 +146,11 @@ public class TransactionVirtualView {
         }
     }
 
-    boolean isDirectoryReadable(File f) {
+    public boolean isDirectoryReadable(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return f.canRead();
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.isDirReadable(f.getName());
         } catch (FileNotExistsException fne) {
@@ -127,6 +160,9 @@ public class TransactionVirtualView {
 
     public boolean isNormalFileReadable(File f) {
         try {
+            if(f.getParentFile() == null) {
+                return false;
+            }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
             return parentVVD.isFileReadable(f.getName());
         } catch (FileNotExistsException fne) {
@@ -135,18 +171,26 @@ public class TransactionVirtualView {
     }
 
     public VirtualViewFile getVirtualViewFile(File f) throws FileNotExistsException {
+        if(f.getParentFile() == null) {
+                throw new FileNotExistsException(f.getAbsolutePath());
+        }
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
         return parentVVD.getVirtualViewFile(f.getName());
     }
 
     //make this move atomic in itself.
     public void moveNormalFile(File src, File dest)
-            throws FileAlreadyExistsException, FileNotExistsException, FileUnderUseException,
-            InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException, FileNotExistsException, FileUnderUseException {
+        if(src.getParentFile() == null) {
+                throw new FileNotExistsException("<parent directory of the source file is null>");
+        }
+        if(dest.getParentFile() == null) {
+                throw new FileNotExistsException("<parent directory of the destination file is null>");
+        }
         VirtualViewDirectory srcParentVVD = getVirtualViewDirectory(src.getParentFile());
         VirtualViewDirectory destParentVVD = getVirtualViewDirectory(dest.getParentFile());
         if (srcParentVVD.isNormalFileBeingReadOrWritten(src.getName())) {
-            throw new FileUnderUseException();
+            throw new FileUnderUseException(src.getAbsolutePath(), false);
         }
 
         File srcPointingToPhysicalFile = srcParentVVD.pointsToPhysicalFile(src.getName());
@@ -160,7 +204,7 @@ public class TransactionVirtualView {
                 destParentVVD.addVirtualViewFile(dest.getName(), vvfSource);
                 vvfSource.propagatedMoveCall(dest);
                 if (vvfSource.isUsingHeavyWriteOptimization()) {
-                    VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this);
+                    VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this, xaFileSystem);
                     sourceDummyVVF.markDeleted();
                     viewFilesWithLatestViewOnDisk.add(sourceDummyVVF);
                     filesWithLatestViewOnDisk.add(dest);
@@ -176,7 +220,7 @@ public class TransactionVirtualView {
                 }
             }
         } else {
-            viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(dest, 0, this));
+            viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(dest, 0, this, xaFileSystem));
             filesWithLatestViewOnDisk.remove(dest);
             destParentVVD.moveFileInto(dest.getName(), srcPointingToPhysicalFile);
             srcParentVVD.deleteFile(src.getName());
@@ -184,14 +228,20 @@ public class TransactionVirtualView {
     }
 
     public void moveDirectory(File src, File dest)
-            throws FileAlreadyExistsException, FileNotExistsException, InsufficientPermissionOnFileException {
+            throws FileAlreadyExistsException, FileNotExistsException {
+        if(src.getParentFile() == null) {
+                throw new FileNotExistsException("<parent directory of the source directory is null>");
+        }
+        if(dest.getParentFile() == null) {
+                throw new FileNotExistsException("<parent directory of the destination directory is null>");
+        }
         VirtualViewDirectory srcParentVVD = getVirtualViewDirectory(src.getParentFile());
         VirtualViewDirectory destParentVVD = getVirtualViewDirectory(dest.getParentFile());
         if (destParentVVD.fileExists(dest.getName()) || destParentVVD.dirExists(dest.getName())) {
-            throw new FileAlreadyExistsException();
+            throw new FileAlreadyExistsException(dest.getAbsolutePath());
         }
         if (!srcParentVVD.dirExists(src.getName())) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(src.getAbsolutePath());
         }
         destParentVVD.moveDirectoryInto(dest.getName(), srcParentVVD.pointsToPhysicalDirectory(src.getName()));
         srcParentVVD.deleteDir(src.getName());
@@ -255,14 +305,14 @@ public class TransactionVirtualView {
         }
         if (ancestorOfTruth == null) {
             if (!f.isDirectory()) {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(f.getAbsolutePath());
             }
-            vvd = new VirtualViewDirectory(f, f, this);
+            vvd = new VirtualViewDirectory(f, f, this, xaFileSystem);
             virtualViewDirs.put(f, vvd);
             return vvd;
         }
         if (!ancestorOfTruth.dirExists(childDirectory.getName())) {
-            throw new FileNotExistsException();
+            throw new FileNotExistsException(f.getAbsolutePath());
         }
 
         File childDirectoryPhysicalPath = ancestorOfTruth.pointsToPhysicalDirectory(childDirectory.getName());
@@ -273,11 +323,11 @@ public class TransactionVirtualView {
             }
             File physicalDir = new File(physicalPathForVVD.toString());
             if (!physicalDir.exists()) {
-                throw new FileNotExistsException();
+                throw new FileNotExistsException(f.getAbsolutePath());
             }
-            vvd = new VirtualViewDirectory(f, physicalDir, this);
+            vvd = new VirtualViewDirectory(f, physicalDir, this, xaFileSystem);
         } else {
-            vvd = new VirtualViewDirectory(f, null, this);
+            vvd = new VirtualViewDirectory(f, null, this, xaFileSystem);
         }
         virtualViewDirs.put(f, vvd);
         return vvd;

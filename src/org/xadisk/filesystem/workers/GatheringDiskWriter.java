@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem.workers;
 
 import org.xadisk.filesystem.pools.PooledBuffer;
@@ -15,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.filesystem.Buffer;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.OnDiskInfo;
 import org.xadisk.filesystem.TransactionLogEntry;
@@ -29,7 +37,7 @@ public class GatheringDiskWriter extends EventWorker {
     private FileChannel transactionLogChannel;
     private final ConcurrentHashMap<XidImpl, ArrayList<Buffer>> transactionSubmittedBuffers =
             new ConcurrentHashMap<XidImpl, ArrayList<Buffer>>(1000);
-    private final NativeXAFileSystem theXAFileSystem;
+    private final NativeXAFileSystem xaFileSystem;
     private final long transactionLogFileMaxSize;
     private final ReentrantLock transactionLogLock = new ReentrantLock(false);
     private final String transactionLogBaseName;
@@ -43,7 +51,7 @@ public class GatheringDiskWriter extends EventWorker {
             String transactionLogBaseName, NativeXAFileSystem theXAFileSystem)
             throws IOException {
         this.cumulativeBufferSizeForDiskWrite = cumulativeBufferSizeForDiskWrite;
-        this.theXAFileSystem = theXAFileSystem;
+        this.xaFileSystem = theXAFileSystem;
         this.transactionLogFileMaxSize = transactionLogFileMaxSize;
         this.transactionLogBaseName = transactionLogBaseName;
         this.maxNonPooledBufferSize = maxNonPooledBufferSize;
@@ -96,7 +104,7 @@ public class GatheringDiskWriter extends EventWorker {
                 transactionLogLock.unlock();
             }
         } catch (Throwable t) {
-            theXAFileSystem.notifySystemFailure(t);
+            xaFileSystem.notifySystemFailure(t);
         }
     }
 
@@ -117,7 +125,7 @@ public class GatheringDiskWriter extends EventWorker {
                 transactionLogLock.unlock();
             }
         } catch (IOException ioe) {
-            theXAFileSystem.notifySystemFailure(ioe);
+            xaFileSystem.notifySystemFailure(ioe);
         }
     }
 
@@ -142,9 +150,9 @@ public class GatheringDiskWriter extends EventWorker {
             if (buffersArray[i] instanceof PooledBuffer) {
                 makeCurrentOnDisk = false;
             } else {
-                if (Buffer.getTotalNonPooledBufferSize() < maxNonPooledBufferSize * 3 / 4) {
+                if (xaFileSystem.getTotalNonPooledBufferSize() < maxNonPooledBufferSize * 3 / 4) {
                     makeCurrentOnDisk = false;
-                } else if (Buffer.getTotalNonPooledBufferSize() < maxNonPooledBufferSize) {
+                } else if (xaFileSystem.getTotalNonPooledBufferSize() < maxNonPooledBufferSize) {
                     if (byteBufferArray[i].remaining() < 1000) {
                         makeCurrentOnDisk = false;
                     } else {
@@ -230,8 +238,8 @@ public class GatheringDiskWriter extends EventWorker {
         forceWrite(temp);
     }
 
-    public void transactionPrepareCompletesForEventDequeue(XidImpl xid, FileStateChangeEvent event) throws IOException {
-        ArrayList<FileStateChangeEvent> events = new ArrayList<FileStateChangeEvent>(1);
+    public void transactionPrepareCompletesForEventDequeue(XidImpl xid, FileSystemStateChangeEvent event) throws IOException {
+        ArrayList<FileSystemStateChangeEvent> events = new ArrayList<FileSystemStateChangeEvent>(1);
         events.add(event);
         ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, events,
                 TransactionLogEntry.PREPARE_COMPLETES_FOR_EVENT_DEQUEUE));
@@ -347,7 +355,7 @@ public class GatheringDiskWriter extends EventWorker {
     }
 
     private void recordAllActivationsInNewLog() throws IOException {
-        for (EndPointActivation activation : theXAFileSystem.getAllActivations()) {
+        for (EndPointActivation activation : xaFileSystem.getAllActivations()) {
             //note that this solution means duplicate entries for a single activation; eg one entry
             //in log 3 and other in 4 when log 4 is allocated. The other solution where we
             //keep entries as such and carry-them-over during log deletion is not full-proof

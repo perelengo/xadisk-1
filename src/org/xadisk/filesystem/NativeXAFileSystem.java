@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.pools.BufferPool;
@@ -40,30 +48,31 @@ import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
 import org.xadisk.connector.inbound.DeadLetterMessageEndpoint;
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
+import org.xadisk.filesystem.exceptions.XASystemBootFailureException;
+import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.pools.SelectorPool;
 
-public class NativeXAFileSystem implements XAFileSystem {
+public class NativeXAFileSystem implements XAFileSystemCommonness {
 
-    private static NativeXAFileSystem theXAFileSystem;
+    private static ConcurrentHashMap<String, NativeXAFileSystem> allXAFileSystems = new ConcurrentHashMap<String, NativeXAFileSystem>();
     private final AtomicLong lastTransactionId = new AtomicLong(System.currentTimeMillis() / 1000);
     private final ConcurrentHashMap<File, Lock> fileLocks = new ConcurrentHashMap<File, Lock>(1000);
     private final BufferPool bufferPool;
     private final SelectorPool selectorPool;
     private final String transactionLogFileBaseName;
-    private static Logger logger;
+    private Logger logger;
     private final String XADiskHome;
     private final String transactionLogsDir;
     private final DeadLetterMessageEndpoint deadLetter;
-    private static FileSystemConfiguration configuration;
+    private final FileSystemConfiguration configuration;
     private final ConcurrentHashMap<XidImpl, NativeSession> transactionAndSession = new ConcurrentHashMap<XidImpl, NativeSession>(1000);
     private HashSet<XidImpl> transactionsPreparedPreCrash;
     private boolean returnedAllPreparedTransactions = false;
-    private static WorkManager workManager;
+    private final WorkManager workManager;
     private final ResourceDependencyGraph resourceDependencyGraph;
     private final GatheringDiskWriter gatheringDiskWriter;
     private final CrashRecoveryWorker recoveryWorker;
@@ -75,7 +84,7 @@ public class NativeXAFileSystem implements XAFileSystem {
     private final PointOfContact pointOfContact;
     private final int lockTimeOut;
     private boolean recoveryComplete = false;
-    private final LinkedBlockingQueue<FileStateChangeEvent> fileSystemEventQueue;
+    private final LinkedBlockingQueue<FileSystemStateChangeEvent> fileSystemEventQueue;
     private volatile boolean systemHasFailed = false;
     private volatile Throwable systemFailureCause = null;
     private final HashMap<File, XidImpl> directoriesPinnedForRename = new HashMap<File, XidImpl>(1000);
@@ -83,11 +92,15 @@ public class NativeXAFileSystem implements XAFileSystem {
     private final File topLevelBackupDir;
     private File currentBackupDirPath;
     private AtomicLong backupFileNameCounter = new AtomicLong(0);
-    private static final int maxFilesInBackupDirectory = 100000;
+    private final int maxFilesInBackupDirectory = 100000;
     private final int defaultTransactionTimeout;
     private final GlobalHostedContext globalCallbackContext = new GlobalHostedContext();
+    private final AtomicLong totalNonPooledBufferSize = new AtomicLong(0);
 
-    private NativeXAFileSystem() {
+    private NativeXAFileSystem(FileSystemConfiguration configuration,
+            WorkManager workManager) {
+        this.configuration = configuration;
+        this.workManager = workManager;
         try {
             XADiskHome = configuration.getXaDiskHome();
             topLevelBackupDir = new File(XADiskHome, "backupDir");
@@ -95,8 +108,7 @@ public class NativeXAFileSystem implements XAFileSystem {
             if (!topLevelBackupDir.isDirectory()) {
                 FileIOUtility.createDirectory(topLevelBackupDir);
             }
-            NativeXAFileSystem.logger = new Logger(new File(XADiskHome, "debug.log"),
-                    (byte) configuration.getLogLevel().byteValue());
+            this.logger = new Logger(new File(XADiskHome, "debug.log"), (byte) 3);
             transactionLogsDir = XADiskHome + File.separator + "txnlogs";
             FileIOUtility.createDirectoriesIfRequired(new File(transactionLogsDir));
             transactionLogFileBaseName = transactionLogsDir + File.separator + "xadisk.log";
@@ -108,28 +120,32 @@ public class NativeXAFileSystem implements XAFileSystem {
                     configuration.getTransactionLogFileMaxSize(), configuration.getMaxNonPooledBufferSize(),
                     transactionLogFileBaseName, this);
             recoveryWorker = new CrashRecoveryWorker(this);
-            bufferPoolReliever = new ObjectPoolReliever(bufferPool, configuration.getBufferPoolRelieverInterval());
-            selectorPoolReliever = new ObjectPoolReliever(selectorPool, 1000);
+            bufferPoolReliever = new ObjectPoolReliever(bufferPool, configuration.getBufferPoolRelieverInterval(), this);
+            selectorPoolReliever = new ObjectPoolReliever(selectorPool, 1000, this);
             resourceDependencyGraph = new ResourceDependencyGraph();
             deadLockDetector = new DeadLockDetector(configuration.getDeadLockDetectorInterval(), resourceDependencyGraph,
                     this);
             transactionTimeoutDetector = new TransactionTimeoutDetector(1, this);
-            pointOfContact = new PointOfContact(this, configuration.getServerPort());
-            this.fileSystemEventQueue = new LinkedBlockingQueue<FileStateChangeEvent>();
+            this.fileSystemEventQueue = new LinkedBlockingQueue<FileSystemStateChangeEvent>();
             this.fileSystemEventDelegator = new FileSystemEventDelegator(this, configuration.getMaximumConcurrentEventDeliveries());
             this.lockTimeOut = configuration.getLockTimeOut();
             this.defaultTransactionTimeout = configuration.getTransactionTimeout();
             this.workListener = new CriticalWorkersListener(this);
             File deadLetterDir = new File(XADiskHome, "deadletter");
             FileIOUtility.createDirectoriesIfRequired(deadLetterDir);
-            this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir);
+            this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir, this);
 
             workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(bufferPoolReliever, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(selectorPoolReliever, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(fileSystemEventDelegator, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(transactionTimeoutDetector, WorkManager.INDEFINITE, null, workListener);
-            workManager.startWork(pointOfContact, WorkManager.INDEFINITE, null, workListener);
+            if(configuration.getEnableRemoteInvocations()) {
+                pointOfContact = new PointOfContact(this, configuration.getServerPort());
+                workManager.startWork(pointOfContact, WorkManager.INDEFINITE, null, workListener);
+            } else {
+                pointOfContact = null;
+            }
 
             recoveryWorker.collectRecoveryData();
             gatheringDiskWriter.initialize();
@@ -137,29 +153,38 @@ public class NativeXAFileSystem implements XAFileSystem {
             workManager.startWork(recoveryWorker, WorkManager.INDEFINITE, null, workListener);
 
         } catch (Exception e) {
-            throw new XASystemException(e);
+            throw new XASystemBootFailureException(e);
         }
     }
 
     public static NativeXAFileSystem bootXAFileSystem(FileSystemConfiguration configuration,
             WorkManager workManager) {
-        NativeXAFileSystem.configuration = configuration;
-        NativeXAFileSystem.workManager = workManager;
-        theXAFileSystem = new NativeXAFileSystem();
-        return theXAFileSystem;
+        String instanceId = configuration.getInstanceId();
+        if(allXAFileSystems.get(instanceId) != null) {
+            throw new XASystemBootFailureException("An instance of XADisk with instance-id [" + instanceId + "] is already"
+                    + " running in this JVM.");
+        }
+        NativeXAFileSystem newXAFileSystem = new NativeXAFileSystem(configuration, workManager);
+        allXAFileSystems.put(configuration.getInstanceId(), newXAFileSystem);
+        return newXAFileSystem;
     }
 
     public static NativeXAFileSystem bootXAFileSystemStandAlone(StandaloneFileSystemConfiguration configuration) {
-        NativeXAFileSystem.configuration = configuration;
-        NativeXAFileSystem.workManager = new StandaloneWorkManager(
+        String instanceId = configuration.getInstanceId();
+        if(allXAFileSystems.get(instanceId) != null) {
+            throw new XASystemBootFailureException("An instance of XADisk with instance-id [" + instanceId + "] is already"
+                    + " running in this JVM.");
+        }
+        WorkManager workManager = new StandaloneWorkManager(
                 configuration.getWorkManagerCorePoolSize(), configuration.getWorkManagerMaxPoolSize(),
                 configuration.getWorkManagerKeepAliveTime());
-        theXAFileSystem = new NativeXAFileSystem();
-        return theXAFileSystem;
+        NativeXAFileSystem newXAFileSystem = new NativeXAFileSystem(configuration, workManager);
+        allXAFileSystems.put(configuration.getInstanceId(), newXAFileSystem);
+        return newXAFileSystem;
     }
 
-    public static NativeXAFileSystem getXAFileSystem() {
-        return theXAFileSystem;
+    public static NativeXAFileSystem getXAFileSystem(String instanceId) {
+        return allXAFileSystems.get(instanceId);
     }
 
     public void notifyRecoveryComplete() throws IOException {
@@ -175,13 +200,13 @@ public class NativeXAFileSystem implements XAFileSystem {
 
     public NativeSession createSessionForLocalTransaction() {
         checkIfCanContinue();
-        NativeSession session = new NativeSession(XidImpl.getXidInstanceForLocalTransaction(getNextLocalTransactionId()), false);
+        NativeSession session = new NativeSession(XidImpl.getXidInstanceForLocalTransaction(getNextLocalTransactionId()), false, this);
         return session;
     }
 
     public NativeSession createSessionForXATransaction(Xid xid) {
         checkIfCanContinue();
-        NativeSession session = new NativeSession((XidImpl) xid, false);
+        NativeSession session = new NativeSession((XidImpl) xid, false, this);
         return session;
     }
 
@@ -192,12 +217,12 @@ public class NativeXAFileSystem implements XAFileSystem {
             return session;
         }
         if (transactionsPreparedPreCrash.contains((XidImpl) xid)) {
-            ArrayList<FileStateChangeEvent> events =
+            ArrayList<FileSystemStateChangeEvent> events =
                     recoveryWorker.getEventsFromPreparedTransaction((XidImpl) xid);
             if (events != null) {
-                session = new NativeSession((XidImpl) xid, events);
+                session = new NativeSession((XidImpl) xid, events, this);
             } else {
-                session = new NativeSession((XidImpl) xid, true);
+                session = new NativeSession((XidImpl) xid, true, this);
             }
             if (session != null) {
                 return session;
@@ -219,11 +244,11 @@ public class NativeXAFileSystem implements XAFileSystem {
         return sessions.toArray(new NativeSession[sessions.size()]);
     }
 
-    public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileStateChangeEvent> events) {
+    public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events) {
         if (events == null) {
-            return new NativeSession(xid, true);
+            return new NativeSession(xid, true, this);
         } else {
-            return new NativeSession(xid, events);
+            return new NativeSession(xid, events, this);
         }
     }
 
@@ -297,12 +322,12 @@ public class NativeXAFileSystem implements XAFileSystem {
                     remainingTime = remainingTime - (now2 - now1);
                     if (!indefiniteWait && remainingTime <= 0) {
                         removeDependencyFromRDG(requestor);
-                        throw new LockingTimedOutException();
+                        throw new LockingTimedOutException(f.getAbsolutePath());
                     }
                 } catch (InterruptedException ie) {
                     removeDependencyFromRDG(requestor);
                     if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_DEADLOCK) {
-                        DeadLockVictimizedException dlve = new DeadLockVictimizedException();
+                        DeadLockVictimizedException dlve = new DeadLockVictimizedException(f.getAbsolutePath());
                         requestor.getOwningSession().rollbackPrematurely(dlve);
                         throw new TransactionRolledbackException(dlve);
                     } else if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_TIMEOUT) {
@@ -351,7 +376,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         while (parent != null) {
             XidImpl pinHolder = directoriesPinnedForRename.get(parent);
             if (pinHolder != null && !pinHolder.equals(exceptionalSelf)) {
-                throw new AncestorPinnedException();
+                throw new AncestorPinnedException(f.getAbsolutePath(), parent.getAbsolutePath());
             }
             parent = parent.getParentFile();
         }
@@ -366,7 +391,7 @@ public class NativeXAFileSystem implements XAFileSystem {
                     Iterator<XidImpl> holders = lock.getHolders().iterator();
                     while (holders.hasNext()) {
                         if (!holders.next().equals(exceptionalSelf)) {
-                            throw new DirectoryPinningFailedException();
+                            throw new DirectoryPinningFailedException(dir.getAbsolutePath(), file.getAbsolutePath());
                         }
                     }
                 }
@@ -434,12 +459,12 @@ public class NativeXAFileSystem implements XAFileSystem {
                     remainingTime = remainingTime - (now2 - now1);
                     if (!indefiniteWait && remainingTime <= 0) {
                         removeDependencyFromRDG(requestor);
-                        throw new LockingTimedOutException();
+                        throw new LockingTimedOutException(f.getAbsolutePath());
                     }
                 } catch (InterruptedException ie) {
                     removeDependencyFromRDG(requestor);
                     if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_DEADLOCK) {
-                        DeadLockVictimizedException dlve = new DeadLockVictimizedException();
+                        DeadLockVictimizedException dlve = new DeadLockVictimizedException(f.getAbsolutePath());
                         requestor.getOwningSession().rollbackPrematurely(dlve);
                         throw new TransactionRolledbackException(dlve);
                     } else if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_TIMEOUT) {
@@ -515,7 +540,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         return configuration.getBufferSize();
     }
 
-    public static WorkManager getWorkManager() {
+    public WorkManager getWorkManager() {
         return workManager;
     }
 
@@ -535,7 +560,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         return lastTransactionId.getAndIncrement();
     }
 
-    static Logger getLogger() {
+    Logger getLogger() {
         return logger;
     }
 
@@ -548,13 +573,16 @@ public class NativeXAFileSystem implements XAFileSystem {
         gatheringDiskWriter.deInitialize();
         fileSystemEventDelegator.release();
         transactionTimeoutDetector.release();
-        pointOfContact.release();
+        if(configuration.getEnableRemoteInvocations()) {
+            pointOfContact.release();
+        }
         logger.releaseLogFile();
         getLogger().close();
         deadLetter.release();
         if (workManager instanceof StandaloneWorkManager) {
             ((StandaloneWorkManager) workManager).shutdown();
         }
+        allXAFileSystems.remove(this.configuration.getInstanceId());
     }
 
     int getLockTimeOut() {
@@ -577,7 +605,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         return new File(savedCurrentBackupDir, nextBackupFileName + "");
     }
 
-    public LinkedBlockingQueue<FileStateChangeEvent> getFileSystemEventQueue() {
+    public LinkedBlockingQueue<FileSystemStateChangeEvent> getFileSystemEventQueue() {
         return fileSystemEventQueue;
     }
 
@@ -585,6 +613,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         boolean notADuplicateActivation = fileSystemEventDelegator.registerActivation(activation);
         if (notADuplicateActivation && activation.getMessageEndpointFactory() instanceof RemoteMessageEndpointFactory) {
             gatheringDiskWriter.recordEndPointActivation(activation);
+            ((RemoteMessageEndpointFactory)activation.getMessageEndpointFactory()).setLocalXAFileSystem(this);
         }
     }
 
@@ -608,7 +637,7 @@ public class NativeXAFileSystem implements XAFileSystem {
         for (int i = 0; i < allSessions.length; i++) {
             allSessions[i].notifySystemFailure(systemFailureCause);
         }
-        throw new XASystemException(systemFailureCause);
+        throw new XASystemNoMoreAvailableException(systemFailureCause);
     }
 
     public void notifySystemFailureAndContinue(Throwable systemFailureCause) {
@@ -620,7 +649,7 @@ public class NativeXAFileSystem implements XAFileSystem {
 
     public void checkIfCanContinue() {
         if (systemHasFailed) {
-            throw new XASystemException(systemFailureCause);
+            throw new XASystemNoMoreAvailableException(systemFailureCause);
         }
         if (!recoveryComplete) {
             throw new RecoveryInProgressException();
@@ -665,10 +694,18 @@ public class NativeXAFileSystem implements XAFileSystem {
     }
 
     public XAResource getEventProcessingXAResourceForRecovery() {
-        return new LocalEventProcessingXAResource(theXAFileSystem);
+        return new LocalEventProcessingXAResource(this);
     }
 
     public DeadLetterMessageEndpoint getDeadLetter() {
         return deadLetter;
+    }
+
+    public void changeTotalNonPooledBufferSize(int changeAmount) {
+        totalNonPooledBufferSize.addAndGet(changeAmount);
+    }
+
+    public long getTotalNonPooledBufferSize() {
+        return totalNonPooledBufferSize.get();
     }
 }

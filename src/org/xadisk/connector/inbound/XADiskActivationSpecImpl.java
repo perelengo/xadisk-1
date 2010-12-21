@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.connector.inbound;
 
 import java.io.File;
@@ -8,7 +16,7 @@ import javax.resource.ResourceException;
 import javax.resource.spi.ActivationSpec;
 import javax.resource.spi.InvalidPropertyException;
 import javax.resource.spi.ResourceAdapter;
-import org.xadisk.filesystem.FileStateChangeEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 
 public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
 
@@ -87,11 +95,11 @@ public class XADiskActivationSpecImpl implements ActivationSpec, Serializable {
         }
     }
 
-    public boolean isEndpointInterestedIn(FileStateChangeEvent event) {
+    public boolean isEndpointInterestedIn(FileSystemStateChangeEvent event) {
         String interested = fileNamesAndInterests.get(event.getFile());
         if (interested != null) {
             byte interestedBits = Byte.parseByte(interested, 2);
-            byte queriedInterest = event.getEventType();
+            byte queriedInterest = event.getEventType().getByteValue();
             if ((interestedBits & queriedInterest) > 0) {
                 return true;
             }

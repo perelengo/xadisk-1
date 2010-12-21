@@ -1,3 +1,11 @@
+/*
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+
+This source code is being made available to the public under the terms specified in the license
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+*/
+
+
 package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.utilities.FileIOUtility;
@@ -49,7 +57,7 @@ public class TransactionLogEntry {
     private String destFileName;
     private long newLength;
     private HashSet<File> fileList;
-    private ArrayList<FileStateChangeEvent> eventList;
+    private ArrayList<FileSystemStateChangeEvent> eventList;
     private int checkPointPosition = -1;
     private EndPointActivation remoteActivation;
 
@@ -224,7 +232,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, ArrayList<FileStateChangeEvent> events, byte enQ_deQ_prepareDequeue) {
+    public static byte[] getLogEntry(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events, byte enQ_deQ_prepareDequeue) {
         int totalEventsLength = 0;
         byte[][] eventsBytes = new byte[events.size()][];
         for (int i = 0; i < events.size(); i++) {
@@ -339,7 +347,7 @@ public class TransactionLogEntry {
         } else if (temp.operationType == EVENT_ENQUEUE || temp.operationType == EVENT_DEQUEUE
                 || temp.operationType == PREPARE_COMPLETES_FOR_EVENT_DEQUEUE) {
             int numEvents = buffer.getInt();
-            temp.eventList = new ArrayList<FileStateChangeEvent>(numEvents);
+            temp.eventList = new ArrayList<FileSystemStateChangeEvent>(numEvents);
             for (int i = 0; i < numEvents; i++) {
                 temp.eventList.add(readEvent(buffer));
             }
@@ -361,11 +369,11 @@ public class TransactionLogEntry {
         return getUTF8AssumedString(fileName);
     }
 
-    private static byte[] getBytesFromEvent(FileStateChangeEvent event) {
+    private static byte[] getBytesFromEvent(FileSystemStateChangeEvent event) {
         byte fileNameBytes[] = getUTF8Bytes(event.getFile().getAbsolutePath());
         ByteBuffer buffer = ByteBuffer.allocate(fileNameBytes.length + 200);
         buffer.put(serializeXid(event.getEnqueuingTransaction()));
-        buffer.put(event.getEventType());
+        buffer.put(event.getEventType().getByteValue());
         buffer.putInt(fileNameBytes.length);
         buffer.put(fileNameBytes);
         buffer.put((byte) (event.isDirectory() ? 1 : 0));
@@ -375,7 +383,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    private static FileStateChangeEvent readEvent(ByteBuffer buffer) {
+    private static FileSystemStateChangeEvent readEvent(ByteBuffer buffer) {
         XidImpl enqueuingTransaction = deSerializeXid(buffer);
         byte eventType = buffer.get();
         int fileNameLength = buffer.getInt();
@@ -384,7 +392,8 @@ public class TransactionLogEntry {
         String fileName = getUTF8AssumedString(fileNameBytes);
         File file = new File(fileName);
         boolean isDirectory = buffer.get() == 1 ? true : false;
-        return new FileStateChangeEvent(file, isDirectory, eventType, enqueuingTransaction);
+        return new FileSystemStateChangeEvent(file, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.getFileSystemEventType(eventType),
+                enqueuingTransaction);
     }
 
     private static EndPointActivation readRemoteEndPointActivation(ByteBuffer buffer) {
@@ -519,11 +528,12 @@ public class TransactionLogEntry {
         return fileList;
     }
 
-    public ArrayList<FileStateChangeEvent> getEventList() {
+    public ArrayList<FileSystemStateChangeEvent> getEventList() {
         return eventList;
     }
 
-    public EndPointActivation getRemoteActivation() {
+    public EndPointActivation getRemoteActivation(NativeXAFileSystem xaFileSystem) {
+        remoteActivation.setLocalXAFileSystemForRemoteMEF(xaFileSystem);
         return remoteActivation;
     }
 
