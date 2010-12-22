@@ -11,7 +11,6 @@ package org.xadisk.tests;
 import java.io.File;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import org.xadisk.connector.outbound.XADiskConnection;
@@ -26,7 +25,7 @@ import org.xadisk.filesystem.utilities.FileIOUtility;
 public class TestManagedEnvironmentCrashRecovery {
 
     private static final String SEPERATOR = File.separator;
-    private static final String currentWorkingDirectory = System.getProperty("user.dir");
+    private static final String currentWorkingDirectory = "C:\\";
     private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
     private static long txnId = System.currentTimeMillis();
 
@@ -47,7 +46,7 @@ public class TestManagedEnvironmentCrashRecovery {
 
             xaFileSystem = bootXAFileSystemCompletely();
 
-            XADiskManagedConnection mc = (XADiskManagedConnection) new XADiskManagedConnectionFactory().createManagedConnection(null, null);
+            XADiskManagedConnection mc = (XADiskManagedConnection) getXADiskManagedConnectionFactory().createManagedConnection(null, null);
             XAResource xar = mc.getXAResource();
             Xid xid = getNewXid();
             xar.start(xid, XAResource.TMNOFLAGS);
@@ -56,7 +55,7 @@ public class TestManagedEnvironmentCrashRecovery {
             xar.end(xid, XAResource.TMSUCCESS);
             assertNoCommit(f[0]);
 
-            mc = (XADiskManagedConnection) new XADiskManagedConnectionFactory().createManagedConnection(null, null);
+            mc = (XADiskManagedConnection) getXADiskManagedConnectionFactory().createManagedConnection(null, null);
             xar = mc.getXAResource();
             xid = getNewXid();
             xar.start(xid, XAResource.TMNOFLAGS);
@@ -66,7 +65,7 @@ public class TestManagedEnvironmentCrashRecovery {
             xar.prepare(xid);
             assertNoCommit(f[1]);
 
-            mc = (XADiskManagedConnection) new XADiskManagedConnectionFactory().createManagedConnection(null, null);
+            mc = (XADiskManagedConnection) getXADiskManagedConnectionFactory().createManagedConnection(null, null);
             xar = mc.getXAResource();
             xid = getNewXid();
             xar.start(xid, XAResource.TMNOFLAGS);
@@ -81,7 +80,7 @@ public class TestManagedEnvironmentCrashRecovery {
             xaFileSystem = bootXAFileSystem();
             Thread.sleep(1000);
 
-            mc = (XADiskManagedConnection) new XADiskManagedConnectionFactory().createManagedConnection(null, null);
+            mc = (XADiskManagedConnection) getXADiskManagedConnectionFactory().createManagedConnection(null, null);
             xar = mc.getXAResource();
             Xid[] preparedXids = xaFileSystem.recover(XAResource.TMSTARTRSCAN);
             for (Xid prepared : preparedXids) {
@@ -132,7 +131,7 @@ public class TestManagedEnvironmentCrashRecovery {
                     + "::111");
             xaFileSystem.registerEndPointActivation(new EndPointActivation(smef, as));
 
-            mc = (XADiskManagedConnection) new XADiskManagedConnectionFactory().createManagedConnection(null, null);
+            mc = (XADiskManagedConnection) getXADiskManagedConnectionFactory().createManagedConnection(null, null);
             xar = mc.getXAResource();
             xid = getNewXid();
             xar.start(xid, XAResource.TMNOFLAGS);
@@ -174,6 +173,12 @@ public class TestManagedEnvironmentCrashRecovery {
                 e.printStackTrace();
             }
         }
+    }
+
+    private static XADiskManagedConnectionFactory getXADiskManagedConnectionFactory() {
+        XADiskManagedConnectionFactory mcf = new XADiskManagedConnectionFactory();
+        ((XADiskManagedConnectionFactory) mcf).setInstanceId("");
+        return mcf;
     }
 
     private static Xid getNewXid() {

@@ -3,9 +3,7 @@ Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
-*/
-
-
+ */
 package org.xadisk.tests;
 
 import java.io.File;
@@ -25,7 +23,7 @@ import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 public class TestRemoteXADiskRecover {
 
     private static final String SEPERATOR = File.separator;
-    private static final String currentWorkingDirectory = System.getProperty("user.dir");
+    private static final String currentWorkingDirectory = "C:\\";
     private static final String XADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem1";
     private static final String RemoteXADiskSystemDirectory = currentWorkingDirectory + SEPERATOR + "XADiskSystem";
 
@@ -49,7 +47,7 @@ public class TestRemoteXADiskRecover {
             as.setFileNamesAndEventInterests(currentWorkingDirectory + "\\::111");
             EndPointActivation activation = new EndPointActivation(mef, as);
 
-            RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
+            RemoteXAFileSystem xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT, NativeXAFileSystem.getXAFileSystem(""));
             xafs.registerEndPointActivation(activation);
 
             Session session = xafs.createSessionForLocalTransaction();
@@ -68,7 +66,7 @@ public class TestRemoteXADiskRecover {
             }
             session.createFile(c, false);
             session.setPublishFileStateChangeEventsOnCommit(true);
-            ((SessionCommonness)session).prepare();
+            ((SessionCommonness) session).prepare();
 
             createSpaceForMessageDelivery();
 
@@ -79,9 +77,10 @@ public class TestRemoteXADiskRecover {
 
             Thread.sleep(2000);
 
-            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
+            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT, NativeXAFileSystem.getXAFileSystem(""));
             Xid xids[] = xafs.recover(XAResource.TMSTARTRSCAN);
             XADiskRemoteManagedConnectionFactory mcf = new XADiskRemoteManagedConnectionFactory();
+            ((XADiskRemoteManagedConnectionFactory) mcf).setInstanceId("");
             mcf.setServerAddress("localhost");
             mcf.setServerPort(RemoteXADiskBootup.DEFAULT_PORT);
             XAResource xar = mcf.createManagedConnection(null, null).getXAResource();
@@ -108,7 +107,7 @@ public class TestRemoteXADiskRecover {
             crashRemoteXADisk(remoteXADisk);
             remoteXADisk = bootRemoteXADisk();
             Thread.sleep(2000);
-            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT);
+            xafs = new RemoteXAFileSystem("localhost", RemoteXADiskBootup.DEFAULT_PORT, NativeXAFileSystem.getXAFileSystem(""));
 
             session = xafs.createSessionForLocalTransaction();
             c = new File(currentWorkingDirectory + "\\remotelyCreated.txt");
@@ -153,6 +152,7 @@ public class TestRemoteXADiskRecover {
         configuration.setWorkManagerCorePoolSize(100);
         configuration.setWorkManagerMaxPoolSize(100);
         configuration.setServerPort(2345);
+        configuration.setEnableRemoteInvocations(true);
         NativeXAFileSystem nativeXAFS = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
         nativeXAFS.waitForBootup(-1);
         System.out.println("Booted local...");

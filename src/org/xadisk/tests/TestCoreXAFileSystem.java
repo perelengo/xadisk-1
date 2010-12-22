@@ -104,6 +104,7 @@ public class TestCoreXAFileSystem {
             configuration.setLockTimeOut(10 * 1000);
             configuration.setServerAddress("localhost");
             configuration.setServerPort(Configuration.getNextServerPort());
+            configuration.setEnableRemoteInvocations(true);
             NativeXAFileSystem nativeXAFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             nativeXAFileSystem.waitForBootup(-1);
 

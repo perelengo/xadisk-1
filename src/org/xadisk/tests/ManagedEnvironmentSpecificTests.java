@@ -45,6 +45,7 @@ public class ManagedEnvironmentSpecificTests {
             waitForXAFileSystemToBeUp(xaFileSystem);
 
             ManagedConnectionFactory mcf = new XADiskManagedConnectionFactory();
+            ((XADiskManagedConnectionFactory) mcf).setInstanceId("");
             ManagedConnection mc = mcf.createManagedConnection(null, null);
             XAResource xar = mc.getXAResource();
             XAResource xarSameRM = mcf.createManagedConnection(null, null).getXAResource();
@@ -88,6 +89,7 @@ public class ManagedEnvironmentSpecificTests {
             xaFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(saConfig);
             Thread.sleep(5000);
             mcf = new XADiskManagedConnectionFactory();
+            ((XADiskManagedConnectionFactory) mcf).setInstanceId("");
             mc = mcf.createManagedConnection(null, null);
             xar = mc.getXAResource();
 

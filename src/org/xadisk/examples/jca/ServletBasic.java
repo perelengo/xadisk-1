@@ -75,7 +75,7 @@ public class ServletBasic extends HttpServlet {
         XADiskConnection connection = null;
 
         try {
-            System.out.println("Executing the application-module1...");
+            out.println("Executing the application-module1...");
 
             out.println("Starting the global transaction...<br>");
             utx.begin();
@@ -100,15 +100,16 @@ public class ServletBasic extends HttpServlet {
             out.println("[We could also have done some work on database, JMS etc and all of the work "
                     + "will then become part of the same global transaction.]<br>");
 
+            connection.setPublishFileStateChangeEventsOnCommit(true);
             connection.close();
 
             out.println("Committing the global transaction now...<br>");
 
             utx.commit();
 
-            System.out.println("The application-module1 completed successfully.");
+            out.println("The application-module1 completed successfully.");
         } catch (XAApplicationException xaae) {
-            System.out.println("The application-module1 could not execute successfully.");
+            out.println("The application-module1 could not execute successfully.");
             xaae.printStackTrace(out);
             if (connection != null) {
                 connection.close();

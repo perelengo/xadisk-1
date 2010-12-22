@@ -14,6 +14,7 @@ import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Random;
+import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 import org.xadisk.connector.inbound.XADiskActivationSpecImpl;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.filesystem.utilities.FileIOUtility;
@@ -21,6 +22,7 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
+import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 
@@ -466,7 +468,7 @@ public class CoreXAFileSystemTests {
 
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
         EndPointActivation epActivation = new EndPointActivation(smef, actSpec);
-        XAFileSystemCommonness xaFileSystem = (XAFileSystemCommonness)TestUtility.getXAFileSystemForTest();
+        XAFileSystemCommonness xaFileSystem = new RemoteXAFileSystem("localhost", TestUtility.remoteXADiskPort, NativeXAFileSystem.getXAFileSystem(""));
         xaFileSystem.registerEndPointActivation(epActivation);
 
         Session session = xaFileSystem.createSessionForLocalTransaction();

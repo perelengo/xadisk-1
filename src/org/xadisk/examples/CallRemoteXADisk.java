@@ -41,7 +41,7 @@ public class CallRemoteXADisk {
     //network address of the machine on which the remote XADisk instance is running.
     private static final String remoteXADiskAddress = "localhost";
     //network port on which the remote XADisk is instance listening.
-    private static final int remoteXADiskPort = 2010;
+    private static final int remoteXADiskPort = 5151;
     //test file, on the file-system wrapped by the remote XADisk instance.
     private static final String testFile = "C:\\orders2.csv";
 

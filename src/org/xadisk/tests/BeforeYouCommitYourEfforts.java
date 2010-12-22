@@ -18,25 +18,32 @@ public class BeforeYouCommitYourEfforts {
             CoreXAFileSystemTests.testHighNumber = false;
             CoreXAFileSystemTests.testProgressive = false;
             CoreXAFileSystemTests.usePessimisticLock = true;
-            TestUtility.remoteXAFileSystem = false;
+            TestUtility.remoteXAFileSystem = true;
 
-            TestCoreXAFileSystem.testCrashRecovery = true;
+            TestCoreXAFileSystem.testCrashRecovery = false;
             TestCoreXAFileSystem.concurrencyLevel = 1;
             TestCoreXAFileSystem.numberOfCrashes = 100;
             TestCoreXAFileSystem.maxConcurrentDeliveries = 2;
 
+            Process remoteXADisk = null;
             if (TestUtility.remoteXAFileSystem) {
-                startRemoteXADisk();
+                remoteXADisk = startRemoteXADisk();
+                //for remote case, remember to delete the system dir so that the earlier activations, which didn't get de-activated
+                //are not tried for raise messages and hence don't fail with exception like "No object with id".
             }
 
             TestCoreXAFileSystem.main(new String[0]);
+
+            if(remoteXADisk != null) {
+                remoteXADisk.destroy();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void startRemoteXADisk() throws Exception {
+    private static Process startRemoteXADisk() throws Exception {
         List<String> argsList = new ArrayList<String>();
         argsList.add("java");
         argsList.add("-classpath");
@@ -51,5 +58,6 @@ public class BeforeYouCommitYourEfforts {
         new Thread(new ChildProcessOutputStreamReader(remoteXADiskProcess.getInputStream(),
                 System.out)).start();
         Thread.sleep(2000);
+        return remoteXADiskProcess;
     }
 }
