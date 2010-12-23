@@ -1,5 +1,5 @@
 /*
-Copyright Â© 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -58,7 +58,7 @@ public class BootXADisk {
             runApplicationModule1("id-1");
 
             if (!keepXADiskRunning) {
-                shutdownNativeXADiskInstance();
+                shutdownNativeXADiskInstance("id-1");
             } else {
                 System.out.println("The XADisk instance will keep running in this JVM...");
             }
@@ -83,8 +83,8 @@ public class BootXADisk {
         System.out.println("Booting completed for the XADisk instance.");
     }
 
-    private static void shutdownNativeXADiskInstance() throws Exception {
-        XAFileSystem nativeXAF = XAFileSystemProxy.getNativeXAFileSystemReference("");
+    private static void shutdownNativeXADiskInstance(String instanceId) throws Exception {
+        XAFileSystem nativeXAF = XAFileSystemProxy.getNativeXAFileSystemReference(instanceId);
 
         System.out.println("Shutting down the XADisk instance...");
         nativeXAF.shutdown();
