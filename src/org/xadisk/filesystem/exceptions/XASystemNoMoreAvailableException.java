@@ -17,15 +17,22 @@ package org.xadisk.filesystem.exceptions;
 
 public class XASystemNoMoreAvailableException extends XASystemException {
 
+    private final String message;
+    
     public XASystemNoMoreAvailableException(Throwable cause) {
         super(cause);
-    }
-
-    @Override
-    public String getMessage() {
-        return "The XADisk instance has encoutered a critial issue and is no more available."
+        this.message = "The XADisk instance has encoutered a critial issue and is no more available."
                 + " Such a condition is very rare. If you think you have setup everything right for"
                 + " XADisk to work, please consider discussing in XADisk forums, or raising a bug"
                 + " with details";
+    }
+
+    public XASystemNoMoreAvailableException() {
+        this.message = "The XADisk instance has been shutdown and is no more available for use.";
+    }
+    
+    @Override
+    public String getMessage() {
+        return message;
     }
 }

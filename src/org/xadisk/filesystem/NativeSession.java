@@ -50,6 +50,7 @@ public class NativeSession implements SessionCommonness {
     private volatile boolean startedCommitting = false;
     private Throwable rollbackCause = null;
     private volatile boolean systemHasFailed = false;
+    private volatile boolean systemGotShutdown = false;
     private volatile Throwable systemFailureCause = null;
     private final TransactionVirtualView view;
     private long fileLockWaitTimeout = 200;
@@ -122,6 +123,10 @@ public class NativeSession implements SessionCommonness {
     void notifySystemFailure(Throwable systemFailureCause) {
         this.systemHasFailed = true;
         this.systemFailureCause = systemFailureCause;
+    }
+
+    void notifySystemShutdown() {
+        this.systemGotShutdown = true;
     }
 
     public NativeXAFileInputStream createXAFileInputStream(File f, boolean lockExclusively)
@@ -1065,6 +1070,9 @@ public class NativeSession implements SessionCommonness {
         }
         if (systemHasFailed) {
             throw new XASystemNoMoreAvailableException(systemFailureCause);
+        }
+        if(systemGotShutdown) {
+            throw new XASystemNoMoreAvailableException();
         }
     }
 

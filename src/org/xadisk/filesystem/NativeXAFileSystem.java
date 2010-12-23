@@ -565,6 +565,14 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     public void shutdown() throws IOException {
+        
+        NativeSession allSessions[];
+        Collection<NativeSession> sessionsCollection = transactionAndSession.values();
+        allSessions = sessionsCollection.toArray(new NativeSession[sessionsCollection.size()]);
+        for (int i = 0; i < allSessions.length; i++) {
+            allSessions[i].notifySystemShutdown();
+        }
+        
         bufferPoolReliever.release();
         selectorPoolReliever.release();
         deadLockDetector.release();
