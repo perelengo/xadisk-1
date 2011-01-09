@@ -87,8 +87,13 @@ public class XAResourceImpl implements XAResource {
             throw new XAException(XAException.XAER_INVAL);
         }
         try {
-            ((SessionCommonness)sessionOfTransaction).prepare();
-            return XAResource.XA_OK;
+            if(((SessionCommonness)sessionOfTransaction).isUsingReadOnlyOptimization()) {
+                ((SessionCommonness)sessionOfTransaction).completeReadOnlyTransaction();
+                return XAResource.XA_RDONLY;
+            } else {
+                ((SessionCommonness)sessionOfTransaction).prepare();
+                return XAResource.XA_OK;
+            }
         } catch (NoTransactionAssociatedException note) {
             releaseFromInternalXidMap(xid);
             throw new XAException(XAException.XA_RBROLLBACK);

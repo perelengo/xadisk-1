@@ -65,6 +65,7 @@ public class NativeSession implements SessionCommonness {
     private int numOwnedExclusiveLocks = 0;
     private boolean publishFileStateChangeEventsOnCommit = false;
     private final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
+    private boolean usingReadOnlyOptimization = true;
 
     NativeSession(XidImpl xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
@@ -76,6 +77,7 @@ public class NativeSession implements SessionCommonness {
             this.transactionTimeout = 0;
             this.view = null;
             this.timeOfEntryToTransaction = -100;
+            this.usingReadOnlyOptimization = false;
         } else {
             this.transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
             this.fileLockWaitTimeout = this.xaFileSystem.getLockTimeOut();
@@ -92,6 +94,7 @@ public class NativeSession implements SessionCommonness {
         this.xaFileSystem = xaFileSystem;
         this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = true;
+        this.usingReadOnlyOptimization = false;
         this.transactionTimeout = 0;
         this.view = null;
         this.timeOfEntryToTransaction = -100;
@@ -177,6 +180,7 @@ public class NativeSession implements SessionCommonness {
             allAcquiredOutputStreams.add(temp);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
             success = true;
+            usingReadOnlyOptimization = false;
             return temp;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
@@ -215,6 +219,7 @@ public class NativeSession implements SessionCommonness {
             addLocks(newLocks);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.CREATED, f, isDirectory);
             success = true;
+            usingReadOnlyOptimization = false;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -252,6 +257,7 @@ public class NativeSession implements SessionCommonness {
             addLocks(newLocks);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.DELETED, f, isDirectory);
             success = true;
+            usingReadOnlyOptimization = false;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -310,6 +316,7 @@ public class NativeSession implements SessionCommonness {
                     new File[]{src, dest, dest}, isDirectoryMove);
 
             success = true;
+            usingReadOnlyOptimization = false;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -359,6 +366,7 @@ public class NativeSession implements SessionCommonness {
                     new File[]{dest, dest}, false);
 
             success = true;
+            usingReadOnlyOptimization = false;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -529,6 +537,7 @@ public class NativeSession implements SessionCommonness {
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
 
             success = true;
+            usingReadOnlyOptimization = false;
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
@@ -584,6 +593,10 @@ public class NativeSession implements SessionCommonness {
             checkIfCanContinue();
             if (onePhase) {
                 try {
+                    if(usingReadOnlyOptimization) {
+                        completeReadOnlyTransaction();
+                        return;
+                    }
                     if (!createdForRecovery) {
                         submitPreCommitInformationForLogging();
                         xaFileSystem.getTheGatheringDiskWriter().transactionCommitBegins(xid);
@@ -683,6 +696,23 @@ public class NativeSession implements SessionCommonness {
             //after a crash, we need to check enQed, but not deQed, events for all committed txns
             //and populate them in in-memory queue again.
             raiseFileStateChangeEvents();
+        } catch (IOException ioe) {
+            xaFileSystem.notifySystemFailure(ioe);
+        } finally {
+            asynchronousRollbackLock.unlock();
+        }
+    }
+
+    public void completeReadOnlyTransaction() throws NoTransactionAssociatedException {
+        //would be called both for commit and rollbacck of a read-only txn.
+        if(!usingReadOnlyOptimization) {
+            throw new IllegalStateException("Read-only optimization is not being used.");
+        }
+        try {
+            asynchronousRollbackLock.lock();
+            checkIfCanContinue();
+            releaseAllStreams();
+            cleanup();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
@@ -822,6 +852,11 @@ public class NativeSession implements SessionCommonness {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
 
+            if(usingReadOnlyOptimization) {
+                completeReadOnlyTransaction();
+                return;
+            }
+            
             releaseAllStreams();
 
             ArrayList<Long> logPositions;
@@ -1204,5 +1239,9 @@ public class NativeSession implements SessionCommonness {
         synchronized (fileAndOutputStream) {
             fileAndOutputStream.remove(f);
         }
+    }
+
+    public boolean isUsingReadOnlyOptimization() {
+        return usingReadOnlyOptimization;
     }
 }

@@ -335,4 +335,23 @@ public class RemoteSession extends RemoteObjectProxy implements SessionCommonnes
             throw assertExceptionHandling(t);
         }
     }
+
+    public boolean isUsingReadOnlyOptimization() {
+        try {
+            return (Boolean) invokeRemoteMethod("isUsingReadOnlyOptimization");
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
+    public void completeReadOnlyTransaction() throws NoTransactionAssociatedException {
+        try {
+            invokeRemoteMethod("completeReadOnlyTransaction");
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
 }

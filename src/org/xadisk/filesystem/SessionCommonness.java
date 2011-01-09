@@ -16,4 +16,8 @@ public interface SessionCommonness extends Session {
     public void commit(boolean onePhase) throws NoTransactionAssociatedException;
     
     public void prepare() throws NoTransactionAssociatedException;
+
+    public boolean isUsingReadOnlyOptimization();
+
+    public void completeReadOnlyTransaction() throws NoTransactionAssociatedException;
 }
