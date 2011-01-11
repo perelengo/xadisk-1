@@ -2,6 +2,12 @@ package org.xadisk.tests.performance;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Note that these performance tests are "under construction". Your suggestions about
+ * writing these tests, setting up the system and taking measurements are always welcome.
+ * Thanks.
+ */
+
 public abstract class TimeMeasuredWork implements Runnable {
 
     private AtomicLong timeTaken;

@@ -8,6 +8,12 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
 import org.xadisk.bridge.proxies.interfaces.XAFileSystemProxy;
 
+/**
+ * Note that these performance tests are "under construction". Your suggestions about
+ * writing these tests, setting up the system and taking measurements are always welcome.
+ * Thanks.
+ */
+
 public class FileTruncater extends TimeMeasuredWork {
 
     private File filePath;

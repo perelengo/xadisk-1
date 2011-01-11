@@ -8,6 +8,12 @@ import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.tests.correctness.TestUtility;
 
+/**
+ * Note that these performance tests are "under construction". Your suggestions about
+ * writing these tests, setting up the system and taking measurements are always welcome.
+ * Thanks.
+ */
+
 public class Appraiser {
 
     private static final int UNIT_SIZE = 100;
