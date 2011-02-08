@@ -146,7 +146,6 @@ public class NativeSession implements SessionCommonness {
             VirtualViewFile vvf = view.getVirtualViewFile(f);
             NativeXAFileInputStream temp = new NativeXAFileInputStream(vvf, this, xaFileSystem);
             allAcquiredInputStreams.add(temp);
-            addLocks(newLock);
             success = true;
             return temp;
         } catch (XASystemException xase) {
@@ -176,7 +175,6 @@ public class NativeSession implements SessionCommonness {
             checkPermission(PermissionType.WRITE_FILE, f);
             VirtualViewFile vvf = view.getVirtualViewFile(f);
             NativeXAFileOutputStream temp = getCachedXAFileOutputStream(vvf, xid, heavyWrite, this);
-            addLocks(newLock);
             allAcquiredOutputStreams.add(temp);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
             success = true;
@@ -216,7 +214,6 @@ public class NativeSession implements SessionCommonness {
                     operation));
             Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
-            addLocks(newLocks);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.CREATED, f, isDirectory);
             success = true;
             usingReadOnlyOptimization = false;
@@ -254,7 +251,6 @@ public class NativeSession implements SessionCommonness {
                     TransactionLogEntry.FILE_DELETE));
             Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
-            addLocks(newLocks);
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.DELETED, f, isDirectory);
             success = true;
             usingReadOnlyOptimization = false;
@@ -309,7 +305,6 @@ public class NativeSession implements SessionCommonness {
                     dest.getAbsolutePath(), TransactionLogEntry.FILE_MOVE));
             Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
-            addLocks(newLocks);
 
             addToFileSystemEvents(new FileSystemStateChangeEvent.FileSystemEventType[]{FileSystemStateChangeEvent.FileSystemEventType.DELETED,
                         FileSystemStateChangeEvent.FileSystemEventType.CREATED, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED},
@@ -360,7 +355,6 @@ public class NativeSession implements SessionCommonness {
                     dest.getAbsolutePath(), TransactionLogEntry.FILE_COPY));
             Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
-            addLocks(newLocks);
 
             addToFileSystemEvents(new FileSystemStateChangeEvent.FileSystemEventType[]{FileSystemStateChangeEvent.FileSystemEventType.CREATED, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED},
                     new File[]{dest, dest}, false);
@@ -394,7 +388,6 @@ public class NativeSession implements SessionCommonness {
             if (parentDir != null) {
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
-                addLocks(newLock);
                 success = true;
                 return view.fileExists(f);
             } else {
@@ -428,7 +421,6 @@ public class NativeSession implements SessionCommonness {
             if (parentDir != null) {
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
-                addLocks(newLock);
                 success = true;
                 return view.fileExistsAndIsDirectory(f);
             } else {
@@ -460,7 +452,6 @@ public class NativeSession implements SessionCommonness {
             checkIfCanContinue();
             newLock = acquireLockIfRequired(f, lockExclusively);
             checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
-            addLocks(newLock);
             success = true;
             return view.listFiles(f);
         } catch (XASystemException xase) {
@@ -491,7 +482,6 @@ public class NativeSession implements SessionCommonness {
             if (!view.fileExistsAndIsNormal(f)) {
                 throw new FileNotExistsException(f.getAbsolutePath());
             }
-            addLocks(newLock);
             long length = view.getVirtualViewFile(f).getLength();
             success = true;
             return length;
@@ -532,7 +522,6 @@ public class NativeSession implements SessionCommonness {
                     TransactionLogEntry.FILE_TRUNCATE));
             Buffer logEntry = new Buffer(logEntryBytes, xaFileSystem);
             xaFileSystem.getTheGatheringDiskWriter().submitBuffer(logEntry, xid);
-            addLocks(newLock);
 
             addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, f, false);
 
@@ -1032,7 +1021,8 @@ public class NativeSession implements SessionCommonness {
             } else {
                 newLock = xaFileSystem.acquireSharedLock(xid, f, fileLockWaitTimeout);
             }
-
+            allAcquiredLocks.put(f, newLock);
+            //above includes the case of lock upgrade by doing a "redundant put" of the same "value".
         }
         return newLock;
     }
@@ -1057,35 +1047,19 @@ public class NativeSession implements SessionCommonness {
     }
 
     private void releaseLocks(Lock locks[]) {
-        for (int i = 0; i < locks.length; i++) {
-            if (locks[i] != null) {
-                xaFileSystem.releaseLock(xid, locks[i]);
+        for (Lock lock : locks) {
+            if(lock != null) {
+                allAcquiredLocks.remove(lock.getResource());
+                xaFileSystem.releaseLock(xid, lock);
             }
-
         }
     }
 
     private void releaseLocks(Lock lock) {
-        if (lock != null) {
+        if(lock != null) {
+            allAcquiredLocks.remove(lock.getResource());
             xaFileSystem.releaseLock(xid, lock);
         }
-
-    }
-
-    private void addLocks(Lock locks[]) {
-        for (int i = 0; i < locks.length; i++) {
-            if (locks[i] != null && !locks[i].isUpgraded()) {
-                this.allAcquiredLocks.put(locks[i].getResource(), locks[i]);
-            }
-
-        }
-    }
-
-    private void addLocks(Lock lock) {
-        if (lock != null && !lock.isUpgraded()) {
-            this.allAcquiredLocks.put(lock.getResource(), lock);
-        }
-
     }
 
     public long getFileLockWaitTimeout() {
