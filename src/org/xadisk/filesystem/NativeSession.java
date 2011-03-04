@@ -40,6 +40,7 @@ import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 public class NativeSession implements SessionCommonness {
 
     private final HashMap<File, Lock> allAcquiredLocks = new HashMap<File, Lock>(1000);
+    private final HashMap<FileLocksMapKey, Lock> allAcquiredStarLocks = new HashMap<FileLocksMapKey, Lock>(1000);
     private final ArrayList<NativeXAFileInputStream> allAcquiredInputStreams = new ArrayList<NativeXAFileInputStream>(5);
     private final ArrayList<NativeXAFileOutputStream> allAcquiredOutputStreams = new ArrayList<NativeXAFileOutputStream>(5);
     private final NativeXAFileSystem xaFileSystem;
@@ -132,6 +133,12 @@ public class NativeSession implements SessionCommonness {
         this.systemGotShutdown = true;
     }
 
+    public NativeXAFileInputStream createXAFileInputStream(File f)
+            throws FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
+        return createXAFileInputStream(f, false);
+    }
+
     public NativeXAFileInputStream createXAFileInputStream(File f, boolean lockExclusively)
             throws FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
@@ -198,15 +205,14 @@ public class NativeSession implements SessionCommonness {
             InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
-        Lock newLocks[] = new Lock[2];
+        Lock newLock = null;
         boolean success = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLocks[0] = acquireLockIfRequired(f, true);
+            newLock = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            newLocks[1] = acquireLockIfRequired(parentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             view.createFile(f, isDirectory);
             byte operation = isDirectory ? TransactionLogEntry.DIR_CREATE : TransactionLogEntry.FILE_CREATE;
@@ -223,7 +229,7 @@ public class NativeSession implements SessionCommonness {
         } finally {
             try {
                 if (!success) {
-                    releaseLocks(newLocks);
+                    releaseLocks(newLock);
                 }
             } finally {
                 asynchronousRollbackLock.unlock();
@@ -235,16 +241,15 @@ public class NativeSession implements SessionCommonness {
             InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
-        Lock newLocks[] = new Lock[2];
+        Lock newLock = null;
         boolean success = false;
         boolean isDirectory = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLocks[0] = acquireLockIfRequired(f, true);
+            newLock = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            newLocks[1] = acquireLockIfRequired(parentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             isDirectory = view.deleteFile(f);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
@@ -260,7 +265,7 @@ public class NativeSession implements SessionCommonness {
         } finally {
             try {
                 if (!success) {
-                    releaseLocks(newLocks);
+                    releaseLocks(newLock);
                 }
             } finally {
                 asynchronousRollbackLock.unlock();
@@ -273,7 +278,7 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
-        Lock newLocks[] = new Lock[4];
+        Lock newLocks[] = new Lock[2];
         boolean success = false;
         boolean isDirectoryMove = false;
         try {
@@ -285,8 +290,6 @@ public class NativeSession implements SessionCommonness {
             checkValidParent(src);
             File destParentFile = dest.getParentFile();
             checkValidParent(dest);
-            newLocks[2] = acquireLockIfRequired(srcParentFile, true);
-            newLocks[3] = acquireLockIfRequired(destParentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, srcParentFile);
             checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
 
@@ -334,7 +337,7 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
-        Lock newLocks[] = new Lock[3];
+        Lock newLocks[] = new Lock[2];
         boolean success = false;
         try {
             asynchronousRollbackLock.lock();
@@ -344,7 +347,6 @@ public class NativeSession implements SessionCommonness {
             File destParentFile = dest.getParentFile();
             checkValidParent(src);
             checkValidParent(dest);
-            newLocks[2] = acquireLockIfRequired(destParentFile, true);
             checkPermission(PermissionType.READ_FILE, src);
             checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
             view.createFile(dest, false);
@@ -375,6 +377,11 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    public boolean fileExists(File f) throws LockingFailedException, InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return fileExists(f, false);
+    }
+    
     public boolean fileExists(File f, boolean lockExclusively) throws LockingFailedException,
             InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -408,6 +415,12 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    public boolean fileExistsAndIsDirectory(File f) throws
+            LockingFailedException, InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return fileExistsAndIsDirectory(f, false);
+    }
+    
     public boolean fileExistsAndIsDirectory(File f, boolean lockExclusively) throws
             LockingFailedException, InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -450,7 +463,7 @@ public class NativeSession implements SessionCommonness {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLock = acquireLockIfRequired(f, lockExclusively);
+            newLock = acquireStarLockIfRequired(f, lockExclusively);
             checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
             success = true;
             return view.listFiles(f);
@@ -468,6 +481,12 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return getFileLength(f, false);
+    }
+    
     public long getFileLength(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
             InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -960,8 +979,12 @@ public class NativeSession implements SessionCommonness {
         for (Lock lock : allAcquiredLocks.values()) {
             xaFileSystem.releaseLock(xid, lock);
         }
+        for (Lock lock : allAcquiredStarLocks.values()) {
+            xaFileSystem.releaseLock(xid, lock);
+        }
 
         allAcquiredLocks.clear();
+        allAcquiredStarLocks.clear();
         RDG.removeNodeForTransaction(xid);
     }
 
@@ -1016,13 +1039,20 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, TransactionRolledbackException {
         Lock newLock = null;
         if (!alreadyHaveALock(f, exclusive)) {
-            if (exclusive) {
-                newLock = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            } else {
-                newLock = xaFileSystem.acquireSharedLock(xid, f, fileLockWaitTimeout);
-            }
+            newLock = xaFileSystem.acquireFileLock(xid, f, fileLockWaitTimeout, exclusive, false);
             allAcquiredLocks.put(f, newLock);
             //above includes the case of lock upgrade by doing a "redundant put" of the same "value".
+        }
+        return newLock;
+    }
+
+    private Lock acquireStarLockIfRequired(File f, boolean exclusive) throws LockingFailedException,
+            InterruptedException, TransactionRolledbackException {
+        Lock newLock = null;
+        FileLocksMapKey fStarPath = new FileLocksMapKey(f, true);
+        if (!alreadyHaveStarLock(fStarPath, exclusive)) {
+            newLock = xaFileSystem.acquireFileLock(xid, f, fileLockWaitTimeout, exclusive, true);
+            allAcquiredStarLocks.put(fStarPath, newLock);
         }
         return newLock;
     }
@@ -1032,11 +1062,20 @@ public class NativeSession implements SessionCommonness {
         if (existingLock == null) {
             return false;
         }
-
         if (existingLock.isExclusive() || !exclusive) {
             return true;
         }
+        return false;
+    }
 
+    private boolean alreadyHaveStarLock(FileLocksMapKey f, boolean exclusive) {
+        Lock existingLock = allAcquiredStarLocks.get(f);
+        if (existingLock == null) {
+            return false;
+        }
+        if (existingLock.isExclusive() || !exclusive) {
+            return true;
+        }
         return false;
     }
 
@@ -1050,6 +1089,7 @@ public class NativeSession implements SessionCommonness {
         for (Lock lock : locks) {
             if(lock != null) {
                 allAcquiredLocks.remove(lock.getResource());
+                allAcquiredStarLocks.remove(new FileLocksMapKey(lock.getResource(), true));
                 xaFileSystem.releaseLock(xid, lock);
             }
         }
@@ -1058,6 +1098,7 @@ public class NativeSession implements SessionCommonness {
     private void releaseLocks(Lock lock) {
         if(lock != null) {
             allAcquiredLocks.remove(lock.getResource());
+            allAcquiredStarLocks.remove(new FileLocksMapKey(lock.getResource(), true));
             xaFileSystem.releaseLock(xid, lock);
         }
     }

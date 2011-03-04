@@ -60,7 +60,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     private static ConcurrentHashMap<String, NativeXAFileSystem> allXAFileSystems = new ConcurrentHashMap<String, NativeXAFileSystem>();
     private final AtomicLong lastTransactionId = new AtomicLong(System.currentTimeMillis() / 1000);
-    private final ConcurrentHashMap<File, Lock> fileLocks = new ConcurrentHashMap<File, Lock>(1000);
+    private final ConcurrentHashMap<FileLocksMapKey, Lock> fileLocks = new ConcurrentHashMap<FileLocksMapKey, Lock>(1000);
     private final BufferPool bufferPool;
     private final SelectorPool selectorPool;
     private final String transactionLogFileBaseName;
@@ -281,7 +281,17 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
     }
 
-    Lock acquireSharedLock(XidImpl requestor, File f, long time) throws
+    Lock acquireFileLock(XidImpl requestor, File f, long time, boolean exclusive, boolean wild) throws
+            LockingFailedException, InterruptedException, TransactionRolledbackException {
+        FileLocksMapKey lockMapKey = new FileLocksMapKey(f, wild);
+        if(exclusive) {
+            return acquireExclusiveLock(requestor, lockMapKey, time);
+        } else {
+            return acquireSharedLock(requestor, lockMapKey, time);
+        }
+    }
+
+    private Lock acquireSharedLock(XidImpl requestor, FileLocksMapKey f, long time) throws
             LockingFailedException, InterruptedException, TransactionRolledbackException {
         Lock lock;
 
@@ -385,13 +395,13 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     void pinDirectoryForRename(File dir, XidImpl exceptionalSelf) throws
             DirectoryPinningFailedException {
         synchronized (directoriesPinnedForRename) {
-            for (File file : fileLocks.keySet()) {
-                if (isAncestorOf(dir, file)) {
-                    Lock lock = fileLocks.get(file);
+            for (FileLocksMapKey lockMapKey : fileLocks.keySet()) {
+                if (isAncestorOf(dir, lockMapKey)) {
+                    Lock lock = fileLocks.get(lockMapKey);
                     Iterator<XidImpl> holders = lock.getHolders().iterator();
                     while (holders.hasNext()) {
                         if (!holders.next().equals(exceptionalSelf)) {
-                            throw new DirectoryPinningFailedException(dir.getAbsolutePath(), file.getAbsolutePath());
+                            throw new DirectoryPinningFailedException(dir.getAbsolutePath(), lockMapKey.getAbsolutePath());
                         }
                     }
                 }
@@ -414,7 +424,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
     }
 
-    Lock acquireExclusiveLock(XidImpl requestor, File f, long time)
+    private Lock acquireExclusiveLock(XidImpl requestor, FileLocksMapKey f, long time)
             throws LockingFailedException, InterruptedException, TransactionRolledbackException {
         Lock lock;
 
