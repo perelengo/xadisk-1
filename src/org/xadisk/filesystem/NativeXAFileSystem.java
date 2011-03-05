@@ -281,7 +281,16 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
     }
 
-    Lock acquireSharedLock(XidImpl requestor, File f, long time) throws
+    Lock acquireFileLock(XidImpl requestor, File f, long time, boolean exclusive) throws
+            LockingFailedException, InterruptedException, TransactionRolledbackException {
+        if(exclusive) {
+            return acquireExclusiveLock(requestor, f, time);
+        } else {
+            return acquireSharedLock(requestor, f, time);
+        }
+    }
+
+    private Lock acquireSharedLock(XidImpl requestor, File f, long time) throws
             LockingFailedException, InterruptedException, TransactionRolledbackException {
         Lock lock;
 
@@ -414,7 +423,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
     }
 
-    Lock acquireExclusiveLock(XidImpl requestor, File f, long time)
+    private Lock acquireExclusiveLock(XidImpl requestor, File f, long time)
             throws LockingFailedException, InterruptedException, TransactionRolledbackException {
         Lock lock;
 

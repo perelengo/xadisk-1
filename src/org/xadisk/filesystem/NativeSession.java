@@ -132,6 +132,12 @@ public class NativeSession implements SessionCommonness {
         this.systemGotShutdown = true;
     }
 
+    public NativeXAFileInputStream createXAFileInputStream(File f)
+            throws FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
+            InterruptedException, NoTransactionAssociatedException {
+        return createXAFileInputStream(f, false);
+    }
+
     public NativeXAFileInputStream createXAFileInputStream(File f, boolean lockExclusively)
             throws FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
@@ -198,15 +204,14 @@ public class NativeSession implements SessionCommonness {
             InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
-        Lock newLocks[] = new Lock[2];
+        Lock newLock = null;
         boolean success = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLocks[0] = acquireLockIfRequired(f, true);
+            newLock = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            newLocks[1] = acquireLockIfRequired(parentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             view.createFile(f, isDirectory);
             byte operation = isDirectory ? TransactionLogEntry.DIR_CREATE : TransactionLogEntry.FILE_CREATE;
@@ -223,7 +228,7 @@ public class NativeSession implements SessionCommonness {
         } finally {
             try {
                 if (!success) {
-                    releaseLocks(newLocks);
+                    releaseLocks(newLock);
                 }
             } finally {
                 asynchronousRollbackLock.unlock();
@@ -235,16 +240,15 @@ public class NativeSession implements SessionCommonness {
             InsufficientPermissionOnFileException, LockingFailedException,
             InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
-        Lock newLocks[] = new Lock[2];
+        Lock newLock = null;
         boolean success = false;
         boolean isDirectory = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLocks[0] = acquireLockIfRequired(f, true);
+            newLock = acquireLockIfRequired(f, true);
             File parentFile = f.getParentFile();
             checkValidParent(f);
-            newLocks[1] = acquireLockIfRequired(parentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, parentFile);
             isDirectory = view.deleteFile(f);
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, f.getAbsolutePath(),
@@ -260,7 +264,7 @@ public class NativeSession implements SessionCommonness {
         } finally {
             try {
                 if (!success) {
-                    releaseLocks(newLocks);
+                    releaseLocks(newLock);
                 }
             } finally {
                 asynchronousRollbackLock.unlock();
@@ -273,7 +277,7 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
-        Lock newLocks[] = new Lock[4];
+        Lock newLocks[] = new Lock[2];
         boolean success = false;
         boolean isDirectoryMove = false;
         try {
@@ -285,8 +289,6 @@ public class NativeSession implements SessionCommonness {
             checkValidParent(src);
             File destParentFile = dest.getParentFile();
             checkValidParent(dest);
-            newLocks[2] = acquireLockIfRequired(srcParentFile, true);
-            newLocks[3] = acquireLockIfRequired(destParentFile, true);
             checkPermission(PermissionType.WRITE_DIRECTORY, srcParentFile);
             checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
 
@@ -334,7 +336,7 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, NoTransactionAssociatedException {
         src = src.getAbsoluteFile();
         dest = dest.getAbsoluteFile();
-        Lock newLocks[] = new Lock[3];
+        Lock newLocks[] = new Lock[2];
         boolean success = false;
         try {
             asynchronousRollbackLock.lock();
@@ -344,7 +346,6 @@ public class NativeSession implements SessionCommonness {
             File destParentFile = dest.getParentFile();
             checkValidParent(src);
             checkValidParent(dest);
-            newLocks[2] = acquireLockIfRequired(destParentFile, true);
             checkPermission(PermissionType.READ_FILE, src);
             checkPermission(PermissionType.WRITE_DIRECTORY, destParentFile);
             view.createFile(dest, false);
@@ -375,6 +376,11 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    public boolean fileExists(File f) throws LockingFailedException, InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return fileExists(f, false);
+    }
+    
     public boolean fileExists(File f, boolean lockExclusively) throws LockingFailedException,
             InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -408,6 +414,12 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    public boolean fileExistsAndIsDirectory(File f) throws
+            LockingFailedException, InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return fileExistsAndIsDirectory(f, false);
+    }
+    
     public boolean fileExistsAndIsDirectory(File f, boolean lockExclusively) throws
             LockingFailedException, InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -441,33 +453,36 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    //now onwards, this locking flag is ignored and no locking is involved in this operation.
     public String[] listFiles(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
             InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
+        return listFiles(f);
+    }
+    
+    public String[] listFiles(File f) throws FileNotExistsException, LockingFailedException,
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
         f = f.getAbsoluteFile();
-        Lock newLock = null;
-        boolean success = false;
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            newLock = acquireLockIfRequired(f, lockExclusively);
             checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
-            success = true;
             return view.listFiles(f);
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
         } finally {
-            try {
-                if (!success) {
-                    releaseLocks(newLock);
-                }
-            } finally {
                 asynchronousRollbackLock.unlock();
-            }
         }
     }
 
+    public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
+            InsufficientPermissionOnFileException,
+            InterruptedException, NoTransactionAssociatedException {
+        return getFileLength(f, false);
+    }
+    
     public long getFileLength(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
             InsufficientPermissionOnFileException,
             InterruptedException, NoTransactionAssociatedException {
@@ -1016,11 +1031,7 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, TransactionRolledbackException {
         Lock newLock = null;
         if (!alreadyHaveALock(f, exclusive)) {
-            if (exclusive) {
-                newLock = xaFileSystem.acquireExclusiveLock(xid, f, fileLockWaitTimeout);
-            } else {
-                newLock = xaFileSystem.acquireSharedLock(xid, f, fileLockWaitTimeout);
-            }
+            newLock = xaFileSystem.acquireFileLock(xid, f, fileLockWaitTimeout, exclusive);
             allAcquiredLocks.put(f, newLock);
             //above includes the case of lock upgrade by doing a "redundant put" of the same "value".
         }
@@ -1032,11 +1043,9 @@ public class NativeSession implements SessionCommonness {
         if (existingLock == null) {
             return false;
         }
-
         if (existingLock.isExclusive() || !exclusive) {
             return true;
         }
-
         return false;
     }
 
