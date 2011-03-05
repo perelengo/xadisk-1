@@ -327,9 +327,11 @@ public class GatheringDiskWriter extends EventWorker {
         try {
             transactionLogLock.lock();
             TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, currentLogIndex, transactionLogBaseName);
+            transactionsAndLogsOccupied.remove(xid);
         } finally {
             transactionLogLock.unlock();
         }
+        transactionSubmittedBuffers.remove(xid);
     }
 
     private void ensureLogFileCapacity(long sizeToWriteNow) throws IOException {
