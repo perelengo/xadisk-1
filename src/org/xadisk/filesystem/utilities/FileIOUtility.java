@@ -52,7 +52,7 @@ public class FileIOUtility {
         }
     }
 
-    public static boolean renamePossible(File src, File dest) {
+    private static boolean renamePossible(File src, File dest) {
         return src.exists() && !dest.exists() && src.getParentFile().canWrite() && dest.getParentFile().canWrite();
     }
 

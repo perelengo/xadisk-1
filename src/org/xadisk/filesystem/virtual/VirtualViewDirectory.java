@@ -11,6 +11,7 @@ package org.xadisk.filesystem.virtual;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Set;
+import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
@@ -25,13 +26,15 @@ class VirtualViewDirectory {
     private File virtualDirName;
     private boolean haveReadDirContents = false;
     private final NativeXAFileSystem xaFileSystem;
+    private final DurableDiskSession diskSession;
 
     VirtualViewDirectory(File virtualDirName, File pointsToPhysicalDirectory, TransactionVirtualView owningView,
-            NativeXAFileSystem xaFileSystem) {
+            NativeXAFileSystem xaFileSystem, DurableDiskSession diskSession) {
         this.owningView = owningView;
         this.virtualDirName = virtualDirName;
         this.pointsToPhysicalDirectory = pointsToPhysicalDirectory;
         this.xaFileSystem = xaFileSystem;
+        this.diskSession = diskSession;
     }
 
     private void readDirectoryContents() {
@@ -265,11 +268,11 @@ class VirtualViewDirectory {
         File virtualFileName = new File(virtualDirName.getAbsolutePath(), fileName);
         if (pointingToPhysicalFile != null) {
             vvf = new VirtualViewFile(virtualFileName, pointingToPhysicalFile.length(), owningView, pointingToPhysicalFile, 
-                    pointingToPhysicalFile.length(), xaFileSystem);
+                    pointingToPhysicalFile.length(), xaFileSystem, diskSession);
             vvf.setMappedToThePhysicalFileTill(pointingToPhysicalFile.length());
             vvf.setMappedToPhysicalFile(pointingToPhysicalFile);
         } else {
-            vvf = new VirtualViewFile(virtualFileName, 0, owningView, xaFileSystem);
+            vvf = new VirtualViewFile(virtualFileName, 0, owningView, xaFileSystem, diskSession);
             vvf.setMappedToThePhysicalFileTill(-1);
         }
         virtualViewFiles.put(fileName, vvf);

@@ -8,7 +8,6 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.filesystem.virtual;
 
-import org.xadisk.filesystem.utilities.FileIOUtility;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,6 +17,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import org.xadisk.filesystem.Buffer;
+import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.OnDiskInfo;
 import org.xadisk.filesystem.TransactionLogEntry;
@@ -43,19 +43,22 @@ public class VirtualViewFile {
     private boolean createdPhysicalFileInBackupDir = false;
     private File physicalFileNameInBackupDir = null;
     private boolean hasBeenDeleted = false;
+    private final DurableDiskSession diskSession;
 
     VirtualViewFile(File fileName, long length, TransactionVirtualView transactionView,
-            NativeXAFileSystem xaFileSystem) {
+            NativeXAFileSystem xaFileSystem, DurableDiskSession diskSession) {
         this.fileName = fileName;
         this.length = length;
         this.transactionView = transactionView;
         this.xid = this.transactionView.getOwningTransaction();
         this.xaFileSystem = xaFileSystem;
         this.originalPhysicalFileSize = -1;
+        this.diskSession = diskSession;
     }
 
     VirtualViewFile(File fileName, long length, TransactionVirtualView transactionView,
-            File mappedToPhysical, long mappedToThePhysicalFileTill, NativeXAFileSystem xaFileSystem) {
+            File mappedToPhysical, long mappedToThePhysicalFileTill, NativeXAFileSystem xaFileSystem,
+            DurableDiskSession diskSession) {
         this.fileName = fileName;
         this.length = length;
         this.transactionView = transactionView;
@@ -64,6 +67,7 @@ public class VirtualViewFile {
         this.originalPhysicalFileSize = mappedToThePhysicalFileTill;
         this.mappedToThePhysicalFileTill = mappedToThePhysicalFileTill;
         this.smallestTruncationPointInOriginalFile = mappedToThePhysicalFileTill;
+        this.diskSession = diskSession;
     }
 
     public long getLength() {
@@ -126,7 +130,7 @@ public class VirtualViewFile {
         if (fileName.exists()) {
             if (!isMappedToAPhysicalFile()) {
                 physicalFileNameInBackupDir = getBackupFileName();
-                FileIOUtility.createFile(physicalFileNameInBackupDir);
+                diskSession.createFile(physicalFileNameInBackupDir);
                 createdPhysicalFileInBackupDir = true;
                 transactionView.hasCreatedFileInBackDir(this);
                 submitRedoLogForMove(physicalFileNameInBackupDir, fileName);
@@ -135,7 +139,7 @@ public class VirtualViewFile {
             }
         } else {
             physicalFileNameInBackupDir = getBackupFileName();
-            FileIOUtility.createFile(physicalFileNameInBackupDir);
+            diskSession.createFile(physicalFileNameInBackupDir);
             createdPhysicalFileInBackupDir = true;
             transactionView.hasCreatedFileInBackDir(this);
             submitRedoLogForMove(physicalFileNameInBackupDir, fileName);
@@ -391,7 +395,7 @@ public class VirtualViewFile {
         try {
             if (createdPhysicalFileInBackupDir) {
                 fileViewChannel.close();
-                FileIOUtility.deleteFile(physicalFileNameInBackupDir);
+                diskSession.deleteFile(physicalFileNameInBackupDir);
             }
         } catch (IOException ioe) {
             //no-op.

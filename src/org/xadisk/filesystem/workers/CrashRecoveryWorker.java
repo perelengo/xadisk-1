@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.resource.spi.work.Work;
 import javax.resource.spi.work.WorkManager;
 import org.xadisk.connector.inbound.EndPointActivation;
+import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
@@ -76,7 +77,7 @@ public class CrashRecoveryWorker implements Work {
             int logIndex = (Integer) iter.next();
             FileChannel logFC = (FileChannel) logChannels.get(logIndex);
             logFC.close();
-            FileIOUtility.deleteFile(new File(xaFileSystem.getTransactionLogFileBaseName() + "_" + logIndex));
+            DurableDiskSession.deleteFileDurably(new File(xaFileSystem.getTransactionLogFileBaseName() + "_" + logIndex));
         }
     }
 

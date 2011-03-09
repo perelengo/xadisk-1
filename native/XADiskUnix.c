@@ -2,7 +2,7 @@
 Copyright © 2010, 2011 Nitin Verma (project owner for XADisk http://xadisk.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
-“Eclipse Public License 1.0” located at http://www.opensource.org/licenses/eclipse-1.0.php.
+"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
 */
 
 #include<jni.h>
@@ -15,7 +15,7 @@ This source code is being made available to the public under the terms specified
 #include <stdlib.h>
 #include <errno.h>
 
-JNIEXPORT jboolean JNICALL Java_Main_forceDirectories
+JNIEXPORT jboolean JNICALL Java_org_xadisk_filesystem_DurableDiskSession_forceDirectories
 (JNIEnv *env, jclass callingMethod, jobjectArray dirPathStrings) {
 
     int totalDirectories = (*env) -> GetArrayLength(env, dirPathStrings);

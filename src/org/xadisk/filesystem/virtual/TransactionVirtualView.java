@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XidImpl;
@@ -31,11 +32,14 @@ public class TransactionVirtualView {
     private final NativeSession owningSession;
     private final HashMap<File, VirtualViewDirectory> virtualViewDirs = new HashMap<File, VirtualViewDirectory>(10);
     private final NativeXAFileSystem xaFileSystem;
+    private final DurableDiskSession diskSession;
 
-    public TransactionVirtualView(XidImpl owningTransaction, NativeSession owningSession, NativeXAFileSystem xaFileSystem) {
+    public TransactionVirtualView(XidImpl owningTransaction, NativeSession owningSession, NativeXAFileSystem xaFileSystem,
+            DurableDiskSession diskSession) {
         this.owningTransaction = owningTransaction;
         this.owningSession = owningSession;
         this.xaFileSystem = xaFileSystem;
+        this.diskSession = diskSession;
     }
 
     public void createFile(File f, boolean isDirectory)
@@ -45,7 +49,7 @@ public class TransactionVirtualView {
         }
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
         parentVVD.createFile(f.getName(), isDirectory);
-        viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(f, 0, this, xaFileSystem));
+        viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(f, 0, this, xaFileSystem, diskSession));
         filesWithLatestViewOnDisk.remove(f);
     }
 
@@ -204,7 +208,7 @@ public class TransactionVirtualView {
                 destParentVVD.addVirtualViewFile(dest.getName(), vvfSource);
                 vvfSource.propagatedMoveCall(dest);
                 if (vvfSource.isUsingHeavyWriteOptimization()) {
-                    VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this, xaFileSystem);
+                    VirtualViewFile sourceDummyVVF = new VirtualViewFile(src, -1, this, xaFileSystem, diskSession);
                     sourceDummyVVF.markDeleted();
                     viewFilesWithLatestViewOnDisk.add(sourceDummyVVF);
                     filesWithLatestViewOnDisk.add(dest);
@@ -220,7 +224,7 @@ public class TransactionVirtualView {
                 }
             }
         } else {
-            viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(dest, 0, this, xaFileSystem));
+            viewFilesWithLatestViewOnDisk.remove(new VirtualViewFile(dest, 0, this, xaFileSystem, diskSession));
             filesWithLatestViewOnDisk.remove(dest);
             destParentVVD.moveFileInto(dest.getName(), srcPointingToPhysicalFile);
             srcParentVVD.deleteFile(src.getName());
@@ -307,7 +311,7 @@ public class TransactionVirtualView {
             if (!f.isDirectory()) {
                 throw new FileNotExistsException(f.getAbsolutePath());
             }
-            vvd = new VirtualViewDirectory(f, f, this, xaFileSystem);
+            vvd = new VirtualViewDirectory(f, f, this, xaFileSystem, diskSession);
             virtualViewDirs.put(f, vvd);
             return vvd;
         }
@@ -325,9 +329,9 @@ public class TransactionVirtualView {
             if (!physicalDir.exists()) {
                 throw new FileNotExistsException(f.getAbsolutePath());
             }
-            vvd = new VirtualViewDirectory(f, physicalDir, this, xaFileSystem);
+            vvd = new VirtualViewDirectory(f, physicalDir, this, xaFileSystem, diskSession);
         } else {
-            vvd = new VirtualViewDirectory(f, null, this, xaFileSystem);
+            vvd = new VirtualViewDirectory(f, null, this, xaFileSystem, diskSession);
         }
         virtualViewDirs.put(f, vvd);
         return vvd;

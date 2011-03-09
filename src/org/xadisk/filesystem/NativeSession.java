@@ -9,7 +9,6 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.pools.PooledBuffer;
-import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.virtual.TransactionVirtualView;
 import org.xadisk.filesystem.virtual.NativeXAFileOutputStream;
 import org.xadisk.filesystem.virtual.NativeXAFileInputStream;
@@ -66,6 +65,7 @@ public class NativeSession implements SessionCommonness {
     private boolean publishFileStateChangeEventsOnCommit = false;
     private final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
     private boolean usingReadOnlyOptimization = true;
+    private DurableDiskSession diskSession = new DurableDiskSession();
 
     NativeSession(XidImpl xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
@@ -81,7 +81,7 @@ public class NativeSession implements SessionCommonness {
         } else {
             this.transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
             this.fileLockWaitTimeout = this.xaFileSystem.getLockTimeOut();
-            view = new TransactionVirtualView(xid, this, xaFileSystem);
+            view = new TransactionVirtualView(xid, this, xaFileSystem, diskSession);
             RDG.createNodeForTransaction(xid);
             timeOfEntryToTransaction = System.currentTimeMillis();
             xaFileSystem.assignSessionToTransaction(xid, this);
@@ -648,7 +648,6 @@ public class NativeSession implements SessionCommonness {
                     logReaderChannel.position(localPosition);
                     logEntry = TransactionLogEntry.getNextTransactionLogEntry(logReaderChannel, localPosition, false);
                 }
-                FileOutputStream fos;
                 if (logEntry.getOperationType() == TransactionLogEntry.FILE_APPEND) {
                     if (filesDirectlyWrittenToDisk.contains(new File(logEntry.getFileName()))) {
                         continue;
@@ -690,6 +689,7 @@ public class NativeSession implements SessionCommonness {
                     commitFileSpecialMove(logEntry, i);
                 }
             }
+            diskSession.forceToDisk();
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, true);
             for (FileChannel logChannel : logReaderChannels.values()) {
                 logChannel.close();
@@ -759,35 +759,36 @@ public class NativeSession implements SessionCommonness {
     private void commitDeleteFile(String fileName) throws IOException {
         File f = new File(fileName);
         if (f.exists()) {
-            FileIOUtility.deleteFile(f);
+            diskSession.deleteFile(f);
         }
     }
 
     private void commitCreateFile(String fileName) throws IOException {
         File f = new File(fileName);
         if (f.exists()) {
-            FileIOUtility.deleteFile(f);
+            diskSession.deleteFile(f);
         }
-        FileIOUtility.createFile(f);
+        diskSession.createFile(f);
     }
 
     private void commitCreateDir(String fileName) throws IOException {
         File f = new File(fileName);
         if (f.exists()) {
-            FileIOUtility.deleteDirectoryRecursively(f);
+            diskSession.deleteDirectoryRecursively(f);
         }
-        FileIOUtility.createDirectory(f);
+        diskSession.createDirectory(f);
     }
 
     private void commitFileCopy(TransactionLogEntry logEntry, int checkPointPosition) throws IOException {
         File src = new File(logEntry.getFileName());
         File dest = new File(logEntry.getDestFileName());
         if (dest.exists()) {
-            FileIOUtility.deleteFile(dest);
+            diskSession.deleteFile(dest);
+            diskSession.createFile(dest);
         }
 
         FileChannel srcChannel = new FileInputStream(src).getChannel();
-        FileChannel destChannel = new FileOutputStream(dest).getChannel();
+        FileChannel destChannel = new FileOutputStream(dest, true).getChannel();
         long contentLength = srcChannel.size();
         long num = 0;
         while (num < contentLength) {
@@ -809,11 +810,11 @@ public class NativeSession implements SessionCommonness {
         }
 
         if (dest.isDirectory()) {
-            FileIOUtility.deleteDirectoryRecursively(dest);
+            diskSession.deleteDirectoryRecursively(dest);
         } else if (dest.exists()) {
-            FileIOUtility.deleteFile(dest);
+            diskSession.deleteFile(dest);
         }
-        FileIOUtility.renameTo(src, dest);
+        diskSession.renameTo(src, dest);
         ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
         xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }
@@ -838,9 +839,9 @@ public class NativeSession implements SessionCommonness {
             return;
         }
         if (dest.exists()) {
-            FileIOUtility.deleteFile(dest);
+            diskSession.deleteFile(dest);
         }
-        FileIOUtility.renameTo(src, dest);
+        diskSession.renameTo(src, dest);
         ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
         xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }

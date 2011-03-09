@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.XidImpl;
 
 public class TransactionLogsUtility {
@@ -38,7 +39,7 @@ public class TransactionLogsUtility {
             Integer numTxns = transactionLogsAndOpenTransactions.get(logFileIndex);
             numTxns--;
             if (numTxns == 0 && currentLogIndex != logFileIndex) {
-                FileIOUtility.deleteFile(new File(transactionLogBaseName + "_" + logFileIndex));
+                DurableDiskSession.deleteFileDurably(new File(transactionLogBaseName + "_" + logFileIndex));
             } else {
                 transactionLogsAndOpenTransactions.put(logFileIndex, numTxns);
             }

@@ -10,7 +10,6 @@ package org.xadisk.filesystem;
 
 import org.xadisk.filesystem.pools.BufferPool;
 import org.xadisk.filesystem.utilities.Logger;
-import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.workers.observers.CriticalWorkersListener;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 import org.xadisk.filesystem.standalone.StandaloneWorkManager;
@@ -104,13 +103,14 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         try {
             XADiskHome = configuration.getXaDiskHome();
             topLevelBackupDir = new File(XADiskHome, "backupDir");
-            FileIOUtility.createDirectoriesIfRequired(new File(XADiskHome));
+            DurableDiskSession diskSession = new DurableDiskSession();
+            diskSession.createDirectoriesIfRequired(new File(XADiskHome));
             if (!topLevelBackupDir.isDirectory()) {
-                FileIOUtility.createDirectory(topLevelBackupDir);
+                diskSession.createDirectory(topLevelBackupDir);
             }
             this.logger = new Logger(new File(XADiskHome, "debug.log"), (byte) 3);
             transactionLogsDir = XADiskHome + File.separator + "txnlogs";
-            FileIOUtility.createDirectoriesIfRequired(new File(transactionLogsDir));
+            diskSession.createDirectoriesIfRequired(new File(transactionLogsDir));
             transactionLogFileBaseName = transactionLogsDir + File.separator + "xadisk.log";
             bufferPool = new BufferPool(configuration.getDirectBufferPoolSize(), configuration.getNonDirectBufferPoolSize(),
                     configuration.getBufferSize(), configuration.getDirectBufferIdleTime(),
@@ -132,9 +132,11 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             this.defaultTransactionTimeout = configuration.getTransactionTimeout();
             this.workListener = new CriticalWorkersListener(this);
             File deadLetterDir = new File(XADiskHome, "deadletter");
-            FileIOUtility.createDirectoriesIfRequired(deadLetterDir);
+            diskSession.createDirectoriesIfRequired(deadLetterDir);
             this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir, this);
 
+            diskSession.forceToDisk();
+            
             workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(bufferPoolReliever, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(selectorPoolReliever, WorkManager.INDEFINITE, null, workListener);
@@ -189,12 +191,13 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public void notifyRecoveryComplete() throws IOException {
         fileSystemEventQueue.addAll(recoveryWorker.getEventsEnqueueCommittedNotDequeued());
-        FileIOUtility.deleteDirectoryRecursively(topLevelBackupDir);
-        FileIOUtility.createDirectory(topLevelBackupDir);
+        DurableDiskSession diskSession = new DurableDiskSession();
+        diskSession.deleteDirectoryRecursively(topLevelBackupDir);
+        diskSession.createDirectory(topLevelBackupDir);
         backupFileNameCounter.set(0);
         currentBackupDirPath = new File(topLevelBackupDir.getAbsolutePath(), "deeper");
-        FileIOUtility.createDirectory(currentBackupDirPath);
-
+        diskSession.createDirectory(currentBackupDirPath);
+        diskSession.forceToDisk();
         recoveryComplete = true;
     }
 
@@ -612,7 +615,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         if (nextBackupFileName >= maxFilesInBackupDirectory) {
             if (nextBackupFileName == maxFilesInBackupDirectory) {
                 currentBackupDirPath = new File(currentBackupDirPath, "deeper");
-                FileIOUtility.createDirectory(currentBackupDirPath);
+                DurableDiskSession.createDirectoryDurably(currentBackupDirPath);
                 backupFileNameCounter.set(0);
             } else {
                 while (backupFileNameCounter.get() >= maxFilesInBackupDirectory) {
