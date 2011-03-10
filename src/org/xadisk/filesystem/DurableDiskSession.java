@@ -18,16 +18,24 @@ public class DurableDiskSession {
     private Set<File> directoriesToForce = new HashSet<File>();
     //private Map<File, FileChannel> fileChannelsToForce = new HashMap<File, FileChannel>();
 
-    static {
-        System.loadLibrary("xadisk");
-    }
+    private static boolean synchronizeDirectoryChanges;
 
+    public static void setSynchronizeDirectoryChanges(boolean syncDirectoryChanges) {
+        synchronizeDirectoryChanges = syncDirectoryChanges;
+        if(synchronizeDirectoryChanges) {
+            System.loadLibrary("xadisk");
+        }
+    }
+    
     private static native boolean forceDirectories(String directoryPaths[]);
 
     public DurableDiskSession() {
     }
 
     public void forceToDisk() throws IOException {
+        if(!synchronizeDirectoryChanges) {
+            return;
+        }
         String paths[] = new String[directoriesToForce.size()];
         int i = 0;
         for (File dir : directoriesToForce) {
@@ -43,6 +51,9 @@ public class DurableDiskSession {
     }
 
     private static void forceToDisk(String directory) throws IOException {
+        if(!synchronizeDirectoryChanges) {
+            return;
+        }
         String paths[] = new String[1];
         paths[0] = directory;
         if (!forceDirectories(paths)) {

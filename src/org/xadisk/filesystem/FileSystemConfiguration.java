@@ -53,6 +53,7 @@ public class FileSystemConfiguration implements Serializable {
     private Boolean enableRemoteInvocations = false;
     private String serverAddress = "127.0.0.1";
     private Integer serverPort = 9999;
+    private boolean synchronizeDirectoryChanges = true;
 
     /**
      * A constructor called by the JavaEE Container while deploying XADisk JCA Resource Adapter. The
@@ -534,5 +535,13 @@ public class FileSystemConfiguration implements Serializable {
      */
     public void setEnableRemoteInvocations(Boolean enableRemoteInvocations) {
         this.enableRemoteInvocations = enableRemoteInvocations;
+    }
+
+    public boolean getSynchronizeDirectoryChanges() {
+        return this.synchronizeDirectoryChanges;
+    }
+    
+    public void setSynchronizeDirectoryChanges(boolean synchronizeDirectoryChanges) {
+        this.synchronizeDirectoryChanges = synchronizeDirectoryChanges;
     }
 }

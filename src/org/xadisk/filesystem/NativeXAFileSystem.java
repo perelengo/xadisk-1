@@ -103,6 +103,9 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         try {
             XADiskHome = configuration.getXaDiskHome();
             topLevelBackupDir = new File(XADiskHome, "backupDir");
+            
+            DurableDiskSession.setSynchronizeDirectoryChanges(configuration.getSynchronizeDirectoryChanges());
+
             DurableDiskSession diskSession = new DurableDiskSession();
             diskSession.createDirectoriesIfRequired(new File(XADiskHome));
             if (!topLevelBackupDir.isDirectory()) {
