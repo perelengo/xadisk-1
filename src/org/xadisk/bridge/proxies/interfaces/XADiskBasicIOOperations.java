@@ -121,6 +121,24 @@ public interface XADiskBasicIOOperations {
             NoTransactionAssociatedException, InterruptedException;
 
     /**
+     * Creates an input stream to the file.
+     * This stream can be further be wrapped by a utility class {@link XAFileInputStreamWrapper} to
+     * get easy pluggability via the standard {@link InputStream}.
+     * This method is equivalent to:
+     * <i> createXAFileInputStream(f, false) </i>
+     * @param f the target file from where to read.
+     * @return the input stream object.
+     * @throws FileNotExistsException
+     * @throws InsufficientPermissionOnFileException
+     * @throws LockingFailedException
+     * @throws NoTransactionAssociatedException
+     * @throws InterruptedException
+     */
+    public XAFileInputStream createXAFileInputStream(File f) throws
+            FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
+            NoTransactionAssociatedException, InterruptedException;
+
+    /**
      * Creates an output stream to the file. The file should exist
      * from the viewpoint of the current transaction (i.e. if the file didn't exist before
      * the transaction, it should be created first).
@@ -221,6 +239,21 @@ public interface XADiskBasicIOOperations {
             InterruptedException;
 
     /**
+     * Tells whether the file or directory exists.
+     * This method is equivalent to:
+     * <i> fileExists(f, false) </i>
+     * @param f the file/directory path.
+     * @return true if the file/directory exists.
+     * @throws LockingFailedException
+     * @throws NoTransactionAssociatedException
+     * @throws InterruptedException
+     * @throws InsufficientPermissionOnFileException
+     */
+    public boolean fileExists(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException;
+
+    /**
      * Tells whether the directory exists.
      * @param f the directory path.
      * @param lockExclusively set to true for obtaining an exclusive lock over the
@@ -236,10 +269,25 @@ public interface XADiskBasicIOOperations {
             InterruptedException;
 
     /**
+     * Tells whether the directory exists.
+     * This method is equivalent to:
+     * <i> fileExistsAndIsDirectory(f, false) </i>
+     * @param f the directory path.
+     * @return true if the directory exists; false otherwise.
+     * @throws LockingFailedException
+     * @throws NoTransactionAssociatedException
+     * @throws InterruptedException
+     * @throws InsufficientPermissionOnFileException
+     */
+    public boolean fileExistsAndIsDirectory(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException;
+
+    /**
      * Lists the contents of the directory.
      * @param f the directory path.
-     * @param lockExclusively  set to true for obtaining an exclusive lock over the
-     * directory. False will only obtain a shared lock.
+     * @param lockExclusively this parameter is ignored and is being retained only to protect existing
+     * applications' code. Version 1.1 onwards, this method is equivalent to <i>listFiles(f)</i>.
      * @return an array of Strings containing names of files/directories.
      * @throws FileNotExistsException
      * @throws LockingFailedException
@@ -248,6 +296,22 @@ public interface XADiskBasicIOOperations {
      * @throws InsufficientPermissionOnFileException
      */
     public String[] listFiles(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InterruptedException,
+            InsufficientPermissionOnFileException;
+
+    /**
+     * Lists the contents of the directory.
+     * This method is equivalent to:
+     * <i> listFiles(f, false) </i>
+     * @param f the directory path.
+     * @return an array of Strings containing names of files/directories.
+     * @throws FileNotExistsException
+     * @throws LockingFailedException
+     * @throws NoTransactionAssociatedException
+     * @throws InterruptedException
+     * @throws InsufficientPermissionOnFileException
+     */
+    public String[] listFiles(File f) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InterruptedException,
             InsufficientPermissionOnFileException;
 
@@ -264,6 +328,22 @@ public interface XADiskBasicIOOperations {
      * @throws InsufficientPermissionOnFileException
      */
     public long getFileLength(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException;
+
+    /**
+     * Gets the length of the file.
+     * This method is equivalent to:
+     * <i> getFileLength(f, false) </i>
+     * @param f the file path.
+     * @return length of the file in bytes.
+     * @throws FileNotExistsException
+     * @throws LockingFailedException
+     * @throws NoTransactionAssociatedException
+     * @throws InterruptedException
+     * @throws InsufficientPermissionOnFileException
+     */
+    public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,
             InterruptedException;
 

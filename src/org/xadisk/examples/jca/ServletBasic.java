@@ -88,7 +88,7 @@ public class ServletBasic extends HttpServlet {
 
             out.println("Will do some operations on the file-system via XADisk...<br>");
 
-            if (!connection.fileExists(businessData, true)) {
+            if (!connection.fileExists(businessData)) {
                 connection.createFile(businessData, false);
             }
 

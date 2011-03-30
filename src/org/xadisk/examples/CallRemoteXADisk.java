@@ -67,7 +67,7 @@ public class CallRemoteXADisk {
 
         try {
             System.out.println("Doing some operations on the file-system via XADisk...");
-            if (!session.fileExists(businessData, true)) {
+            if (!session.fileExists(businessData)) {
                 session.createFile(businessData, false);
             }
 

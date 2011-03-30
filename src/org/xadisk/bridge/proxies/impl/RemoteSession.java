@@ -48,6 +48,26 @@ public class RemoteSession extends RemoteObjectProxy implements SessionCommonnes
         }
     }
 
+    public RemoteXAFileInputStream createXAFileInputStream(File f) throws
+            FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
+            NoTransactionAssociatedException, InterruptedException {
+        try {
+            return (RemoteXAFileInputStream) invokeRemoteMethod("createXAFileInputStream", f);
+        } catch (FileNotExistsException fnee) {
+            throw fnee;
+        } catch (InsufficientPermissionOnFileException ipfe) {
+            throw ipfe;
+        } catch (LockingFailedException lfe) {
+            throw lfe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch (InterruptedException ie) {
+            throw ie;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
     public RemoteXAFileOutputStream createXAFileOutputStream(File f, boolean heavyWrite) throws FileNotExistsException,
             FileUnderUseException, InsufficientPermissionOnFileException, LockingFailedException,
             NoTransactionAssociatedException, InterruptedException {
@@ -155,10 +175,44 @@ public class RemoteSession extends RemoteObjectProxy implements SessionCommonnes
         }
     }
 
+    public boolean fileExists(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
+        try {
+            return (Boolean) invokeRemoteMethod("fileExists", f);
+        } catch (LockingFailedException lfe) {
+            throw lfe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch(InsufficientPermissionOnFileException ipfe) {
+            throw ipfe;
+        } catch (InterruptedException ie) {
+            throw ie;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
     public boolean fileExistsAndIsDirectory(File f, boolean lockExclusively) throws LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
         try {
             return (Boolean) invokeRemoteMethod("fileExistsAndIsDirectory", f, lockExclusively);
+        } catch (LockingFailedException lfe) {
+            throw lfe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch(InsufficientPermissionOnFileException ipfe) {
+            throw ipfe;
+        } catch (InterruptedException ie) {
+            throw ie;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
+    public boolean fileExistsAndIsDirectory(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
+        try {
+            return (Boolean) invokeRemoteMethod("fileExistsAndIsDirectory", f);
         } catch (LockingFailedException lfe) {
             throw lfe;
         } catch (NoTransactionAssociatedException note) {
@@ -191,10 +245,48 @@ public class RemoteSession extends RemoteObjectProxy implements SessionCommonnes
         }
     }
 
+    public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
+        try {
+            return (Long) invokeRemoteMethod("getFileLength", f);
+        } catch (FileNotExistsException fnee) {
+            throw fnee;
+        } catch (LockingFailedException lfe) {
+            throw lfe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch(InsufficientPermissionOnFileException ipfe) {
+            throw ipfe;
+        } catch (InterruptedException ie) {
+            throw ie;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
     public String[] listFiles(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
         try {
             return (String[]) invokeRemoteMethod("listFiles", f, lockExclusively);
+        } catch (FileNotExistsException fnee) {
+            throw fnee;
+        } catch (LockingFailedException lfe) {
+            throw lfe;
+        } catch (NoTransactionAssociatedException note) {
+            throw note;
+        } catch(InsufficientPermissionOnFileException ipfe) {
+            throw ipfe;
+        } catch (InterruptedException ie) {
+            throw ie;
+        } catch (Throwable t) {
+            throw assertExceptionHandling(t);
+        }
+    }
+
+    public String[] listFiles(File f) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException, InterruptedException {
+        try {
+            return (String[]) invokeRemoteMethod("listFiles", f);
         } catch (FileNotExistsException fnee) {
             throw fnee;
         } catch (LockingFailedException lfe) {

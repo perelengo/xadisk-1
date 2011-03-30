@@ -46,6 +46,12 @@ public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConne
         return mc.getSessionForCurrentWorkAssociation().createXAFileInputStream(f, lockExclusively);
     }
 
+    public XAFileInputStream createXAFileInputStream(File f) throws
+            FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
+            NoTransactionAssociatedException, InterruptedException {
+        return mc.getSessionForCurrentWorkAssociation().createXAFileInputStream(f);
+    }
+
     public XAFileOutputStream createXAFileOutputStream(File f, boolean heavyWrite) throws
             FileNotExistsException, FileUnderUseException, InsufficientPermissionOnFileException, LockingFailedException,
             NoTransactionAssociatedException, InterruptedException {
@@ -83,10 +89,22 @@ public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConne
         return mc.getSessionForCurrentWorkAssociation().fileExists(f, lockExclusively);
     }
 
+    public boolean fileExists(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException {
+        return mc.getSessionForCurrentWorkAssociation().fileExists(f);
+    }
+
     public boolean fileExistsAndIsDirectory(File f, boolean lockExclusively) throws LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,
             InterruptedException {
         return mc.getSessionForCurrentWorkAssociation().fileExistsAndIsDirectory(f, lockExclusively);
+    }
+
+    public boolean fileExistsAndIsDirectory(File f) throws LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException {
+        return mc.getSessionForCurrentWorkAssociation().fileExistsAndIsDirectory(f);
     }
 
     public String[] listFiles(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
@@ -95,10 +113,22 @@ public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConne
         return mc.getSessionForCurrentWorkAssociation().listFiles(f, lockExclusively);
     }
 
+    public String[] listFiles(File f) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException {
+        return mc.getSessionForCurrentWorkAssociation().listFiles(f);
+    }
+
     public long getFileLength(File f, boolean lockExclusively) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,
             InterruptedException {
         return mc.getSessionForCurrentWorkAssociation().getFileLength(f, lockExclusively);
+    }
+
+    public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
+            NoTransactionAssociatedException, InsufficientPermissionOnFileException,
+            InterruptedException {
+        return mc.getSessionForCurrentWorkAssociation().getFileLength(f);
     }
 
     public void truncateFile(File f, long newLength) throws FileNotExistsException,
