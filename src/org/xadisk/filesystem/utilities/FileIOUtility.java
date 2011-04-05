@@ -3,7 +3,7 @@ Copyright © 2010, Nitin Verma (project owner for XADisk https://xadisk.dev.java
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
-*/
+ */
 
 
 package org.xadisk.filesystem.utilities;
@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -188,5 +189,36 @@ public class FileIOUtility {
             }
             numRead += t;
         }
+    }
+
+    public static void copyFile(File src, File dest, boolean append) throws IOException {
+        FileChannel srcChannel = new FileInputStream(src).getChannel();
+        FileChannel destChannel = new FileOutputStream(dest, append).getChannel();
+        long contentLength = srcChannel.size();
+        long num = 0;
+        while (num < contentLength) {
+            num += srcChannel.transferTo(num, contentLength - num, destChannel);
+        }
+
+        destChannel.force(false);
+        srcChannel.close();
+        destChannel.close();
+    }
+
+    public static void copyFile(InputStream srcStream, File dest, boolean append) throws IOException {
+        FileOutputStream destStream = new FileOutputStream(dest, append);
+        byte[] b = new byte[1000];
+        int numRead = 0;
+        while (true) {
+            numRead = srcStream.read(b);
+            if (numRead == -1) {
+                break;
+            }
+            destStream.write(b, 0, numRead);
+        }
+
+        destStream.flush();
+        destStream.close();
+        srcStream.close();
     }
 }

@@ -606,6 +606,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             ((StandaloneWorkManager) workManager).shutdown();
         }
         allXAFileSystems.remove(this.configuration.getInstanceId());
+        DurableDiskSession.cleanUp();
     }
 
     int getLockTimeOut() {

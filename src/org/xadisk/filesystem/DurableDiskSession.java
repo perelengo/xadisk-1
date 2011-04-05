@@ -3,37 +3,101 @@ Copyright © 2010,2011 Nitin Verma (project owner for XADisk http://xadisk.java.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
-*/
+ */
 
 package org.xadisk.filesystem;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Set;
+import org.xadisk.filesystem.exceptions.XASystemBootFailureException;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 
 public class DurableDiskSession {
 
     private Set<File> directoriesToForce = new HashSet<File>();
     //private Map<File, FileChannel> fileChannelsToForce = new HashMap<File, FileChannel>();
-
     private static boolean synchronizeDirectoryChanges;
+    private static File libFilePath;
 
-    public static void setSynchronizeDirectoryChanges(boolean syncDirectoryChanges) {
+    private enum OperatingSystem {
+
+        linux, windows, others
+    };
+
+    //this would get called only once (though, there is no language level barrier as such)
+    public static void setSynchronizeDirectoryChanges(boolean syncDirectoryChanges) throws IOException {
         synchronizeDirectoryChanges = syncDirectoryChanges;
-        if(synchronizeDirectoryChanges) {
-            System.loadLibrary("xadisk");
+        if (synchronizeDirectoryChanges) {
+            String osName = System.getProperty("os.name");
+            String jvmWidth = System.getProperty("os.arch");
+            boolean success = false;
+            String jvm32Or64 = "32";
+            if (jvmWidth.contains("64")) {
+                jvm32Or64 = "64";
+            }
+            if (osName.contains("Linux")) {
+                success = loadLibrary("linux", jvm32Or64, "libxadisk.so");
+            } else if (osName.contains("Windows")) {
+                success = loadLibrary("windows", jvm32Or64, "xadisk.dll");
+            }
+
+            if (!success) {
+                //ok, now try the ugly way. Sorry, couldn't help.
+                success = loadLibrary("linux", "32", "libxadisk.so");
+                if (!success) {
+                    success = loadLibrary("linux", "64", "libxadisk.so");
+                    if (!success) {
+                        success = loadLibrary("windows", "32", "xadisk.dll");
+                        if (!success) {
+                            success = loadLibrary("windows", "64", "xadisk.dll");
+                            if (!success) {
+                                throw new XASystemBootFailureException("XADisk has failed to load its native library "
+                                        + "required for directory-synchronization.\n"
+                                        + "You may want to set the configuration property \"synchronizeDirectoryChanges\""
+                                        + "to false; but please note that this would turn-off directory-synchronization i.e. "
+                                        + "directory modifications may not get synchronized to the disk at transaction commit.\n"
+                                        + "If you have any questions or think this exception is not expected, please"
+                                        + "consider discussing in XADisk forums, or raising a bug with details.");
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
-    
+
+    private static boolean loadLibrary(String operatingSystem, String jvm32Or64, String nativeLibraryName)
+            throws IOException {
+        InputStream libInputStream = DurableDiskSession.class.getClassLoader().
+                getResourceAsStream("native" + "/" + operatingSystem + "/" + jvm32Or64 + "/" + nativeLibraryName);
+        libFilePath = File.createTempFile("xadisk.", ".lib");
+        libFilePath.deleteOnExit();//in case xadisk is terminated abnormally; to get more guarantees for deletion.
+        FileIOUtility.copyFile(libInputStream, libFilePath, false);
+        try {
+            System.load(libFilePath.getAbsolutePath());
+            return forceDirectories(new String[0]) && true;
+        } catch (Throwable t) {
+            FileIOUtility.deleteFile(libFilePath);
+            return false;
+        }
+    }
+
+    public static void cleanUp() {
+        if(libFilePath != null) {
+            libFilePath.delete();//ignore the return value.
+        }
+    }
+
     private static native boolean forceDirectories(String directoryPaths[]);
 
     public DurableDiskSession() {
     }
 
     public void forceToDisk() throws IOException {
-        if(!synchronizeDirectoryChanges) {
+        if (!synchronizeDirectoryChanges) {
             return;
         }
         String paths[] = new String[directoriesToForce.size()];
@@ -45,13 +109,13 @@ public class DurableDiskSession {
             throw new IOException("Fatal Error: Directory changes could not be forced-to-disk during transaction commit.");
         }
         /*for (FileChannel fc : fileChannelsToForce.values()) {
-            fc.force(true);
-            fc.close();
+        fc.force(true);
+        fc.close();
         }*/
     }
 
     private static void forceToDisk(String directory) throws IOException {
-        if(!synchronizeDirectoryChanges) {
+        if (!synchronizeDirectoryChanges) {
             return;
         }
         String paths[] = new String[1];

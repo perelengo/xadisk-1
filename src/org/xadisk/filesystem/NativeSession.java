@@ -35,6 +35,7 @@ import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
+import org.xadisk.filesystem.utilities.FileIOUtility;
 
 public class NativeSession implements SessionCommonness {
 
@@ -786,18 +787,7 @@ public class NativeSession implements SessionCommonness {
             diskSession.deleteFile(dest);
             diskSession.createFile(dest);
         }
-
-        FileChannel srcChannel = new FileInputStream(src).getChannel();
-        FileChannel destChannel = new FileOutputStream(dest, true).getChannel();
-        long contentLength = srcChannel.size();
-        long num = 0;
-        while (num < contentLength) {
-            num += srcChannel.transferTo(num, contentLength - num, destChannel);
-        }
-
-        destChannel.force(false);
-        srcChannel.close();
-        destChannel.close();
+        FileIOUtility.copyFile(src, dest, true);
         ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
         xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }
