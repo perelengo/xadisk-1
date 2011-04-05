@@ -19,7 +19,7 @@ public class XADiskRemoteManagedConnection extends XADiskManagedConnection {
     private final Integer serverPort;
 
     public XADiskRemoteManagedConnection(String serverAddress, Integer serverPort, NativeXAFileSystem localXAFileSystem) throws IOException {
-        super(new RemoteXAFileSystem(serverAddress, serverPort, localXAFileSystem));
+        super(new RemoteXAFileSystem(serverAddress, serverPort, localXAFileSystem), "dummy-value");
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
     }
@@ -40,8 +40,14 @@ public class XADiskRemoteManagedConnection extends XADiskManagedConnection {
         ((RemoteXAFileSystem) theXAFileSystem).shutdown();
     }
 
-    public boolean pointsToSameRemoteXADisk(XADiskRemoteManagedConnection thatMC) {
-        return this.serverAddress.equalsIgnoreCase(thatMC.serverAddress)
-                && this.serverPort.equals(thatMC.serverPort);
+    @Override
+    public boolean pointsToSameXADisk(XADiskManagedConnection thatMC) {
+        if(thatMC instanceof XADiskRemoteManagedConnection) {
+            XADiskRemoteManagedConnection that = (XADiskRemoteManagedConnection) thatMC;
+            return this.serverAddress.equalsIgnoreCase(that.serverAddress)
+                && this.serverPort.equals(that.serverPort);
+        } else {
+            return false;
+        }
     }
 }

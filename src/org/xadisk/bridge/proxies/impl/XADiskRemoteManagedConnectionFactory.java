@@ -67,8 +67,8 @@ public class XADiskRemoteManagedConnectionFactory extends XADiskManagedConnectio
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof XADiskRemoteManagedConnectionFactory) {
-            XADiskRemoteManagedConnectionFactory mcf = (XADiskRemoteManagedConnectionFactory) obj;
-            return (mcf.serverAddress == null ? this.serverAddress == null : mcf.serverAddress.equals(this.serverAddress)) && mcf.serverPort.equals(this.serverPort);
+            XADiskRemoteManagedConnectionFactory that = (XADiskRemoteManagedConnectionFactory) obj;
+            return (that.serverAddress == null ? this.serverAddress == null : that.serverAddress.equalsIgnoreCase(this.serverAddress)) && that.serverPort.equals(this.serverPort);
         }
         return false;
     }

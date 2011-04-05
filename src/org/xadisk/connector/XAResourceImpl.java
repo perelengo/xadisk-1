@@ -14,7 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnection;
 import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.XidImpl;
@@ -150,19 +149,10 @@ public class XAResourceImpl implements XAResource {
     public boolean isSameRM(XAResource xar) throws XAException {
         if (xar instanceof XAResourceImpl) {
             XAResourceImpl that = (XAResourceImpl) xar;
-            if (this.mc instanceof XADiskRemoteManagedConnection) {
-                if (that.mc instanceof XADiskRemoteManagedConnection) {
-                    XADiskRemoteManagedConnection thisRMC = (XADiskRemoteManagedConnection) this.mc;
-                    XADiskRemoteManagedConnection thatRMC = (XADiskRemoteManagedConnection) that.mc;
-                    return thisRMC.pointsToSameRemoteXADisk(thatRMC);
-                } else {
-                    return false;
-                }
-            }
-            //here, means this.mc is pointing to native xadisk.
-            return true;
+            return this.mc.pointsToSameXADisk(that.mc);
+        } else {
+            return false;
         }
-        return false;
     }
 
     public int getTransactionTimeout() throws XAException {

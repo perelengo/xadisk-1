@@ -48,7 +48,7 @@ public class XADiskManagedConnectionFactory implements ManagedConnectionFactory 
 
     public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cri)
             throws ResourceException {
-        return new XADiskManagedConnection(NativeXAFileSystem.getXAFileSystem(instanceId));
+        return new XADiskManagedConnection(NativeXAFileSystem.getXAFileSystem(instanceId), instanceId);
     }
 
     public ManagedConnection matchManagedConnections(Set candidates, Subject subject, ConnectionRequestInfo cri)

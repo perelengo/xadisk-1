@@ -21,8 +21,8 @@ import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionMetaData;
 import javax.security.auth.Subject;
 import javax.transaction.xa.XAResource;
+import org.xadisk.bridge.proxies.impl.XADiskRemoteManagedConnection;
 import org.xadisk.connector.XAResourceImpl;
-import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.XidImpl;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
@@ -37,6 +37,7 @@ public class XADiskManagedConnection implements ManagedConnection {
     private volatile byte typeOfCurrentTransaction = NO_TRANSACTION;
     private boolean publishFileStateChangeEventsOnCommit = false;
     private long fileLockWaitTimeout = 100;
+    private final String instanceId;
     protected volatile XAFileSystem theXAFileSystem;
     protected volatile XAResourceImpl xaResourceImpl;
     private volatile XADiskLocalTransaction localTransactionImpl;
@@ -45,10 +46,11 @@ public class XADiskManagedConnection implements ManagedConnection {
     public static final byte LOCAL_TRANSACTION = 1;
     public static final byte XA_TRANSACTION = 2;
 
-    public XADiskManagedConnection(XAFileSystem xaFileSystem) {
+    public XADiskManagedConnection(XAFileSystem xaFileSystem, String instanceId) {
         this.theXAFileSystem = xaFileSystem;
         this.xaResourceImpl = new XAResourceImpl(this);
         this.localTransactionImpl = new XADiskLocalTransaction(this);
+        this.instanceId = instanceId;
     }
 
     public XAFileSystem getTheUnderlyingXAFileSystem() {
@@ -227,6 +229,15 @@ public class XADiskManagedConnection implements ManagedConnection {
             case XA_TRANSACTION:
                 sessionOfXATransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
                 break;
+        }
+    }
+
+    public boolean pointsToSameXADisk(XADiskManagedConnection thatMC) {
+        if (thatMC instanceof XADiskManagedConnection
+                && !(thatMC instanceof XADiskRemoteManagedConnection)) {
+            return this.instanceId.equals(thatMC.instanceId);
+        } else {
+            return false;
         }
     }
 }
