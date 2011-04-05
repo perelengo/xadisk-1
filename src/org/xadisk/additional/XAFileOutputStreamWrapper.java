@@ -38,7 +38,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
         try {
             xos.close();
         } catch (XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -47,7 +47,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
         try {
             xos.flush();
         } catch (XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -56,7 +56,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
         try {
             xos.write(b);
         } catch (XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -65,7 +65,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
         try {
             xos.write(b);
         } catch (XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -74,7 +74,7 @@ public class XAFileOutputStreamWrapper extends OutputStream {
         try {
             xos.write(b, off, len);
         } catch (XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 }

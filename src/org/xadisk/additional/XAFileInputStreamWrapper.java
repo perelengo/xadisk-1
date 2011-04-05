@@ -39,7 +39,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             return xis.available();
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -48,7 +48,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             xis.close();
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -67,7 +67,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             return xis.read();
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -76,7 +76,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             return xis.read(b);
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -85,7 +85,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             return xis.read(b, off, len);
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -100,7 +100,7 @@ public class XAFileInputStreamWrapper extends InputStream {
             xis.position(latestMarkPoint);
             this.latestMarkPoint = -1;
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 
@@ -112,7 +112,7 @@ public class XAFileInputStreamWrapper extends InputStream {
         try {
             return xis.skip(n);
         } catch(XAApplicationException e) {
-            throw new IOException(e.getMessage());
+            throw Utilities.wrapWithIOException(e);
         }
     }
 }
