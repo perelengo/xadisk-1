@@ -17,6 +17,8 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.xadisk.bridge.proxies.facilitators.RemoteXADiskActivationSpecImpl;
+import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
+import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.server.conversation.HostedContext;
@@ -43,6 +45,16 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
         this.localXAFileSystem = localXAFileSystem;
     }
 
+    public boolean pointToSameXAFileSystem(XAFileSystem xaFileSystem) {
+        if(xaFileSystem instanceof RemoteXAFileSystem) {
+            RemoteXAFileSystem that = (RemoteXAFileSystem) xaFileSystem;
+            return this.invoker.getServerAddress().equalsIgnoreCase(that.invoker.getServerAddress())
+                    && this.invoker.getServerPort() == that.invoker.getServerPort();
+        } else {
+            return false;
+        }
+    }
+    
     public Session createSessionForLocalTransaction() {
         try {
             return (Session) invokeRemoteMethod("createSessionForLocalTransaction");
@@ -57,6 +69,10 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
         } catch (Throwable t) {
             throw assertExceptionHandling(t);
         }
+    }
+
+    public XASession createSessionForXATransaction() {
+        return new RemoteXASession(this);
     }
 
     public int getDefaultTransactionTimeout() {

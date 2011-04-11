@@ -8,12 +8,12 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.connector;
 
-import org.xadisk.connector.outbound.XADiskManagedConnection;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import org.xadisk.filesystem.NativeXASession;
 import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.XidImpl;
@@ -22,14 +22,14 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class XAResourceImpl implements XAResource {
 
-    private final XADiskManagedConnection mc;
+    private final NativeXASession xaSession;
     private final XAFileSystemCommonness xaFileSystem;
     private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>(1000);
     private volatile int transactionTimeout;
 
-    public XAResourceImpl(XADiskManagedConnection mc) {
-        this.mc = mc;
-        this.xaFileSystem = (XAFileSystemCommonness) mc.getTheUnderlyingXAFileSystem();
+    public XAResourceImpl(NativeXASession xaSession) {
+        this.xaSession = xaSession;
+        this.xaFileSystem = (XAFileSystemCommonness) xaSession.getUnderlyingXAFileSystem();
         transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
     }
 
@@ -37,28 +37,28 @@ public class XAResourceImpl implements XAResource {
         XidImpl internalXid = mapToInternalXid(xid);
         if (flag == XAResource.TMNOFLAGS) {
             try {
-                Session session = mc.refreshSessionForNewXATransaction(internalXid);
+                Session session = xaSession.refreshSessionForNewXATransaction(internalXid);
                 session.setTransactionTimeout(transactionTimeout);
             } catch (XASystemException xase) {
                 throw new XAException(XAException.XAER_RMFAIL);
             }
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.XA_TRANSACTION);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
         }
         if (flag == XAResource.TMJOIN) {
             Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
             if (sessionOfTransaction == null) {
                 throw new XAException(XAException.XAER_INVAL);
             }
-            mc.setSessionOfExistingXATransaction(sessionOfTransaction);
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.XA_TRANSACTION);
+            xaSession.setSessionOfExistingXATransaction(sessionOfTransaction);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
         }
         if (flag == XAResource.TMRESUME) {
             Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
             if (sessionOfTransaction == null) {
                 throw new XAException(XAException.XAER_INVAL);
             }
-            mc.setSessionOfExistingXATransaction(sessionOfTransaction);
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.XA_TRANSACTION);
+            xaSession.setSessionOfExistingXATransaction(sessionOfTransaction);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
         }
     }
 
@@ -69,13 +69,13 @@ public class XAResourceImpl implements XAResource {
             throw new XAException(XAException.XAER_INVAL);
         }
         if (flag == XAResource.TMSUCCESS) {
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
         }
         if (flag == XAResource.TMFAIL) {
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
         }
         if (flag == XAResource.TMSUSPEND) {
-            mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
+            xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
         }
     }
 
@@ -117,7 +117,7 @@ public class XAResourceImpl implements XAResource {
         } finally {
             releaseFromInternalXidMap(xid);
         }
-        mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
+        xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
     }
 
     public void commit(Xid xid, boolean onePhase) throws XAException {
@@ -135,7 +135,7 @@ public class XAResourceImpl implements XAResource {
         } finally {
             releaseFromInternalXidMap(xid);
         }
-        mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
+        xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
     }
 
     public Xid[] recover(int flag) throws XAException {
@@ -149,7 +149,7 @@ public class XAResourceImpl implements XAResource {
     public boolean isSameRM(XAResource xar) throws XAException {
         if (xar instanceof XAResourceImpl) {
             XAResourceImpl that = (XAResourceImpl) xar;
-            return this.mc.pointsToSameXADisk(that.mc);
+            return this.xaFileSystem.pointToSameXAFileSystem(that.xaFileSystem);
         } else {
             return false;
         }

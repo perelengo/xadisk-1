@@ -36,6 +36,14 @@ public interface XAFileSystem {
     public Session createSessionForLocalTransaction();
 
     /**
+     * Creates a new session capable of participating in an XA/JTA transaction.
+     * <p> This method is useful for those applications which are running in a non-JCA environment
+     * and want to use a JTA Transaction Manager with XADisk and other XA-enabled resources.
+     * @return the new session.
+     */
+    public XASession createSessionForXATransaction();
+
+    /**
      * Waits for this XADisk instance to complete its booting and become ready to use. The timeout
      * specifies the maximum amount of time to wait.
      * <p> If the timeout expires before boot completion, the {@link RecoveryInProgressException}
@@ -60,4 +68,12 @@ public interface XAFileSystem {
      * @throws IOException
      */
     public void shutdown() throws IOException;
+
+    /**
+     * Tells whether the specified {@link XAFileSystem} reference points to the same XADisk instance
+     * as <i>this</i> {@link XAFileSystem} reference.
+     * @param xaFileSystem the other {@link XAFileSystem} reference.
+     * @return true if the input {@link XAFileSystem} reference point to the same XADisk instance. False otherwise.
+     */
+    public boolean pointToSameXAFileSystem(XAFileSystem xaFileSystem);
 }

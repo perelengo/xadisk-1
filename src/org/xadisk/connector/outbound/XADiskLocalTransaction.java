@@ -20,7 +20,7 @@ public class XADiskLocalTransaction implements LocalTransaction {
 
     public XADiskLocalTransaction(XADiskManagedConnection mc) {
         this.mc = mc;
-        XAFileSystemCommonness xaFileSystem = (XAFileSystemCommonness) mc.getTheUnderlyingXAFileSystem();
+        XAFileSystemCommonness xaFileSystem = (XAFileSystemCommonness) mc.getUnderlyingXAFileSystem();
         this.transactionTimeOut = xaFileSystem.getDefaultTransactionTimeout();
     }
 

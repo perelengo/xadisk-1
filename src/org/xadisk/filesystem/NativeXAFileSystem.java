@@ -8,6 +8,8 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.filesystem;
 
+import org.xadisk.bridge.proxies.interfaces.XAFileSystem;
+import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.filesystem.pools.BufferPool;
 import org.xadisk.filesystem.utilities.Logger;
 import org.xadisk.filesystem.workers.observers.CriticalWorkersListener;
@@ -47,6 +49,7 @@ import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
+import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
 import org.xadisk.connector.inbound.DeadLetterMessageEndpoint;
@@ -192,6 +195,15 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         return allXAFileSystems.get(instanceId);
     }
 
+    public boolean pointToSameXAFileSystem(XAFileSystem xaFileSystem) {
+        if(xaFileSystem instanceof NativeXAFileSystem && !(xaFileSystem instanceof RemoteXAFileSystem)) {
+            NativeXAFileSystem that = (NativeXAFileSystem) xaFileSystem;
+            return this.configuration.getInstanceId().equals(that.configuration.getInstanceId());
+        } else {
+            return false;
+        }
+    }
+
     public void notifyRecoveryComplete() throws IOException {
         fileSystemEventQueue.addAll(recoveryWorker.getEventsEnqueueCommittedNotDequeued());
         DurableDiskSession diskSession = new DurableDiskSession();
@@ -214,6 +226,10 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         checkIfCanContinue();
         NativeSession session = new NativeSession((XidImpl) xid, false, this);
         return session;
+    }
+
+    public XASession createSessionForXATransaction() {
+        return new NativeXASession(this, configuration.getInstanceId());
     }
 
     public NativeSession getSessionForTransaction(Xid xid) {
