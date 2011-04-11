@@ -93,6 +93,32 @@ public class DurableDiskSession {
 
     private static native boolean forceDirectories(String directoryPaths[]);
 
+    public static void main(String args[]) {
+        try {
+            InputStream libInputStream = DurableDiskSession.class.getClassLoader().
+                getResourceAsStream("xadisk.lib");
+            libFilePath = File.createTempFile("xadisk.", ".lib");
+            libFilePath.deleteOnExit();//in case xadisk is terminated abnormally; to get more guarantees for deletion.
+            FileIOUtility.copyFile(libInputStream, libFilePath, false);
+            try {
+                System.load(libFilePath.getAbsolutePath());
+                boolean success = forceDirectories(new String[0]) && true;
+                if(success) {
+                    System.out.println("The native library is working fine.");
+                } else {
+                    throw new Exception("The native library method returned false.");
+                }
+            } catch (Throwable t) {
+                FileIOUtility.deleteFile(libFilePath);
+                System.out.println("There is some problem in the native library.");
+                t.printStackTrace();
+            }
+        } catch(Exception e) {
+            System.out.println("There is some problem; not neessarily in the native library, but may be in setting up.");
+            e.printStackTrace();
+        }
+    }
+
     public DurableDiskSession() {
     }
 
