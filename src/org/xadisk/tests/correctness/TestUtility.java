@@ -98,15 +98,15 @@ public class TestUtility {
     public static void compareDiskAndView(File diskFile, File viewFile, Session session) throws
             AssertionFailedException {
         try {
-            if (!diskFile.exists() || !session.fileExists(viewFile, false)) {
+            if (!diskFile.exists() || !session.fileExists(viewFile)) {
                 throw new AssertionFailedException("File Existence-Check Mismatch: " + diskFile);
             }
-            if (diskFile.isDirectory() != session.fileExistsAndIsDirectory(viewFile, false)) {
+            if (diskFile.isDirectory() != session.fileExistsAndIsDirectory(viewFile)) {
                 throw new AssertionFailedException("Directory Existence Mismatch: " + diskFile);
             }
             if (diskFile.isDirectory()) {
                 File filesInDiskFile[] = diskFile.listFiles();
-                if (filesInDiskFile.length != session.listFiles(viewFile, false).length) {
+                if (filesInDiskFile.length != session.listFiles(viewFile).length) {
                     throw new AssertionFailedException("Directory List-Size Mismatch: " + diskFile);
                 }
                 for (int i = 0; i < filesInDiskFile.length; i++) {
@@ -115,8 +115,8 @@ public class TestUtility {
                 }
             } else {
                 RandomAccessFile raDiskFile = new RandomAccessFile(diskFile, "r");
-                XAFileInputStream xisViewFile = session.createXAFileInputStream(viewFile, false);
-                if (raDiskFile.length() != session.getFileLength(viewFile, false)) {
+                XAFileInputStream xisViewFile = session.createXAFileInputStream(viewFile);
+                if (raDiskFile.length() != session.getFileLength(viewFile)) {
                     throw new AssertionFailedException("File Content-Length Mismatch: " + diskFile);
                 }
                 Random randomPosition = new Random();

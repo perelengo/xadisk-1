@@ -12,22 +12,29 @@ import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 
 /*For testing, we used Atomikos (open source version) as a JTA implementation. One can get it from
 http://www.atomikos.com/Main/TransactionsEssentials .
-*/
-
+ */
 public class TestStandaloneXA {
 
     public static void main(String args[]) {
         try {
+            boolean testRemote = true;
+            int remotePort = 4678;
             StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration("C:\\xa", "1");
             configuration.setEnableRemoteInvocations(Boolean.TRUE);
-            XAFileSystem xafs = XAFileSystemProxy.bootNativeXAFileSystem(configuration);
-            xafs.waitForBootup(-1);
-            //xafs = XAFileSystemProxy.getRemoteXAFileSystemReference("localhost", 9999);
+            configuration.setServerPort(remotePort);
+            XAFileSystem xafs;
+            XAFileSystem nativeXAFS = XAFileSystemProxy.bootNativeXAFileSystem(configuration);
+            nativeXAFS.waitForBootup(-1);
+            if (testRemote) {
+                xafs = XAFileSystemProxy.getRemoteXAFileSystemReference("localhost", remotePort);
+            } else {
+                xafs = nativeXAFS;
+            }
             XASession xaSession = xafs.createSessionForXATransaction();
             XAResource xar = xaSession.getXAResource();
-            //TransactionManager tm = new com.atomikos.icatch.jta.UserTransactionManager.UserTransactionManager();
+            TransactionManager tm = new com.atomikos.icatch.jta.UserTransactionManager();
             //UNCOMMENT ABOVE ONCE YOU BRING ATOMIKOS INTO THE CLASSPATH.
-            TransactionManager tm = null;
+            //TransactionManager tm = null;
             tm.setTransactionTimeout(60);
 
             tm.begin();
@@ -47,15 +54,20 @@ public class TestStandaloneXA {
             xaSession.createFile(new File("C:\\c.txt"), false);
             tm.commit();//test rollback also.//==> xar.end
 
-            xafs.shutdown();
+            nativeXAFS.shutdown();
+            nativeXAFS = XAFileSystemProxy.bootNativeXAFileSystem(configuration);
 
-            xafs = XAFileSystemProxy.bootNativeXAFileSystem(configuration);
+            if (testRemote) {
+                xafs = XAFileSystemProxy.getRemoteXAFileSystemReference("localhost", remotePort);
+            } else {
+                xafs = nativeXAFS;
+            }
             xafs.waitForBootup(-1);
             xaSession = xafs.createSessionForXATransaction();
             xar = xaSession.getXAResource();
             Xid xids[] = xar.recover(XAResource.TMSTARTRSCAN);
             System.out.println(xids.length);
-            xafs.shutdown();
+            nativeXAFS.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
         }

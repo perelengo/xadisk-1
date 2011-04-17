@@ -27,7 +27,7 @@ public class TestCoreXAFileSystem {
     private static final String XADiskSystemDirectory = Configuration.getXADiskSystemDirectory();
     private static final String forRunningTests = "forRunningTests";
     private static final String transactionDemarcatingThread = "TestThreadObservedByJDI";
-    static boolean testCrashRecovery;
+    static boolean testCrashRecovery = false;
     static int concurrencyLevel = 1;
     static int numberOfCrashes = 100;
     static int maxConcurrentDeliveries = 2;
