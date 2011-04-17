@@ -18,6 +18,8 @@ import org.xadisk.connector.outbound.XADiskConnectionFactory;
  * a native (running in the same JVM) or a remote XADisk instance.
  * <li> {@link XAFileSystem#createSessionForLocalTransaction() createSessionForLocalTransaction} when
  * the XAFileSystem is referring to a native (running in the same JVM) or remote XADisk instance.
+ * <li> {@link XAFileSystem#createSessionForXATransaction() createSessionForXATransaction} when
+ * the XAFileSystem is referring to a native (running in the same JVM) or remote XADisk instance.
  * <li> when using XADisk as a JCA Resource Adapter, during the connection creation steps upto
  * and including {@link XADiskConnectionFactory#getConnection() getConnection}.
  * </ol>

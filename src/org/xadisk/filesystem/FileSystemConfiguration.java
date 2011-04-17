@@ -537,10 +537,30 @@ public class FileSystemConfiguration implements Serializable {
         this.enableRemoteInvocations = enableRemoteInvocations;
     }
 
+    /**
+     * Returns the value of synchronizeDirectoryChanges.
+     * <p> This flag can be used to specify whether the XADisk instance must
+     * synchronize directory changes to the disk during transaction commit.
+     * <p> If this flag is set to false, directory changes (create/delete children) done
+     * inside a transaction may not get synchronized to the disk at commit.
+     * <p> Default value is true.
+     * @return value of synchronizeDirectoryChanges.
+     * @since 1.1
+     */
     public Boolean getSynchronizeDirectoryChanges() {
         return this.synchronizeDirectoryChanges;
     }
-    
+
+    /**
+     * Sets the value of synchronizeDirectoryChanges.
+     * <p> This flag can be used to specify whether the XADisk instance must
+     * synchronize directory changes to the disk during transaction commit.
+     * <p> If this flag is set to false, directory changes (create/delete children) done
+     * inside a transaction may not get synchronized to the disk at commit.
+     * <p> Default value is true.
+     * @param synchronizeDirectoryChanges new value of synchronizeDirectoryChanges.
+     * @since 1.1
+     */
     public void setSynchronizeDirectoryChanges(Boolean synchronizeDirectoryChanges) {
         this.synchronizeDirectoryChanges = synchronizeDirectoryChanges;
     }

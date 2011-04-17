@@ -26,8 +26,8 @@ import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 
 /**
  * This interface declares a set of i/o operations which can be called on XADisk.
- * <p> An object of this interface is obtained either as a session object ({@link Session})
- * or as a connection object ({@link XADiskConnection}).
+ * <p> An object of this interface is obtained as a session object ({@link Session}),
+ * XA-enabled session object ({@link XASession}) or as a connection object ({@link XADiskConnection}).
  *
  * @since 1.0
  */
@@ -63,8 +63,7 @@ public interface XADiskBasicIOOperations {
     /**
      * Sets the values of publishFileStateChangeEventsOnCommit.
      * <p> This property can be used to control whether the commit of the transaction on this object
-     * ({@link Session} or {@link XADiskConnection}) should result in publishing of
-     * events to registered {@link MessageDrivenBean MessageDrivenBeans} or not.
+     * should result in publishing of events to registered {@link MessageDrivenBean MessageDrivenBeans} or not.
      * @param publish new value of publishFileStateChangeEventsOnCommit.
      */
     public void setPublishFileStateChangeEventsOnCommit(boolean publish);
@@ -72,15 +71,13 @@ public interface XADiskBasicIOOperations {
     /**
      * Returns the value of publishFileStateChangeEventsOnCommit.
      * <p> This property can be used to control whether the commit of the transaction on this object
-     * ({@link Session} or {@link XADiskConnection}) should result in publishing of
-     * events to registered {@link MessageDrivenBean MessageDrivenBeans} or not.
+     * should result in publishing of events to registered {@link MessageDrivenBean MessageDrivenBeans} or not.
      * @return value of publishFileStateChangeEventsOnCommit.
      */
     public boolean getPublishFileStateChangeEventsOnCommit();
 
     /**
-     * Returns the current value of the lock wait timeout for this {@link Session}
-     * or {@link XADiskConnection}.
+     * Returns the current value of the lock wait timeout for this object.
      * <p> This is the time an i/o operation will wait for acquiring a lock over a file/directory.
      * Waiting for a lock allows some space for other transactions holding the lock to complete
      * and release the locks.
@@ -91,8 +88,7 @@ public interface XADiskBasicIOOperations {
     public long getFileLockWaitTimeout();
 
     /**
-     * Sets a new value for the lock wait timeout for this {@link Session}
-     * or {@link XADiskConnection}.
+     * Sets a new value for the lock wait timeout for this object.
      * <p> This is the time an i/o operation will wait for acquiring a lock over a file/directory.
      * Waiting for a lock allows some space for other transactions holding the lock to complete
      * and release the locks.
@@ -125,7 +121,7 @@ public interface XADiskBasicIOOperations {
      * This stream can be further be wrapped by a utility class {@link XAFileInputStreamWrapper} to
      * get easy pluggability via the standard {@link InputStream}.
      * This method is equivalent to:
-     * <i> createXAFileInputStream(f, false) </i>
+     * <i> {@link #createXAFileInputStream(File, boolean) createXAFileInputStream(f, false)} </i>
      * @param f the target file from where to read.
      * @return the input stream object.
      * @throws FileNotExistsException
@@ -133,6 +129,7 @@ public interface XADiskBasicIOOperations {
      * @throws LockingFailedException
      * @throws NoTransactionAssociatedException
      * @throws InterruptedException
+     * @since 1.1
      */
     public XAFileInputStream createXAFileInputStream(File f) throws
             FileNotExistsException, InsufficientPermissionOnFileException, LockingFailedException,
@@ -241,13 +238,14 @@ public interface XADiskBasicIOOperations {
     /**
      * Tells whether the file or directory exists.
      * This method is equivalent to:
-     * <i> fileExists(f, false) </i>
+     * <i> {@link #fileExists(File, boolean) fileExists(f, false)} </i>
      * @param f the file/directory path.
      * @return true if the file/directory exists.
      * @throws LockingFailedException
      * @throws NoTransactionAssociatedException
      * @throws InterruptedException
      * @throws InsufficientPermissionOnFileException
+     * @since 1.1
      */
     public boolean fileExists(File f) throws LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,
@@ -271,13 +269,14 @@ public interface XADiskBasicIOOperations {
     /**
      * Tells whether the directory exists.
      * This method is equivalent to:
-     * <i> fileExistsAndIsDirectory(f, false) </i>
+     * <i> {@link #fileExistsAndIsDirectory(File, boolean) fileExistsAndIsDirectory(f, false)} </i>
      * @param f the directory path.
      * @return true if the directory exists; false otherwise.
      * @throws LockingFailedException
      * @throws NoTransactionAssociatedException
      * @throws InterruptedException
      * @throws InsufficientPermissionOnFileException
+     * @since 1.1
      */
     public boolean fileExistsAndIsDirectory(File f) throws LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,
@@ -287,7 +286,8 @@ public interface XADiskBasicIOOperations {
      * Lists the contents of the directory.
      * @param f the directory path.
      * @param lockExclusively this parameter is ignored and is being retained only to protect existing
-     * applications' code. Version 1.1 onwards, this method is equivalent to <i>listFiles(f)</i>.
+     * applications' code. Version 1.1 onwards, this method is equivalent to
+     * <i> {@link #listFiles(File) listFiles(f)} </i>.
      * @return an array of Strings containing names of files/directories.
      * @throws FileNotExistsException
      * @throws LockingFailedException
@@ -302,7 +302,7 @@ public interface XADiskBasicIOOperations {
     /**
      * Lists the contents of the directory.
      * This method is equivalent to:
-     * <i> listFiles(f, false) </i>
+     * <i> {@link #listFiles(File, boolean) listFiles(f, false)} </i>
      * @param f the directory path.
      * @return an array of Strings containing names of files/directories.
      * @throws FileNotExistsException
@@ -310,6 +310,7 @@ public interface XADiskBasicIOOperations {
      * @throws NoTransactionAssociatedException
      * @throws InterruptedException
      * @throws InsufficientPermissionOnFileException
+     * @since 1.1
      */
     public String[] listFiles(File f) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InterruptedException,
@@ -334,7 +335,7 @@ public interface XADiskBasicIOOperations {
     /**
      * Gets the length of the file.
      * This method is equivalent to:
-     * <i> getFileLength(f, false) </i>
+     * <i> {@link #getFileLength(File, boolean) getFileLength(f, false)} </i>
      * @param f the file path.
      * @return length of the file in bytes.
      * @throws FileNotExistsException
@@ -342,6 +343,7 @@ public interface XADiskBasicIOOperations {
      * @throws NoTransactionAssociatedException
      * @throws InterruptedException
      * @throws InsufficientPermissionOnFileException
+     * @since 1.1
      */
     public long getFileLength(File f) throws FileNotExistsException, LockingFailedException,
             NoTransactionAssociatedException, InsufficientPermissionOnFileException,

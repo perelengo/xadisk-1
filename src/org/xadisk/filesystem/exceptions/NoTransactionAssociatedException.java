@@ -12,11 +12,12 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
+import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.connector.outbound.XADiskUserLocalTransaction;
 
 /**
  * This exception is thrown by various methods in {@link Session},
- * {@link XADiskBasicIOOperations}, {@link XAFileInputStream},
+ * {@link XASession}, {@link XADiskBasicIOOperations}, {@link XAFileInputStream},
  * {@link XAFileOutputStream} and {@link XADiskUserLocalTransaction}
  * when an associated (<i>current</i>) transaction was expected, but there is no such transaction.
  * <p> Such a situation may result when:

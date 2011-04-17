@@ -229,6 +229,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     public XASession createSessionForXATransaction() {
+        checkIfCanContinue();
         return new NativeXASession(this, configuration.getInstanceId());
     }
 

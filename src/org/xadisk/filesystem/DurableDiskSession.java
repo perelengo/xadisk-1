@@ -93,7 +93,10 @@ public class DurableDiskSession {
 
     private static native boolean forceDirectories(String directoryPaths[]);
 
-    public static void main(String args[]) {
+    //never ever write a main method inside any of xadisk classes. In this case
+    //it was required to write the test method here, but still we can get the following
+    //non-main method called from a main somewhere else outside.
+    public static void testNativeLibrary() {
         try {
             InputStream libInputStream = DurableDiskSession.class.getClassLoader().
                 getResourceAsStream("xadisk.lib");

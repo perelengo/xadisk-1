@@ -15,7 +15,8 @@ import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 /**
  * This interface is used to invoke i/o operations on XADisk and to control the transaction 
  * associated with this session (use {@link XADiskConnection} instead of this interface when XADisk is 
- * used as a JCA Resource Adapter). An instance of this interface can be obtained from
+ * used as a JCA Resource Adapter. For XA transactions in non-JCA environments, use {@link XASession}).
+ * An instance of this interface can be obtained from
  * {@link XAFileSystem#createSessionForLocalTransaction() createSessionForLocalTransaction}.
  * <p> Before the session object is returned, a new transaction is associated with it. Once a
  * session completes its associated transaction using {@link #commit()} or

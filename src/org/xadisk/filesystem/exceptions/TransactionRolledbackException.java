@@ -12,11 +12,12 @@ import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
+import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.connector.outbound.XADiskUserLocalTransaction;
 
 /**
  * This exception is a subclass of {@link NoTransactionAssociatedException} and can
- * be thrown when a method call (in {@link Session}, {@link XADiskBasicIOOperations}, 
+ * be thrown when a method call (in {@link Session}, {@link XASession}, {@link XADiskBasicIOOperations},
  * {@link XAFileInputStream}, {@link XAFileOutputStream} or {@link XADiskUserLocalTransaction})
  * was expecting an associated transaction, but such a transaction has already been rolled-back
  * by XADisk System.

@@ -40,6 +40,7 @@ public interface XAFileSystem {
      * <p> This method is useful for those applications which are running in a non-JCA environment
      * and want to use a JTA Transaction Manager with XADisk and other XA-enabled resources.
      * @return the new session.
+     * @since 1.1
      */
     public XASession createSessionForXATransaction();
 
@@ -68,12 +69,4 @@ public interface XAFileSystem {
      * @throws IOException
      */
     public void shutdown() throws IOException;
-
-    /**
-     * Tells whether the specified {@link XAFileSystem} reference points to the same XADisk instance
-     * as <i>this</i> {@link XAFileSystem} reference.
-     * @param xaFileSystem the other {@link XAFileSystem} reference.
-     * @return true if the input {@link XAFileSystem} reference point to the same XADisk instance. False otherwise.
-     */
-    public boolean pointToSameXAFileSystem(XAFileSystem xaFileSystem);
 }

@@ -30,8 +30,11 @@ public interface XASession extends XADiskBasicIOOperations {
     /**
      * Returns the XADisk implementation of the standard {@link XAResource} interface.
      * <p> This {@link XAResource} can be enlisted into an XA/JTA Transaction
-     * using {@link Transaction#enlistResource() enlistResource} and hence allows the
+     * using {@link Transaction#enlistResource(XAResource) enlistResource} and hence allows the
      * {@link XASession} to participate in the XA/JTA Transaction.
+     * <p> This {@link XAResource} implementation is fully compliant with JTA
+     * and hence supports features like suspend/resume, one-phase commit
+     * optimization, crash recovery, transaction time-out etc.
      * @return the XADisk implementation of {@link XAResource}.
      */
     public XAResource getXAResource();

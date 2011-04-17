@@ -10,6 +10,7 @@ package org.xadisk.filesystem.exceptions;
 
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
+import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.connector.outbound.XADiskConnection;
 import org.xadisk.filesystem.FileSystemConfiguration;
 
@@ -21,7 +22,7 @@ import org.xadisk.filesystem.FileSystemConfiguration;
  * the locks.
  * <p> Note that the value of lock wait timeout period defaults to the
  * {@link FileSystemConfiguration#getLockTimeOut() global-configuration}, and can be overridden
- * at a {@link Session}/{@link XADiskConnection} level by
+ * at a {@link Session}/{@link XASession}/{@link XADiskConnection} level by
  * {@link XADiskBasicIOOperations#setFileLockWaitTimeout(long) setFileLockWaitTimeout}.
  *
  * @since 1.0
