@@ -326,7 +326,8 @@ public class GatheringDiskWriter extends EventWorker {
     public void cleanupTransactionInfo(XidImpl xid) throws IOException {
         try {
             transactionLogLock.lock();
-            TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, currentLogIndex, transactionLogBaseName);
+            TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, currentLogIndex, transactionLogBaseName,
+                    xaFileSystem.createDurableDiskSession());
             transactionsAndLogsOccupied.remove(xid);
         } finally {
             transactionLogLock.unlock();

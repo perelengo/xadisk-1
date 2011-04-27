@@ -77,7 +77,7 @@ public class CrashRecoveryWorker implements Work {
             int logIndex = (Integer) iter.next();
             FileChannel logFC = (FileChannel) logChannels.get(logIndex);
             logFC.close();
-            DurableDiskSession.deleteFileDurably(new File(xaFileSystem.getTransactionLogFileBaseName() + "_" + logIndex));
+            xaFileSystem.createDurableDiskSession().deleteFileDurably(new File(xaFileSystem.getTransactionLogFileBaseName() + "_" + logIndex));
         }
     }
 

@@ -30,7 +30,7 @@ public class TransactionLogsUtility {
 
     public static void deleteLogsIfPossible(XidImpl xid, Map<XidImpl, ArrayList<Integer>> transactionsAndLogsOccupied,
             Map<Integer, Integer> transactionLogsAndOpenTransactions, int currentLogIndex,
-            String transactionLogBaseName) throws IOException {
+            String transactionLogBaseName, DurableDiskSession durableDiskSession) throws IOException {
         ArrayList<Integer> logsOccupied = transactionsAndLogsOccupied.get(xid);
         if (logsOccupied == null) {
             return;
@@ -39,7 +39,7 @@ public class TransactionLogsUtility {
             Integer numTxns = transactionLogsAndOpenTransactions.get(logFileIndex);
             numTxns--;
             if (numTxns == 0 && currentLogIndex != logFileIndex) {
-                DurableDiskSession.deleteFileDurably(new File(transactionLogBaseName + "_" + logFileIndex));
+                durableDiskSession.deleteFileDurably(new File(transactionLogBaseName + "_" + logFileIndex));
             } else {
                 transactionLogsAndOpenTransactions.put(logFileIndex, numTxns);
             }

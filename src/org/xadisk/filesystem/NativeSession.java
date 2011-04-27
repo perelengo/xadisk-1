@@ -66,12 +66,13 @@ public class NativeSession implements SessionCommonness {
     private boolean publishFileStateChangeEventsOnCommit = false;
     private final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
     private boolean usingReadOnlyOptimization = true;
-    private DurableDiskSession diskSession = new DurableDiskSession();
+    private final DurableDiskSession diskSession;
 
     NativeSession(XidImpl xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
         xid.setOwningSession(this);
         this.xaFileSystem = xaFileSystem;
+        this.diskSession = xaFileSystem.createDurableDiskSession();
         this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = createdForRecovery;
         if (createdForRecovery) {
@@ -93,6 +94,7 @@ public class NativeSession implements SessionCommonness {
         this.xid = xid;
         xid.setOwningSession(this);
         this.xaFileSystem = xaFileSystem;
+        this.diskSession = xaFileSystem.createDurableDiskSession();
         this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = true;
         this.usingReadOnlyOptimization = false;

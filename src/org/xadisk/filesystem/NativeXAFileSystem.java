@@ -57,6 +57,7 @@ import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.filesystem.exceptions.XASystemBootFailureException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.pools.SelectorPool;
+import org.xadisk.filesystem.utilities.FileIOUtility;
 
 public class NativeXAFileSystem implements XAFileSystemCommonness {
 
@@ -105,16 +106,29 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         this.workManager = workManager;
         try {
             XADiskHome = configuration.getXaDiskHome();
+            FileIOUtility.createDirectoriesIfRequired(new File(XADiskHome));
             topLevelBackupDir = new File(XADiskHome, "backupDir");
-            
-            DurableDiskSession.setSynchronizeDirectoryChanges(configuration.getSynchronizeDirectoryChanges());
+            logger = new Logger(new File(XADiskHome, "debug.log"), (byte) 3);
 
-            DurableDiskSession diskSession = new DurableDiskSession();
-            diskSession.createDirectoriesIfRequired(new File(XADiskHome));
+            if(configuration.getSynchronizeDirectoryChanges()) {
+                boolean success = DurableDiskSession.setupDirectorySynchronization(new File(XADiskHome));
+                if(!success) {
+                    logger.logWarning("XADisk has failed to load its native library "
+                    + "required for directory-synchronization.\n"
+                    + "Now, it will override the configuration property \"synchronizeDirectoryChanges\""
+                    + "and set it to false; but please note that this would turn-off directory-synchronization i.e. "
+                    + "directory modifications may not get synchronized to the disk at transaction commit.\n"
+                    + "If you have any questions or think this exception is not expected, please"
+                    + "consider discussing in XADisk forums, or raising a bug with details.");
+                    configuration.setSynchronizeDirectoryChanges(false);
+                }
+            }
+
+            DurableDiskSession diskSession = createDurableDiskSession();
+            
             if (!topLevelBackupDir.isDirectory()) {
                 diskSession.createDirectory(topLevelBackupDir);
             }
-            this.logger = new Logger(new File(XADiskHome, "debug.log"), (byte) 3);
             transactionLogsDir = XADiskHome + File.separator + "txnlogs";
             diskSession.createDirectoriesIfRequired(new File(transactionLogsDir));
             transactionLogFileBaseName = transactionLogsDir + File.separator + "xadisk.log";
@@ -206,7 +220,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public void notifyRecoveryComplete() throws IOException {
         fileSystemEventQueue.addAll(recoveryWorker.getEventsEnqueueCommittedNotDequeued());
-        DurableDiskSession diskSession = new DurableDiskSession();
+        DurableDiskSession diskSession = createDurableDiskSession();
         diskSession.deleteDirectoryRecursively(topLevelBackupDir);
         diskSession.createDirectory(topLevelBackupDir);
         backupFileNameCounter.set(0);
@@ -623,7 +637,6 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             ((StandaloneWorkManager) workManager).shutdown();
         }
         allXAFileSystems.remove(this.configuration.getInstanceId());
-        DurableDiskSession.cleanUp();
     }
 
     int getLockTimeOut() {
@@ -636,7 +649,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         if (nextBackupFileName >= maxFilesInBackupDirectory) {
             if (nextBackupFileName == maxFilesInBackupDirectory) {
                 currentBackupDirPath = new File(currentBackupDirPath, "deeper");
-                DurableDiskSession.createDirectoryDurably(currentBackupDirPath);
+                createDurableDiskSession().createDirectoryDurably(currentBackupDirPath);
                 backupFileNameCounter.set(0);
             } else {
                 while (backupFileNameCounter.get() >= maxFilesInBackupDirectory) {
@@ -648,6 +661,10 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public LinkedBlockingQueue<FileSystemStateChangeEvent> getFileSystemEventQueue() {
         return fileSystemEventQueue;
+    }
+
+    public final DurableDiskSession createDurableDiskSession() {
+        return new DurableDiskSession(configuration.getSynchronizeDirectoryChanges());
     }
 
     public void registerEndPointActivation(EndPointActivation activation) throws IOException {
