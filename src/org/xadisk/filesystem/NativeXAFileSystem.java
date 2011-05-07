@@ -108,17 +108,17 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             XADiskHome = configuration.getXaDiskHome();
             FileIOUtility.createDirectoriesIfRequired(new File(XADiskHome));
             topLevelBackupDir = new File(XADiskHome, "backupDir");
-            logger = new Logger(new File(XADiskHome, "debug.log"), (byte) 3);
+            logger = new Logger(new File(XADiskHome, "xadisk.log"), (byte) 3);
 
             if(configuration.getSynchronizeDirectoryChanges()) {
                 boolean success = DurableDiskSession.setupDirectorySynchronization(new File(XADiskHome));
                 if(!success) {
                     logger.logWarning("XADisk has failed to load its native library "
                     + "required for directory-synchronization.\n"
-                    + "Now, it will override the configuration property \"synchronizeDirectoryChanges\""
+                    + "Now, it will override the configuration property \"synchronizeDirectoryChanges\" "
                     + "and set it to false; but please note that this would turn-off directory-synchronization i.e. "
                     + "directory modifications may not get synchronized to the disk at transaction commit.\n"
-                    + "If you have any questions or think this exception is not expected, please"
+                    + "If you have any questions or think this exception is not expected, please "
                     + "consider discussing in XADisk forums, or raising a bug with details.");
                     configuration.setSynchronizeDirectoryChanges(false);
                 }
@@ -181,6 +181,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public static NativeXAFileSystem bootXAFileSystem(FileSystemConfiguration configuration,
             WorkManager workManager) {
+        doBasicValidationForConfiguration(configuration);
         String instanceId = configuration.getInstanceId();
         if(allXAFileSystems.get(instanceId) != null) {
             throw new XASystemBootFailureException("An instance of XADisk with instance-id [" + instanceId + "] is already"
@@ -188,10 +189,12 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
         NativeXAFileSystem newXAFileSystem = new NativeXAFileSystem(configuration, workManager);
         allXAFileSystems.put(configuration.getInstanceId(), newXAFileSystem);
+        newXAFileSystem.logger.logInfo("Successfully booted the XADisk instance.");
         return newXAFileSystem;
     }
 
     public static NativeXAFileSystem bootXAFileSystemStandAlone(StandaloneFileSystemConfiguration configuration) {
+        doBasicValidationForConfiguration(configuration);
         String instanceId = configuration.getInstanceId();
         if(allXAFileSystems.get(instanceId) != null) {
             throw new XASystemBootFailureException("An instance of XADisk with instance-id [" + instanceId + "] is already"
@@ -202,6 +205,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
                 configuration.getWorkManagerKeepAliveTime());
         NativeXAFileSystem newXAFileSystem = new NativeXAFileSystem(configuration, workManager);
         allXAFileSystems.put(configuration.getInstanceId(), newXAFileSystem);
+        newXAFileSystem.logger.logInfo("Successfully booted the XADisk instance.");
         return newXAFileSystem;
     }
 
@@ -216,6 +220,19 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         } else {
             return false;
         }
+    }
+
+    private static void doBasicValidationForConfiguration(FileSystemConfiguration configuration) {
+        if(!isValidString(configuration.getXaDiskHome())) {
+            throw new XASystemBootFailureException("Invalid value of configuration property [xaDiskHome]");
+        }
+        if(!isValidString(configuration.getInstanceId())) {
+            throw new XASystemBootFailureException("Invalid value of configuration property [instanceId]");
+        }
+    }
+
+    private static boolean isValidString(String s) {
+        return s != null && s.trim().length() > 0;
     }
 
     public void notifyRecoveryComplete() throws IOException {
@@ -611,7 +628,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     public void shutdown() throws IOException {
-        
+        logger.logInfo("Shutting down the XADisk instance...");
         NativeSession allSessions[];
         Collection<NativeSession> sessionsCollection = transactionAndSession.values();
         allSessions = sessionsCollection.toArray(new NativeSession[sessionsCollection.size()]);
@@ -630,13 +647,13 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         if(configuration.getEnableRemoteInvocations()) {
             pointOfContact.release();
         }
-        logger.releaseLogFile();
-        getLogger().close();
         deadLetter.release();
         if (workManager instanceof StandaloneWorkManager) {
             ((StandaloneWorkManager) workManager).shutdown();
         }
         allXAFileSystems.remove(this.configuration.getInstanceId());
+        logger.logInfo("Successfully shutdown the XADisk instance.");
+        logger.release();
     }
 
     int getLockTimeOut() {

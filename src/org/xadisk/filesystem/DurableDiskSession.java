@@ -27,14 +27,15 @@ public class DurableDiskSession {
     }
     
     private enum NATIVE_LIB_NAMES {
-        unix_32_xadisk_lib, unix_64_xadisk_lib,
-        windows_32_xadisk_lib, windows_64_xadisk_lib
+        unix_32_xadisk, unix_64_xadisk,
+        windows_32_xadisk, windows_64_xadisk
+                //these can't contain a "."
     };
     
     public static boolean setupDirectorySynchronization(File xaDiskHome) throws IOException {
         boolean success = false;
         for(NATIVE_LIB_NAMES nativeLibraryName : NATIVE_LIB_NAMES.values()) {
-            success = installAndLoadLibrary(nativeLibraryName.name(), xaDiskHome);
+            success = installAndLoadLibrary(nativeLibraryName.name() + ".native", xaDiskHome);
             if(success) {
                 break;
             }
@@ -63,10 +64,10 @@ public class DurableDiskSession {
         File copiedNativeLib = new File(nativeLibraryHome, nativeLibraryName);
         if(!copiedNativeLib.exists()) {
             FileIOUtility.copyFile(libInputStream, copiedNativeLib, false);
-            try {
-                System.load(copiedNativeLib.getAbsolutePath());
-            } catch(Throwable t) {
-            }
+        }
+        try {
+            System.load(copiedNativeLib.getAbsolutePath());
+        } catch(Throwable t) {
         }
         return testDirectorySynchronizationSetup();
     }
@@ -76,7 +77,7 @@ public class DurableDiskSession {
         File parentDirectory = directory;
         while(parentDirectory != null) {
             allParents.add(parentDirectory.getAbsolutePath());
-            parentDirectory = directory.getParentFile();
+            parentDirectory = parentDirectory.getParentFile();
         }
         Collections.reverse(allParents);
         forceDirectories(allParents.toArray(new String[allParents.size()]));

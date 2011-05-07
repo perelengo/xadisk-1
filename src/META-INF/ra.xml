@@ -43,12 +43,12 @@ This source code is being made available to the public under the terms specified
         <config-property>
             <config-property-name>xaDiskHome</config-property-name>
             <config-property-type>java.lang.String</config-property-type>
-            <config-property-value>C:\\XADisk</config-property-value>
+            <config-property-value></config-property-value>
         </config-property>
         <config-property>
             <config-property-name>instanceId</config-property-name>
             <config-property-type>java.lang.String</config-property-type>
-            <config-property-value>id-1</config-property-value>
+            <config-property-value></config-property-value>
         </config-property>
         <config-property>
             <config-property-name>transactionLogFileMaxSize</config-property-name>

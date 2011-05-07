@@ -29,7 +29,7 @@ public class RemoteXADiskBootup {
             if(cleanSystemDir) {
                 TestUtility.cleanupDirectory(new File(XADiskSystemDirectory));
             }
-            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
+            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "1");
             configuration.setWorkManagerCorePoolSize(100);
             configuration.setWorkManagerMaxPoolSize(100);
             configuration.setTransactionTimeout(Integer.MAX_VALUE);

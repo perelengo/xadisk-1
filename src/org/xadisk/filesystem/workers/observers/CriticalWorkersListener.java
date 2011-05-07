@@ -26,7 +26,6 @@ public class CriticalWorkersListener implements WorkListener {
 
     public void workCompleted(WorkEvent we) {
         if (we.getType() == WorkEvent.WORK_COMPLETED) {
-            //System.out.println("A Work completed..." + we.getSource());
             WorkException workException = we.getException();
             if (workException != null) {
                 xaFileSystem.notifySystemFailure(workException);

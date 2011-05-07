@@ -161,7 +161,6 @@ public class FileIOUtility {
     }
 
     private static boolean makeSpaceForGC() {
-        System.out.println("Bad times: need GC.");
         System.gc();
         System.gc();
         System.gc();
