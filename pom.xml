@@ -12,17 +12,13 @@ Contributor : Christoph Beck
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>dev.java.net.xadisk</groupId>
+    <groupId>java.net.xadisk</groupId>
     <artifactId>xadisk</artifactId>
     <version>SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>XADisk</name>
     <description>Transactional Wrapper for File Systems</description>
-
-    <scm>
-        <connection>scm:https://xadisk.dev.java.net/svn/xadisk</connection>
-    </scm>
-
+	
     <repositories>
         <repository>
             <id>java-dev-repository</id>
@@ -31,7 +27,7 @@ Contributor : Christoph Beck
             <url>http://download.java.net/maven/1/</url>
         </repository>
         <repository>
-            <id>maven2-repository.dev.java.net</id>
+            <id>maven2-repository.java.net</id>
             <name>Java.net Repository for Maven</name>
             <url>http://download.java.net/maven/2</url>
             <layout>default</layout>
@@ -65,24 +61,12 @@ Contributor : Christoph Beck
                     <source>1.5</source>
                     <target>1.5</target>
                     <excludes>
-                        <exclude>org/xadisk/tests/**/*.java</exclude>
-                        <exclude>org/xadisk/examples/**/*.java</exclude>
-                        <exclude>org/xadisk/terminal/**/*.java</exclude>
+                        <exclude>org/xadisk/tests/**/*.*</exclude>
+                        <exclude>org/xadisk/examples/**/*.*</exclude>
+						<exclude>org/xadisk/terminal/**/*.*</exclude>
                     </excludes>
                 </configuration>
             </plugin>
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-rar-plugin</artifactId>
@@ -106,6 +90,9 @@ Contributor : Christoph Beck
                 <directory>src</directory>
                 <excludes>
                     <exclude>**/*.java</exclude>
+					<exclude>org/xadisk/tests/**/*.*</exclude>
+					<exclude>org/xadisk/examples/**/*.*</exclude>
+					<exclude>org/xadisk/terminal/**/*.*</exclude>
                 </excludes>
             </resource>
         </resources>
