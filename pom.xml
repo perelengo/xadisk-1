@@ -67,6 +67,7 @@ Contributor : Christoph Beck
                     <excludes>
                         <exclude>org/xadisk/tests/**/*.java</exclude>
                         <exclude>org/xadisk/examples/**/*.java</exclude>
+                        <exclude>org/xadisk/terminal/**/*.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
