@@ -20,7 +20,7 @@ public class Logger {
     private File logFilePath;
     private PrintStream logFileStream;
     private final byte logLevel;
-    private int logFileSize;
+    private long logFileSize;
     public static final byte ERROR = 1;
     public static final byte WARNING = 2;
     public static final byte INFORMATIONAL = 3;
@@ -28,7 +28,7 @@ public class Logger {
     private static final int LOG_FILE_MAX_SIZE = 1000000;
     private Object[] date;
     MessageFormat formatter = new MessageFormat("{0,date} {0,time}");
-
+    
     public Logger(File logFilePath, byte logLevel) throws IOException {
         if(logFilePath.exists()) {
             logFilePath.renameTo(new File(logFilePath.getAbsolutePath() + "_" + System.currentTimeMillis()));
@@ -75,6 +75,9 @@ public class Logger {
         if (logLevel >= atLogLevel) {
             writeMessageToLogFile(t.getMessage());
             t.printStackTrace(logFileStream);
+            logFileStream.println();
+            logFileStream.flush();
+            setLogFileSize(logFilePath.length());
         }
     }
 
@@ -87,9 +90,16 @@ public class Logger {
         ((Date)date[0]).setTime(System.currentTimeMillis());
         formatter.format(date, sb, null);
 
-        logFileStream.println(sb + " : " + msg + "\n");
-        logFileSize += msg.length();//so logFileSize becomes number of chars (not bytes),
+        String logMsg = sb + " : " + msg + "\n\n";
+        logFileStream.print(logMsg);
+        logFileStream.flush();
+        setLogFileSize(logFileSize + logMsg.length());
+        //so logFileSize becomes number of chars (not bytes),
         //which is ok if we are saving a conversion call to bytes to count them.
+    }
+
+    private void setLogFileSize(long newLogFileSize) {
+        logFileSize = newLogFileSize;
         if(logFileSize >= LOG_FILE_MAX_SIZE) {
             try {
                 rotateLogFile();

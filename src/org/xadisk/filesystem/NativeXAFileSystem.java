@@ -154,7 +154,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             File deadLetterDir = new File(XADiskHome, "deadletter");
             diskSession.createDirectoriesIfRequired(deadLetterDir);
             this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir, this);
-
+            
             diskSession.forceToDisk();
             
             workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
@@ -175,7 +175,11 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             workManager.startWork(recoveryWorker, WorkManager.INDEFINITE, null, workListener);
 
         } catch (Exception e) {
-            throw new XASystemBootFailureException(e);
+            XASystemBootFailureException xasbfe = new XASystemBootFailureException(e);
+            if(logger != null) {
+                logger.logThrowable(xasbfe, Logger.ERROR);
+            }
+            throw xasbfe;
         }
     }
 
