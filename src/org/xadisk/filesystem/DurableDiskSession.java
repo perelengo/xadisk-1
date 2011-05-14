@@ -28,8 +28,10 @@ public class DurableDiskSession {
     
     private enum NATIVE_LIB_NAMES {
         unix_32_xadisk, unix_64_xadisk,
-        windows_32_xadisk, windows_64_xadisk
-                //these can't contain a "."
+        windows_32_xadisk, windows_64_xadisk,
+        mac_32_xadisk, mac_64_xadisk,
+        placeholder_xadisk
+        //these can't contain a "."
     };
     
     public static boolean setupDirectorySynchronization(File xaDiskHome) throws IOException {
@@ -87,27 +89,23 @@ public class DurableDiskSession {
 
     public static void testNativeLibrary() {
         try {
-            InputStream libInputStream = DurableDiskSession.class.getClassLoader().
-                getResourceAsStream("xadisk.lib");
-            File libFilePath = File.createTempFile("xadisk.", ".lib");
-            libFilePath.deleteOnExit();//in case xadisk is terminated abnormally; to get more guarantees for deletion.
-            FileIOUtility.copyFile(libInputStream, libFilePath, false);
-            try {
-                System.load(libFilePath.getAbsolutePath());
-                boolean success = forceDirectories(new String[0]) && true;
-                if(success) {
-                    System.out.println("The native library is working fine.");
-                } else {
-                    throw new Exception("The native library method returned false.");
+            for(NATIVE_LIB_NAMES nativeLibraryName : NATIVE_LIB_NAMES.values()) {
+                InputStream libInputStream = DurableDiskSession.class.getClassLoader().
+                getResourceAsStream("native" + "/" + nativeLibraryName + ".native");
+                File copiedNativeLib = File.createTempFile("xadisk.", ".lib");
+                FileIOUtility.copyFile(libInputStream, copiedNativeLib, false);
+                try {
+                    System.load(copiedNativeLib.getAbsolutePath());
+                    if(forceDirectories(new String[0])) {
+                        System.out.println("Congrats!! The native lib named [" + nativeLibraryName + "] works on your system.");
+                        return;
+                    }
+                }catch(Throwable t) {
                 }
-            } catch (Throwable t) {
-                FileIOUtility.deleteFile(libFilePath);
-                System.out.println("There is some problem in the native library.");
-                t.printStackTrace();
             }
-        } catch(Exception e) {
-            System.out.println("There is some problem; not neessarily in the native library, but may be in setting up.");
-            e.printStackTrace();
+            System.out.println("Sorry. None of the available native libs work on your system.");
+        } catch(IOException ioe) {
+            ioe.printStackTrace();
         }
     }
 
