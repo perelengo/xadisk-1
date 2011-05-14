@@ -185,6 +185,7 @@ public class FileSystemConfiguration implements Serializable {
      * instances can be running within the same JVM).
      * <p> The new XADisk instance (booted directly or via deployment of XADisk JCA Resource Adapter)
      * will be linked to this instanceId.
+     * <p> Value of instance-id cannot be null or empty string.
      * @return value of instanceId.
      */
     public String getInstanceId() {
@@ -197,6 +198,7 @@ public class FileSystemConfiguration implements Serializable {
      * instances can be running within the same JVM).
      * <p> The new XADisk instance (booted directly or via deployment of XADisk JCA Resource Adapter)
      * will be linked to this instanceId.
+     * <p> Value of instance-id cannot be null or empty string.
      * @param instanceId new value of instanceId.
      */
     public void setInstanceId(String instanceId) {
