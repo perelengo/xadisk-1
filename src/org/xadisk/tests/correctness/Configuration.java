@@ -21,7 +21,7 @@ public class Configuration {
     static {
         Properties properties = new Properties();
         try {
-            InputStream configurationStream = ClassLoader.getSystemResourceAsStream("org/xadisk/tests/configuration.properties");
+            InputStream configurationStream = ClassLoader.getSystemResourceAsStream("org/xadisk/tests/correctness/configuration.properties");
             properties.load(configurationStream);
         } catch (Exception e) {
             e.printStackTrace();

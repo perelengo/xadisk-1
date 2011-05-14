@@ -33,7 +33,7 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
 
     public void beforeDelivery(Method meth) throws NoSuchMethodException, ResourceException {
         this.generatedXid = XidImpl.getXidInstanceForLocalTransaction(
-                ((NativeXAFileSystem)XAFileSystemProxy.getNativeXAFileSystemReference("")).getNextLocalTransactionId());
+                ((NativeXAFileSystem)XAFileSystemProxy.getNativeXAFileSystemReference("1")).getNextLocalTransactionId());
         try {
             epXAR.start(generatedXid, XAResource.TMNOFLAGS);
         } catch (XAException xae) {

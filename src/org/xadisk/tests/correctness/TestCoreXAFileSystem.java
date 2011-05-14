@@ -95,7 +95,7 @@ public class TestCoreXAFileSystem {
 
     private static void test(boolean postCrash) {
         try {
-            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
+            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "1");
             configuration.setWorkManagerCorePoolSize(10);
             configuration.setWorkManagerMaxPoolSize(10000);
             configuration.setMaximumConcurrentEventDeliveries(maxConcurrentDeliveries);
@@ -131,7 +131,7 @@ public class TestCoreXAFileSystem {
             }
             TestUtility.waitForAllAtHeaven(allThreads);
             System.out.println("Testing threads completed...Will shutdown the NativeXAFS now.");
-            XAFileSystemProxy.getNativeXAFileSystemReference("").shutdown();
+            XAFileSystemProxy.getNativeXAFileSystemReference("1").shutdown();
         } catch (Throwable t) {
             t.printStackTrace();
         }

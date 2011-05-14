@@ -468,7 +468,7 @@ public class CoreXAFileSystemTests {
 
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
         EndPointActivation epActivation = new EndPointActivation(smef, actSpec);
-        XAFileSystemCommonness xaFileSystem = new RemoteXAFileSystem("localhost", TestUtility.remoteXADiskPort, NativeXAFileSystem.getXAFileSystem(""));
+        XAFileSystemCommonness xaFileSystem = new RemoteXAFileSystem("localhost", TestUtility.remoteXADiskPort, NativeXAFileSystem.getXAFileSystem("1"));
         xaFileSystem.registerEndPointActivation(epActivation);
 
         Session session = xaFileSystem.createSessionForLocalTransaction();
