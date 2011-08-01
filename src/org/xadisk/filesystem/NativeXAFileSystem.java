@@ -299,7 +299,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public NativeSession[] getAllSessions() {
         Collection<NativeSession> sessions = transactionAndSession.values();
-        return sessions.toArray(new NativeSession[sessions.size()]);
+        return sessions.toArray(new NativeSession[0]);
     }
 
     public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events) {
