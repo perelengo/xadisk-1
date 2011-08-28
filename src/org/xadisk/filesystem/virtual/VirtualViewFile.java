@@ -176,7 +176,7 @@ public class VirtualViewFile {
                 }
                 logFileChannel.position(onDiskInfo.getLocation() + srcClone.getHeaderLength());
                 fileViewChannel.transferFrom(logFileChannel, srcClone.getFileContentPosition(),
-                        srcClone.getFileContentLength());
+                        NativeXAFileSystem.maxTransferToChannel(srcClone.getFileContentLength()));
             } else {
                 temp.position(srcClone.getHeaderLength());
                 int sizeToWrite = temp.remaining();
@@ -253,7 +253,7 @@ public class VirtualViewFile {
         long sourceOriginalPosition = sourceChannel.position();
         sourceChannel.position(0);
         while (n < fileLength) {
-            n += fileViewChannel.transferFrom(sourceChannel, n, fileLength - n);
+            n += fileViewChannel.transferFrom(sourceChannel, n, NativeXAFileSystem.maxTransferToChannel(fileLength - n));
         }
         sourceChannel.position(sourceOriginalPosition);
         fileViewChannel.position(0);

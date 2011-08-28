@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class FileIOUtility {
 
@@ -35,7 +36,7 @@ public class FileIOUtility {
                         long size = srcFC.size();
                         long num = 0;
                         while (num < size) {
-                            num += destFC.transferFrom(srcFC, num, size - num);
+                            num += destFC.transferFrom(srcFC, num, NativeXAFileSystem.maxTransferToChannel(size - num));
                         }
                         srcFC.close();
                         destFC.close();
@@ -196,7 +197,7 @@ public class FileIOUtility {
         long contentLength = srcChannel.size();
         long num = 0;
         while (num < contentLength) {
-            num += srcChannel.transferTo(num, contentLength - num, destChannel);
+            num += srcChannel.transferTo(num, NativeXAFileSystem.maxTransferToChannel(contentLength - num), destChannel);
         }
 
         destChannel.force(false);

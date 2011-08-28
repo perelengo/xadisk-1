@@ -751,7 +751,7 @@ public class NativeSession implements SessionCommonness {
             if (logEntry.getFilePosition() <= fc.size()) {
                 while (num < contentLength) {
                     num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
-                            contentLength - num);
+                            NativeXAFileSystem.maxTransferToChannel(contentLength - num));
                 }
             }
         }
@@ -908,7 +908,7 @@ public class NativeSession implements SessionCommonness {
                         if (logEntry.getFilePosition() <= fc.size()) {
                             while (num < contentLength) {
                                 num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
-                                        contentLength - num);
+                                        NativeXAFileSystem.maxTransferToChannel(contentLength - num));
                             }
                         }
                     }

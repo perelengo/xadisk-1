@@ -52,6 +52,7 @@ import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
+import org.xadisk.connector.XAResourceImpl;
 import org.xadisk.connector.inbound.DeadLetterMessageEndpoint;
 import org.xadisk.connector.inbound.LocalEventProcessingXAResource;
 import org.xadisk.filesystem.exceptions.XASystemBootFailureException;
@@ -99,6 +100,9 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     private final int defaultTransactionTimeout;
     private final GlobalHostedContext globalCallbackContext = new GlobalHostedContext();
     private final AtomicLong totalNonPooledBufferSize = new AtomicLong(0);
+    
+    //fix for bug XADISK-85 and potentially similar ones.
+    public static final int FILE_CHANNEL_MAX_TRANSFER = 1024 * 1024 * 8;
 
     private NativeXAFileSystem(FileSystemConfiguration configuration,
             WorkManager workManager) {
@@ -266,6 +270,10 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     public XASession createSessionForXATransaction() {
         checkIfCanContinue();
         return new NativeXASession(this, configuration.getInstanceId());
+    }
+
+    public XAResource getXAResourceForRecovery() {
+        return new XAResourceImpl(this);
     }
 
     public NativeSession getSessionForTransaction(Xid xid) {
@@ -786,5 +794,9 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public long getTotalNonPooledBufferSize() {
         return totalNonPooledBufferSize.get();
+    }
+
+    public static long maxTransferToChannel(long upperLimitOnBytes) {
+        return Math.min(upperLimitOnBytes, FILE_CHANNEL_MAX_TRANSFER);
     }
 }

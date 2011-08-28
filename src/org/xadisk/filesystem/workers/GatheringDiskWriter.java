@@ -296,7 +296,8 @@ public class GatheringDiskWriter extends EventWorker {
                 long startingPosition = transactionLogChannel.position();
                 contents.position(contentPosition);
                 while (n < contentLength) {
-                    n += transactionLogChannel.transferFrom(contents, startingPosition + n, contentLength - n);
+                    n += transactionLogChannel.transferFrom(contents, startingPosition + n, 
+                            NativeXAFileSystem.maxTransferToChannel(contentLength - n));
                 }
                 transactionLogChannel.position(startingPosition + n);
             }
