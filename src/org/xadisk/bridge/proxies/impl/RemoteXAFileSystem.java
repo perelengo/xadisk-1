@@ -22,6 +22,7 @@ import org.xadisk.bridge.proxies.interfaces.XASession;
 import org.xadisk.connector.inbound.EndPointActivation;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.server.conversation.HostedContext;
+import org.xadisk.connector.XAResourceImpl;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 
@@ -73,6 +74,10 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
 
     public XASession createSessionForXATransaction() {
         return new RemoteXASession(this);
+    }
+
+    public XAResource getXAResourceForRecovery() {
+        return new XAResourceImpl(this);
     }
 
     public int getDefaultTransactionTimeout() {
