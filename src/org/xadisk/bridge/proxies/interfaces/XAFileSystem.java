@@ -9,6 +9,7 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.bridge.proxies.interfaces;
 
 import java.io.IOException;
+import javax.transaction.xa.XAResource;
 import org.xadisk.filesystem.exceptions.RecoveryInProgressException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 
@@ -43,6 +44,17 @@ public interface XAFileSystem {
      * @since 1.1
      */
     public XASession createSessionForXATransaction();
+
+    /**
+     * Returns an XAResource object which would enable a standalone JTA Transaction Manager
+     * to perform transaction recovery after a crash. Typically, a Transaction Manager
+     * would retrieve the list of transactions to be recovered using the method {@link XAResource#recover(int)}.
+     * <p> This method is useful for those applications which are running in a non-JCA environment
+     * and are using a standalone JTA Transaction Manager with XADisk and other XA-enabled resources.
+     * @return the XAResource object.
+     * @since 1.2
+     */
+    public XAResource getXAResourceForRecovery();
 
     /**
      * Waits for this XADisk instance to complete its booting and become ready to use. The timeout

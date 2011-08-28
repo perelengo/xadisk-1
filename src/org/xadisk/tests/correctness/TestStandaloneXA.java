@@ -17,7 +17,7 @@ public class TestStandaloneXA {
 
     public static void main(String args[]) {
         try {
-            boolean testRemote = true;
+            boolean testRemote = false;
             int remotePort = 4678;
             StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration("C:\\xa", "1");
             configuration.setEnableRemoteInvocations(Boolean.TRUE);
@@ -32,9 +32,9 @@ public class TestStandaloneXA {
             }
             XASession xaSession = xafs.createSessionForXATransaction();
             XAResource xar = xaSession.getXAResource();
-            TransactionManager tm = new com.atomikos.icatch.jta.UserTransactionManager();
+            //TransactionManager tm = new com.atomikos.icatch.jta.UserTransactionManager();
             //UNCOMMENT ABOVE ONCE YOU BRING ATOMIKOS INTO THE CLASSPATH.
-            //TransactionManager tm = null;
+            TransactionManager tm = null;
             tm.setTransactionTimeout(60);
 
             tm.begin();
@@ -62,10 +62,7 @@ public class TestStandaloneXA {
             } else {
                 xafs = nativeXAFS;
             }
-            xafs.waitForBootup(-1);
-            xaSession = xafs.createSessionForXATransaction();
-            xar = xaSession.getXAResource();
-            Xid xids[] = xar.recover(XAResource.TMSTARTRSCAN);
+            Xid xids[] = xafs.getXAResourceForRecovery().recover(XAResource.TMSTARTRSCAN);
             System.out.println(xids.length);
             nativeXAFS.shutdown();
         } catch (Exception e) {

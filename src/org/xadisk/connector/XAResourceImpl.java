@@ -33,6 +33,12 @@ public class XAResourceImpl implements XAResource {
         transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
     }
 
+    public XAResourceImpl(XAFileSystemCommonness xaFileSystem) {
+        //this xar object supposed to be used only during recovery (i.e. calling recover method on this).
+        this.xaSession = null;
+        this.xaFileSystem = xaFileSystem;
+    }
+
     public void start(Xid xid, int flag) throws XAException {
         XidImpl internalXid = mapToInternalXid(xid);
         if (flag == XAResource.TMNOFLAGS) {
