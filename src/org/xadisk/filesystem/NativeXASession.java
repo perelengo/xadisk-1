@@ -24,7 +24,6 @@ public class NativeXASession implements XASession {
     private volatile XAResourceImpl xaResourceImpl;
     private boolean publishFileStateChangeEventsOnCommit = false;
     private volatile byte typeOfCurrentTransaction = NO_TRANSACTION;
-    private long fileLockWaitTimeout = 100;
     protected volatile XAFileSystem theXAFileSystem;
     public static final byte NO_TRANSACTION = 0;
     public static final byte LOCAL_TRANSACTION = 1;
@@ -48,7 +47,6 @@ public class NativeXASession implements XASession {
         //DO NOT clear the listeners. When trying to implement pooling, this guy
         //tested my patience. [this.listeners.clear();]
         this.publishFileStateChangeEventsOnCommit = false;
-        this.fileLockWaitTimeout = 100;
         this.sessionOfLocalTransaction = null;
         this.sessionOfXATransaction = null;
         this.typeOfCurrentTransaction = NO_TRANSACTION;
@@ -159,8 +157,7 @@ public class NativeXASession implements XASession {
         try {
             return getSessionForCurrentWorkAssociation().getFileLockWaitTimeout();
         } catch(NoTransactionAssociatedException ntae) {
-            //TODO.
-            return 0;
+            return -1;
         }
     }
 
@@ -179,14 +176,9 @@ public class NativeXASession implements XASession {
     }
 
     public void setFileLockWaitTimeout(long fileLockWaitTimeout) {
-        this.fileLockWaitTimeout = fileLockWaitTimeout;
-        switch (typeOfCurrentTransaction) {
-            case LOCAL_TRANSACTION:
-                sessionOfLocalTransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
-                break;
-            case XA_TRANSACTION:
-                sessionOfXATransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
-                break;
+        try {
+            getSessionForCurrentWorkAssociation().setFileLockWaitTimeout(fileLockWaitTimeout);
+        } catch(NoTransactionAssociatedException ntae) {
         }
     }
 
@@ -201,14 +193,12 @@ public class NativeXASession implements XASession {
     public Session refreshSessionForNewXATransaction(XidImpl xid) {
         this.sessionOfXATransaction = ((XAFileSystemCommonness) theXAFileSystem).createSessionForXATransaction(xid);
         this.sessionOfXATransaction.setPublishFileStateChangeEventsOnCommit(publishFileStateChangeEventsOnCommit);
-        this.sessionOfXATransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
         return this.sessionOfXATransaction;
     }
 
     public Session refreshSessionForBeginLocalTransaction() {
         this.sessionOfLocalTransaction = theXAFileSystem.createSessionForLocalTransaction();
         this.sessionOfLocalTransaction.setPublishFileStateChangeEventsOnCommit(publishFileStateChangeEventsOnCommit);
-        this.sessionOfLocalTransaction.setFileLockWaitTimeout(fileLockWaitTimeout);
         return this.sessionOfLocalTransaction;
     }
 

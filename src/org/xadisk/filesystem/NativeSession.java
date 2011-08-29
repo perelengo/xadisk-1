@@ -53,7 +53,7 @@ public class NativeSession implements SessionCommonness {
     private volatile boolean systemGotShutdown = false;
     private volatile Throwable systemFailureCause = null;
     private final TransactionVirtualView view;
-    private long fileLockWaitTimeout = 200;
+    private long fileLockWaitTimeout = 0;
     private final ResourceDependencyGraph RDG;
     private boolean createdForRecovery = false;
     private ArrayList<FileSystemStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileSystemStateChangeEvent>(10);

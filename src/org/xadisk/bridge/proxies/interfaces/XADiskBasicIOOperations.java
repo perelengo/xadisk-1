@@ -83,6 +83,7 @@ public interface XADiskBasicIOOperations {
      * and release the locks.
      * <p> Note that the value of lock wait timeout period defaults to the
      * {@link FileSystemConfiguration#getLockTimeOut() global-configuration}.
+     * <p> If there is no transaction currently associated with this object, a value of -1 is returned.
      * @return the lock wait timeout, in milliseconds.
      */
     public long getFileLockWaitTimeout();
@@ -94,6 +95,7 @@ public interface XADiskBasicIOOperations {
      * and release the locks.
      * <p> Note that the value of lock wait timeout period defaults to the
      * {@link FileSystemConfiguration#getLockTimeOut() global-configuration}.
+     * <p> If there is no transaction currently associated with this object, this method is ineffective.
      * @param fileLockWaitTimeout the new lock wait timeout, in milliseconds.
      */
     public void setFileLockWaitTimeout(long fileLockWaitTimeout);

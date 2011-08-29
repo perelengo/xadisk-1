@@ -25,7 +25,6 @@ public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConne
     private volatile XADiskManagedConnection mc;
     private final XADiskUserLocalTransaction userLocalTransaction;
     private boolean publishFileStateChangeEventsOnCommit = false;
-    private long fileLockWaitTimeout = 100;
 
     protected XADiskConnectionImpl(XADiskManagedConnection mc) {
         this.mc = mc;
@@ -151,11 +150,10 @@ public class XADiskConnectionImpl implements XADiskConnection, XADiskRemoteConne
     }
 
     public long getFileLockWaitTimeout() {
-        return fileLockWaitTimeout;
+        return this.mc.getFileLockWaitTimeout();
     }
 
     public void setFileLockWaitTimeout(long fileLockWaitTimeout) {
-        this.fileLockWaitTimeout = fileLockWaitTimeout;
         this.mc.setFileLockWaitTimeout(fileLockWaitTimeout);
     }
 }
