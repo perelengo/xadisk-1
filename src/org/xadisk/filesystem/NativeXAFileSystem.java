@@ -394,10 +394,12 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
                         break;
                     }
                     long now2 = System.currentTimeMillis();
-                    remainingTime = remainingTime - (now2 - now1);
-                    if (!indefiniteWait && remainingTime <= 0) {
-                        removeDependencyFromRDG(requestor);
-                        throw new LockingTimedOutException(f.getAbsolutePath());
+                    if(!indefiniteWait) {
+                        remainingTime = remainingTime - (now2 - now1);
+                        if (remainingTime <= 0) {
+                            removeDependencyFromRDG(requestor);
+                            throw new LockingTimedOutException(f.getAbsolutePath());
+                        }
                     }
                 } catch (InterruptedException ie) {
                     removeDependencyFromRDG(requestor);
@@ -531,10 +533,12 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
                         break;
                     }
                     long now2 = System.currentTimeMillis();
-                    remainingTime = remainingTime - (now2 - now1);
-                    if (!indefiniteWait && remainingTime <= 0) {
-                        removeDependencyFromRDG(requestor);
-                        throw new LockingTimedOutException(f.getAbsolutePath());
+                    if(!indefiniteWait) {
+                        remainingTime = remainingTime - (now2 - now1);
+                        if (remainingTime <= 0) {
+                            removeDependencyFromRDG(requestor);
+                            throw new LockingTimedOutException(f.getAbsolutePath());
+                        }
                     }
                 } catch (InterruptedException ie) {
                     removeDependencyFromRDG(requestor);
