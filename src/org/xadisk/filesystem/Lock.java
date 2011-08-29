@@ -89,11 +89,19 @@ public class Lock {
     }
 
     void waitTillReadable(long time) throws InterruptedException {
-        mayBeReadable.await(time, TimeUnit.MILLISECONDS);
+        if(time > 0) {
+            mayBeReadable.await(time, TimeUnit.MILLISECONDS);
+        } else {
+            mayBeReadable.await();
+        }
     }
 
     void waitTillWritable(long time) throws InterruptedException {
-        mayBeWritable.await(time, TimeUnit.MILLISECONDS);
+        if(time > 0) {
+            mayBeWritable.await(time, TimeUnit.MILLISECONDS);
+        } else {
+            mayBeWritable.await();
+        }
     }
     
     void notifyWritable() {
