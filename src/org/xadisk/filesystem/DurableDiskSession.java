@@ -82,7 +82,7 @@ public class DurableDiskSession {
             parentDirectory = parentDirectory.getParentFile();
         }
         Collections.reverse(allParents);
-        forceDirectories(allParents.toArray(new String[allParents.size()]));
+        forceDirectories(allParents.toArray(new String[0]));
     }
     
     private static native boolean forceDirectories(String directoryPaths[]);

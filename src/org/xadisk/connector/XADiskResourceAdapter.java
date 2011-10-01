@@ -113,6 +113,6 @@ public class XADiskResourceAdapter extends FileSystemConfiguration implements Re
             }
             xars.add(uniqueXAFileSystem.getEventProcessingXAResourceForRecovery());
         }
-        return xars.toArray(new XAResource[xars.size()]);
+        return xars.toArray(new XAResource[0]);
     }
 }

@@ -179,8 +179,8 @@ class VirtualViewDirectory {
         readDirectoryContents();
         Set<String> allFilesKeys = allFiles.keySet();
         Set<String> allDirsKeys = allDirs.keySet();
-        String files[] = allFilesKeys.toArray(new String[allFilesKeys.size()]);
-        String dirs[] = allDirsKeys.toArray(new String[allDirsKeys.size()]);
+        String files[] = allFilesKeys.toArray(new String[0]);
+        String dirs[] = allDirsKeys.toArray(new String[0]);
         String all[] = new String[files.length + dirs.length];
         for (int i = 0; i < files.length; i++) {
             all[i] = files[i];

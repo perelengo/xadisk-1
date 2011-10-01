@@ -337,7 +337,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
         this.transactionsPreparedPreCrash = recoveryWorker.getPreparedInDoubtTransactions();
         Xid xids[];
-        xids = transactionsPreparedPreCrash.toArray(new Xid[transactionsPreparedPreCrash.size()]);
+        xids = transactionsPreparedPreCrash.toArray(new Xid[0]);
         returnedAllPreparedTransactions = true;
         return xids;
     }
