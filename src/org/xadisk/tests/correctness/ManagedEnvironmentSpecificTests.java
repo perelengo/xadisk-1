@@ -19,7 +19,7 @@ import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class ManagedEnvironmentSpecificTests {
 
@@ -122,7 +122,7 @@ public class ManagedEnvironmentSpecificTests {
     }
 
     private static Xid getNewXid(long plainTransactionId) {
-        return XidImpl.getXidInstanceForLocalTransaction(plainTransactionId);
+        return TransactionInformation.getXidInstanceForLocalTransaction(plainTransactionId);
     }
 
     private static void waitForXAFileSystemToBeUp(NativeXAFileSystem xaFileSystem) {

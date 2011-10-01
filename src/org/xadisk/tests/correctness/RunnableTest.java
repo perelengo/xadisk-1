@@ -20,22 +20,23 @@ class RunnableTest implements Runnable {
 
     public void run() {
         try {
+            CoreXAFileSystemTests coreXAFileSystemTests = new CoreXAFileSystemTests();
             if (testName.equals(CoreXAFileSystemTests.testNames.testConcurrentMoneyTransfer)) {
-                CoreXAFileSystemTests.testConcurrentMoneyTransfer(testDirectory);
+                coreXAFileSystemTests.testConcurrentMoneyTransfer(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testIOOperations)) {
-                CoreXAFileSystemTests.testIOOperations(testDirectory);
+                coreXAFileSystemTests.testIOOperations(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testDynamicReadWrite)) {
-                CoreXAFileSystemTests.testDynamicReadWrite(testDirectory);
+                coreXAFileSystemTests.testDynamicReadWrite(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testFileSystemEventing)) {
-                CoreXAFileSystemTests.testFileSystemEventing(testDirectory);
+                coreXAFileSystemTests.testFileSystemEventing(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testConcurrentMoneyTransferPostCrash)) {
-                CoreXAFileSystemTests.testConcurrentMoneyTransferPostCrash(testDirectory);
+                coreXAFileSystemTests.testConcurrentMoneyTransferPostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testDynamicReadWritePostCrash)) {
-                CoreXAFileSystemTests.testDynamicReadWritePostCrash(testDirectory);
+                coreXAFileSystemTests.testDynamicReadWritePostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testIOOperationsPostCrash)) {
-                CoreXAFileSystemTests.testIOOperationsPostCrash(testDirectory);
+                coreXAFileSystemTests.testIOOperationsPostCrash(testDirectory);
             } else if (testName.equals(CoreXAFileSystemTests.testNames.testFileSystemEventingPostCrash)) {
-                CoreXAFileSystemTests.testFileSystemEventingPostCrash(testDirectory);
+                coreXAFileSystemTests.testFileSystemEventingPostCrash(testDirectory);
             }
         } catch (Throwable t) {
             System.out.println("Test failed " + testName + " in " + testDirectory + " due to " + t);

@@ -31,22 +31,22 @@ public class CoreXAFileSystemTests {
     static enum testNames {testIOOperations, testIOOperationsPostCrash, testDynamicReadWrite,
         testDynamicReadWritePostCrash, testConcurrentMoneyTransfer, testConcurrentMoneyTransferPostCrash,
         testFileSystemEventing, testFileSystemEventingPostCrash};
-        
     private static final String SEPERATOR = File.separator;
-    private static Session ioOperationsSession;
-    private static File ioOperationsRoot1;
-    private static File ioOperationsRoot2;
-    private static File baseForRollbackRoot;
-    private static int nextCheckpointAt = -1;
-    private static int currentCheckpoint = 0;
-    private static boolean checkForRollbackNext = false;
     static Object namesake = new CoreXAFileSystemTests();
     static boolean testProgressive = false;
     static boolean testHighNumber = false;
     static boolean usePessimisticLock = true;
     static final int initialFileSizeForDynamicRWTest = 100000;
+    
+    private Session ioOperationsSession;
+    private File ioOperationsRoot1;
+    private File ioOperationsRoot2;
+    private File baseForRollbackRoot;
+    private int nextCheckpointAt = -1;
+    private int currentCheckpoint = 0;
+    private boolean checkForRollbackNext = false;
 
-    public static void testIOOperations(String testDirectory) throws Exception {
+    public void testIOOperations(String testDirectory) throws Exception {
         if (testProgressive) {
             checkForRollbackNext = true;
             for (int i = -1; i <= 40; i++) {
@@ -74,7 +74,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    private static void testIOOperationsOneRound(String testDirectory, boolean testHighNumber) throws Exception {
+    private void testIOOperationsOneRound(String testDirectory, boolean testHighNumber) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -217,7 +217,7 @@ public class CoreXAFileSystemTests {
         System.out.println("Done.");
     }
 
-    private static void checkpoint() throws Exception {
+    private void checkpoint() throws Exception {
         if (nextCheckpointAt == -1 || currentCheckpoint == nextCheckpointAt) {
             if (checkForRollbackNext) {
                 System.out.println("Rolling Back...");
@@ -325,7 +325,7 @@ public class CoreXAFileSystemTests {
         TestUtility.compareDiskAndDisk(fileRoot2, fileRoot1);
     }
 
-    public static void testDynamicReadWritePostCrash(String testDirectory) throws Exception {
+    public void testDynamicReadWritePostCrash(String testDirectory) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -354,7 +354,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testConcurrentMoneyTransfer(String testDirectory)
+    public void testConcurrentMoneyTransfer(String testDirectory)
             throws Exception {
         final File rich = new File(testDirectory + SEPERATOR + "rich.txt");
         final File poor = new File(testDirectory + SEPERATOR + "poor.txt");
@@ -398,7 +398,7 @@ public class CoreXAFileSystemTests {
         verifyMoneyTransfersPostAllCommit(rich, poor);
     }
 
-    private static void plainOldMoneyTransfer(File rich, File poor, Session session,
+    private void plainOldMoneyTransfer(File rich, File poor, Session session,
             boolean bePessimistic) throws Exception {
         XAFileInputStream xisPoor = session.createXAFileInputStream(poor, bePessimistic);
         XAFileInputStream xisRich = session.createXAFileInputStream(rich, bePessimistic);
@@ -426,7 +426,7 @@ public class CoreXAFileSystemTests {
         ((SessionCommonness)session).commit(true);
     }
 
-    private static void verifyMoneyTransfersPostAllCommit(File rich, File poor) throws Exception {
+    private void verifyMoneyTransfersPostAllCommit(File rich, File poor) throws Exception {
         FileInputStream fisRich = new FileInputStream(rich);
         for (int i = 0; i < fisRich.getChannel().size(); i++) {
             if (fisRich.read() != 100 - i) {
@@ -444,7 +444,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testConcurrentMoneyTransferPostCrash(String testDirectory)
+    public void testConcurrentMoneyTransferPostCrash(String testDirectory)
             throws Exception {
         File rich = new File(testDirectory + SEPERATOR + "rich.txt");
         File poor = new File(testDirectory + SEPERATOR + "poor.txt");
@@ -453,7 +453,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testFileSystemEventing(String testDirectory) throws Exception {
+    public void testFileSystemEventing(String testDirectory) throws Exception {
         File testDirectoryFile = new File(testDirectory);
         TestUtility.cleanupDirectory(testDirectoryFile);
         FileIOUtility.createDirectoriesIfRequired(testDirectoryFile);
@@ -486,11 +486,11 @@ public class CoreXAFileSystemTests {
         System.out.println("Inbound Messaging Test Successful.");
     }
 
-    public static void testFileSystemEventingPostCrash(String testDirectory) throws Exception {
+    public void testFileSystemEventingPostCrash(String testDirectory) throws Exception {
         return;
     }
 
-    public static void resetIOOperationsSession() {
+    public void resetIOOperationsSession() {
         ioOperationsSession = TestUtility.getXAFileSystemForTest().createSessionForLocalTransaction();
     }
 }

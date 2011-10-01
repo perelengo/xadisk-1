@@ -30,7 +30,7 @@ public class TestCoreXAFileSystem {
     static boolean testCrashRecovery = false;
     static int concurrencyLevel = 1;
     static int numberOfCrashes = 100;
-    static int maxConcurrentDeliveries = 2;
+    static int maxConcurrentDeliveries = 1;
 
     public static void main(String args[]) {
         try {
@@ -124,6 +124,8 @@ public class TestCoreXAFileSystem {
                     }
                 }
                 for (int i = 0; i < 4; i++) {
+                    if(i != 0)
+                        continue;
                     tests[i].setName(transactionDemarcatingThread);
                     tests[i].start();
                     allThreads.add(tests[i]);
@@ -132,6 +134,7 @@ public class TestCoreXAFileSystem {
             TestUtility.waitForAllAtHeaven(allThreads);
             System.out.println("Testing threads completed...Will shutdown the NativeXAFS now.");
             XAFileSystemProxy.getNativeXAFileSystemReference("1").shutdown();
+            
         } catch (Throwable t) {
             t.printStackTrace();
         }

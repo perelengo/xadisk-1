@@ -17,13 +17,13 @@ import org.xadisk.bridge.proxies.interfaces.XAFileSystemProxy;
 import org.xadisk.connector.inbound.FileSystemEventListener;
 import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEventListener {
 
     private XAResource epXAR;
     private SimulatedMessageEndpointFactory owningFactory;
-    private XidImpl generatedXid;
+    private TransactionInformation generatedXid;
     public SimulatedMessageEndpointFactory.GoTill goTill;
 
     public SimulatedMessageEndpoint(XAResource epXAR, SimulatedMessageEndpointFactory owningFactory) {
@@ -32,7 +32,7 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
     }
 
     public void beforeDelivery(Method meth) throws NoSuchMethodException, ResourceException {
-        this.generatedXid = XidImpl.getXidInstanceForLocalTransaction(
+        this.generatedXid = TransactionInformation.getXidInstanceForLocalTransaction(
                 ((NativeXAFileSystem)XAFileSystemProxy.getNativeXAFileSystemReference("1")).getNextLocalTransactionId());
         try {
             epXAR.start(generatedXid, XAResource.TMNOFLAGS);

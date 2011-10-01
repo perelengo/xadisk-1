@@ -18,7 +18,7 @@ import org.xadisk.connector.outbound.XADiskManagedConnection;
 import org.xadisk.connector.outbound.XADiskManagedConnectionFactory;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.XAFileSystemCommonness;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 
@@ -182,7 +182,7 @@ public class TestManagedEnvironmentCrashRecovery {
     }
 
     private static Xid getNewXid() {
-        return XidImpl.getXidInstanceForLocalTransaction(txnId++);
+        return TransactionInformation.getXidInstanceForLocalTransaction(txnId++);
     }
 
     private static void assertCommit(File f) {
