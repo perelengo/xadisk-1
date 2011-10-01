@@ -482,7 +482,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         this.systemFailureCause = systemFailureCause;
         NativeSession allSessions[];
         Collection<NativeSession> sessionsCollection = transactionAndSession.values();
-        allSessions = sessionsCollection.toArray(new NativeSession[sessionsCollection.size()]);
+        allSessions = sessionsCollection.toArray(new NativeSession[0]);
         for (int i = 0; i < allSessions.length; i++) {
             allSessions[i].notifySystemFailure(systemFailureCause);
         }

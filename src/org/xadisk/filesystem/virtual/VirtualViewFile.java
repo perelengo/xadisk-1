@@ -456,7 +456,10 @@ public class VirtualViewFile {
     protected void finalize() throws Throwable {
         if (usingHeavyWriteOptimization) {
             try {
-                fileViewChannel.close();
+                //TODO - remove this check. it is for debugging file deletion/renaming failure in rare cases.
+                if(fileViewChannel.isOpen()) {
+                    throw new IOException("The File Channel was left open.");
+                }
             } catch (IOException ioe) {
                 xaFileSystem.notifySystemFailure(ioe);
             }

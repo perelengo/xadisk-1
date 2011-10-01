@@ -73,11 +73,12 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
     }
 
     public XASession createSessionForXATransaction() {
+        //what about "checkIfContinue" check here, as in native xafs case?
         return new RemoteXASession(this);
     }
 
     public XAResource getXAResourceForRecovery() {
-        return new XAResourceImpl(this);
+        return new XAResourceImpl(new RemoteXASession(this));
     }
 
     public int getDefaultTransactionTimeout() {
