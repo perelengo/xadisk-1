@@ -21,6 +21,8 @@ import org.xadisk.bridge.proxies.interfaces.XAFileSystemProxy;
 
 public class XASystemBootFailureException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     private String reason;
     
     public XASystemBootFailureException(Throwable cause) {

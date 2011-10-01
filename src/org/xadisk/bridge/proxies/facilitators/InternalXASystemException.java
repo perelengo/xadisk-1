@@ -12,6 +12,8 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class InternalXASystemException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     public InternalXASystemException(Throwable cause) {
         super(cause);
     }

@@ -17,6 +17,8 @@ import org.xadisk.bridge.proxies.interfaces.Lock;
 
 public class NativeLock implements Lock {
 
+    private static final long serialVersionUID = 1L;
+    
     private final File resource;
     private boolean exclusive = false;
     private boolean upgraded = false;

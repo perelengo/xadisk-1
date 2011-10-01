@@ -27,6 +27,8 @@ import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
 
 public class FileAlreadyExistsException extends XAApplicationException {
 
+    private static final long serialVersionUID = 1L;
+    
     private String path;
 
     public FileAlreadyExistsException(String path) {

@@ -28,6 +28,8 @@ import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
 
 public class DirectoryPinningFailedException extends LockingFailedException {
 
+    private static final long serialVersionUID = 1L;
+    
     private final String descendantPath;
 
     public DirectoryPinningFailedException(String path, String descendantPath) {

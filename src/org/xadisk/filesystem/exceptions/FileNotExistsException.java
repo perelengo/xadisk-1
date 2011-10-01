@@ -25,6 +25,8 @@ import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
 
 public class FileNotExistsException extends XAApplicationException {
 
+    private static final long serialVersionUID = 1L;
+    
     private String path;
 
     public FileNotExistsException(String path) {

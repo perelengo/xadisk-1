@@ -12,6 +12,8 @@ import org.xadisk.filesystem.exceptions.XASystemException;
 
 public class ContextOutOfSyncException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     public ContextOutOfSyncException(String message) {
         super(message);
     }

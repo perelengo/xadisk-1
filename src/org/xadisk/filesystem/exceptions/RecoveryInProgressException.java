@@ -38,6 +38,8 @@ import org.xadisk.connector.outbound.XADiskConnectionFactory;
 
 public class RecoveryInProgressException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     @Override
     public String getMessage() {
         return "This XADisk instance has not yet completed its crash recovery process.";

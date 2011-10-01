@@ -10,6 +10,8 @@ package org.xadisk.tests.correctness;
 
 public class AssertionFailedException extends Exception {
 
+    private static final long serialVersionUID = 1L;
+    
     public AssertionFailedException(String reason) {
         super(reason);
     }

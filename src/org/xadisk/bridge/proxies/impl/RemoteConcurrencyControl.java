@@ -16,6 +16,8 @@ import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 
 public class RemoteConcurrencyControl extends RemoteObjectProxy implements ConcurrencyControl {
 
+    private static final long serialVersionUID = 1L;
+    
     public RemoteConcurrencyControl(String serverAddress, int serverPort) {
         super(1, new RemoteMethodInvoker(serverAddress, serverPort));
     }

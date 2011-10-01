@@ -20,6 +20,8 @@ package org.xadisk.filesystem.exceptions;
 
 public abstract class XAApplicationException extends Exception {
 
+    private static final long serialVersionUID = 1L;
+    
     public XAApplicationException() {
     }
 

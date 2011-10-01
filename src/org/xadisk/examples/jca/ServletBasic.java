@@ -49,6 +49,8 @@ import org.xadisk.filesystem.exceptions.XAApplicationException;
  */
 public class ServletBasic extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
+    
     //the test-file used by the application logic.
     private static final String testFile = "C:\\orders3.csv";
     //the connection-factory pointing to the target XADisk instance.

@@ -17,6 +17,8 @@ package org.xadisk.filesystem.exceptions;
 
 public class TransactionTimeoutException extends XAApplicationException {
 
+    private static final long serialVersionUID = 1L;
+    
     @Override
     public String getMessage() {
         return "The transaction associated earlier was rolled back by XADisk because the transaction"

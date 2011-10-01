@@ -35,6 +35,8 @@ import org.xadisk.connector.outbound.XADiskUserLocalTransaction;
 
 public class NoTransactionAssociatedException extends XAApplicationException {
 
+    private static final long serialVersionUID = 1L;
+    
     public NoTransactionAssociatedException() {
     }
 

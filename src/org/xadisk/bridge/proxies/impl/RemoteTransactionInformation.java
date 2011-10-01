@@ -4,6 +4,8 @@ import org.xadisk.filesystem.TransactionInformation;
 
 public class RemoteTransactionInformation extends TransactionInformation {
 
+    private static final long serialVersionUID = 1L;
+    
     private String serverAddress;
     private Integer serverPort;
 

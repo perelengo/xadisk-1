@@ -37,6 +37,8 @@ import org.xadisk.connector.outbound.XADiskUserLocalTransaction;
  */
 
 public class TransactionRolledbackException extends NoTransactionAssociatedException {
+
+    private static final long serialVersionUID = 1L;
     
     public TransactionRolledbackException(Throwable cause) {
         super(cause);

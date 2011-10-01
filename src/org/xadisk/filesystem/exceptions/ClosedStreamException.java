@@ -19,4 +19,7 @@ import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
  * @since 1.0
  */
 public class ClosedStreamException extends XAApplicationException {
+
+    private static final long serialVersionUID = 1L;
+    
 }

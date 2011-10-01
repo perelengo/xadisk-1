@@ -30,6 +30,8 @@ import org.xadisk.filesystem.FileSystemConfiguration;
 
 public class LockingTimedOutException extends LockingFailedException {
 
+    private static final long serialVersionUID = 1L;
+    
     public LockingTimedOutException(String path) {
         super(path);
     }

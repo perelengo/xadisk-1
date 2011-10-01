@@ -23,6 +23,8 @@ import org.xadisk.bridge.proxies.interfaces.XADiskBasicIOOperations;
  */
 public class AncestorPinnedException extends LockingFailedException {
 
+    private static final long serialVersionUID = 1L;
+    
     private final String ancestorPath;
 
     public AncestorPinnedException(String path, String ancestorPath) {

@@ -17,6 +17,8 @@ package org.xadisk.filesystem.exceptions;
 
 public class XASystemNoMoreAvailableException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     private final String message;
     
     public XASystemNoMoreAvailableException(Throwable cause) {

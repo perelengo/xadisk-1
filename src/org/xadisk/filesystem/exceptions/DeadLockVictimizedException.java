@@ -21,6 +21,8 @@ package org.xadisk.filesystem.exceptions;
 
 public class DeadLockVictimizedException extends XAApplicationException {
 
+    private static final long serialVersionUID = 1L;
+    
     private String path;
 
     public DeadLockVictimizedException(String path) {

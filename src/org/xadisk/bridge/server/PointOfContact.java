@@ -20,7 +20,7 @@ import javax.resource.spi.work.WorkException;
 import org.xadisk.filesystem.NativeXAFileSystem;
 
 public class PointOfContact implements Work {
-
+    
     private final ServerSocket serverSocket;
     private final ServerSocketChannel serverSocketChannel;
     private volatile boolean enabled = true;

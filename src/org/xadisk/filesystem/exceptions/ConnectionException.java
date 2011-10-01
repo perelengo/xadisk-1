@@ -19,6 +19,8 @@ package org.xadisk.filesystem.exceptions;
 
 public class ConnectionException extends XASystemException {
 
+    private static final long serialVersionUID = 1L;
+    
     public ConnectionException(Throwable cause) {
         super(cause);
     }
