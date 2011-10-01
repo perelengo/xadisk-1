@@ -32,6 +32,10 @@ import org.xadisk.bridge.proxies.facilitators.ByteArrayRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.MethodSerializabler;
 import org.xadisk.bridge.proxies.facilitators.OptimizedRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.SerializedMethod;
+import org.xadisk.bridge.proxies.impl.RemoteLock;
+import org.xadisk.bridge.proxies.impl.RemoteTransactionInformation;
+import org.xadisk.bridge.proxies.interfaces.Lock;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class RemoteMethodInvocationHandler implements Work {
 
@@ -58,7 +62,6 @@ public class RemoteMethodInvocationHandler implements Work {
     public void run() {
         byte[] methodInvocationResponse;
         try {
-            context.reAssociatedTransactionThreadWithSessions(Thread.currentThread());
             methodInvocationResponse = handleRemoteInvocation(context.getCurrentMethodInvocation());
         } catch (Throwable t) {
             methodInvocationResponse = handleInvocationFailedSystemError(t);
@@ -112,7 +115,7 @@ public class RemoteMethodInvocationHandler implements Work {
         ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(invocation));
 
         long targetObjectId = ois.readLong();
-        Object targetObject = context.getInvocationTarget(targetObjectId);
+        Object targetObject = context.getLocalObjectFromProxy(targetObjectId);
         if (targetObject == null) {
             throw new ContextOutOfSyncException("No object with id " + targetObjectId);
         }
@@ -129,39 +132,17 @@ public class RemoteMethodInvocationHandler implements Work {
         for (int i = 0; i < numOfArgs; i++) {
             args[i] = ois.readObject();
             argTypes[i] = args[i].getClass();
-            if (args[i] instanceof OptimizedRemoteReference) {
-                OptimizedRemoteReference remoteRef = (OptimizedRemoteReference) args[i];
-                args[i] = remoteRef.regenerateRemoteObject();
-                regenerateObjects.add(args[i]);
-                remoteReferences.add(remoteRef);
-            }
-            if (args[i] instanceof SerializedMethod) {
-                SerializedMethod serializedMethod = (SerializedMethod) args[i];
-                args[i] = new MethodSerializabler().reconstruct(serializedMethod);
-                argTypes[i] = Method.class;
-            }
-            argTypes[i] = getApplicableInterfaceClassIfRequired(args[i]);
-            argTypes[i] = getPrimitiveClassIfRequired(argTypes[i]);
         }
+        processMethodArguments(args, argTypes, remoteReferences, regenerateObjects);
         Method method = targetObject.getClass().getMethod(methodName, argTypes);
         boolean isError = false;
         Object response;
         try {
             response = method.invoke(targetObject, args);
-            for (int i = 0; i < remoteReferences.size(); i++) {
-                OptimizedRemoteReference ref = remoteReferences.get(i);
-                if (ref instanceof ByteArrayRemoteReference) {
-                    ByteArrayRemoteReference barr = (ByteArrayRemoteReference) ref;
-                    Integer bytesGotUpdated = (Integer) response;
-                    byte[] inputArgument = (byte[]) regenerateObjects.get(i);
-                    byte[] minimalToSend = new byte[bytesGotUpdated];
-                    System.arraycopy(inputArgument, 0, minimalToSend, 0, bytesGotUpdated);
-                    barr.setResultObject(minimalToSend);
-                }
-            }
+            processOptimizedRemoteReferences(targetObject, remoteReferences, regenerateObjects);
             //note that in case of method thrown exception, the remote arguments are not geting updated. That would be fine for current applications.
             response = context.convertToProxyResponseIfRequired(response);
-            checkForMessageEndpointRelease(targetObject, method);
+            postInvocation(targetObject, method);
         } catch (InvocationTargetException ite) {
             response = ite.getCause();
             isError = true;
@@ -177,17 +158,64 @@ public class RemoteMethodInvocationHandler implements Work {
         return baos.toByteArray();
     }
 
+    private void processMethodArguments(Object args[], Class argTypes[], ArrayList<OptimizedRemoteReference> remoteReferences,
+            ArrayList<Object> regenerateObjects) throws IOException {
+        for (int i = 0; i < args.length; i++) {
+            if(xaFileSystem.getHandleGeneralRemoteInvocations()) {
+                if (args[i] instanceof OptimizedRemoteReference) {
+                    OptimizedRemoteReference remoteRef = (OptimizedRemoteReference) args[i];
+                    args[i] = remoteRef.regenerateRemoteObject();
+                    regenerateObjects.add(args[i]);
+                    remoteReferences.add(remoteRef);
+                }
+                if (args[i] instanceof SerializedMethod) {
+                    SerializedMethod serializedMethod = (SerializedMethod) args[i];
+                    args[i] = new MethodSerializabler().reconstruct(serializedMethod);
+                    argTypes[i] = Method.class;
+                }
+            }
+            if(xaFileSystem.getHandleClusterRemoteInvocations()) {
+                if (args[i] instanceof RemoteLock) {
+                RemoteLock remoteLock = (RemoteLock) args[i];
+                args[i] = context.getLocalObjectFromProxy(remoteLock.getRemoteObjectId());
+                argTypes[i] = args[i].getClass();
+            }
+            }
+            argTypes[i] = getApplicableInterfaceClassIfRequired(args[i]);
+            argTypes[i] = getPrimitiveClassIfRequired(argTypes[i]);
+        }
+    }
+
+    private void processOptimizedRemoteReferences(Object response, ArrayList<OptimizedRemoteReference> remoteReferences,
+            ArrayList<Object> regenerateObjects) {
+        if(xaFileSystem.getHandleGeneralRemoteInvocations()) {
+            for (int i = 0; i < remoteReferences.size(); i++) {
+                OptimizedRemoteReference ref = remoteReferences.get(i);
+                if (ref instanceof ByteArrayRemoteReference) {
+                    ByteArrayRemoteReference barr = (ByteArrayRemoteReference) ref;
+                    Integer bytesGotUpdated = (Integer) response;
+                    byte[] inputArgument = (byte[]) regenerateObjects.get(i);
+                    byte[] minimalToSend = new byte[bytesGotUpdated];
+                    System.arraycopy(inputArgument, 0, minimalToSend, 0, bytesGotUpdated);
+                    barr.setResultObject(minimalToSend);
+                }
+            }
+        }
+    }
+    
+    private void postInvocation(Object targetObject, Method method) throws NoSuchMethodException {
+        if(xaFileSystem.getHandleGeneralRemoteInvocations()) {
+            if(method.equals(MessageEndpoint.class.getMethod("release", new Class[0]))) {
+                HostedContext globalCallbackContext = xaFileSystem.getGlobalCallbackContext();
+                globalCallbackContext.deHostObject(targetObject);
+            }
+        }
+    }
+
     public void release() {
         enabled = false;
         if (writeSelector.isOpen()) {
             writeSelector.wakeup();
-        }
-    }
-
-    private void checkForMessageEndpointRelease(Object targetObject, Method method) throws NoSuchMethodException {
-        if(method.equals(MessageEndpoint.class.getMethod("release", new Class[0]))) {
-            HostedContext globalCallbackContext = xaFileSystem.getGlobalCallbackContext();
-            globalCallbackContext.deHostObject(targetObject);
         }
     }
 
@@ -220,14 +248,25 @@ public class RemoteMethodInvocationHandler implements Work {
     }
 
     private Class getApplicableInterfaceClassIfRequired(Object obj) {
-        if (obj instanceof XAResource) {
-            return XAResource.class;
-            //this was to do avoid a strange/unexpected error saying NoSuchMethodException in cases
-            //when the parameter-type (during method invocation via reflection) was specified as an
-            //implementing class name instead of the interface.
+        //this was to do avoid a strange/unexpected error saying NoSuchMethodException in cases
+        //when the parameter-type (during method invocation via reflection) was specified as an
+        //implementing class name instead of the interface.
+        if(xaFileSystem.getHandleGeneralRemoteInvocations()) {
+            if (obj instanceof XAResource) {
+                return XAResource.class;
+            }
+            if (obj instanceof Xid) {
+                //todo - use some cleaner approach here.
+                if(obj instanceof RemoteTransactionInformation) {
+                    return TransactionInformation.class;
+                }
+                return Xid.class;
+            }
         }
-        if (obj instanceof Xid) {
-            return Xid.class;//reason same as above.
+        if(xaFileSystem.getHandleClusterRemoteInvocations()) {
+            if (obj instanceof Lock) {
+                return Lock.class;
+            }
         }
         return obj.getClass();
     }

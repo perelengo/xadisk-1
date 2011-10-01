@@ -72,11 +72,7 @@ public class RemoteMessageEndpointFactory extends RemoteObjectProxy implements M
     }
 
     public void shutdown() {
-        try {
-            this.invoker.disconnect();
-        } catch (IOException ioe) {
-            //no-op.
-        }
+        disconnect();
     }
 
     /*

@@ -8,6 +8,7 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.bridge.proxies.facilitators;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 public class RemoteObjectProxy implements Serializable {
@@ -40,5 +41,17 @@ public class RemoteObjectProxy implements Serializable {
             ((RemoteObjectProxy)response).setInvoker(this.invoker);
         }
         return response;
+    }
+
+    public long getRemoteObjectId() {
+        return remoteObjectId;
+    }
+
+    public void disconnect() {
+        try {
+            this.invoker.disconnect();
+        } catch (IOException ioe) {
+            //no-op.
+        }
     }
 }

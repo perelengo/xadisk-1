@@ -10,7 +10,8 @@ package org.xadisk.filesystem.workers;
 
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.ResourceDependencyGraph.Node;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 
 public class TransactionTimeoutDetector extends TimedWorker {
@@ -32,7 +33,8 @@ public class TransactionTimeoutDetector extends TimedWorker {
                 int birthTime = (int) (session.getTimeOfEntryToTransaction() / 1000);
                 int timeNow = (int) (System.currentTimeMillis() / 1000);
                 if (timeoutValue > 0 && timeNow - birthTime > timeoutValue) {
-                    xaFileSystem.interruptTransactionIfWaitingForResourceLock(session.getXid(), XidImpl.INTERRUPTED_DUE_TO_TIMEOUT);
+                    xaFileSystem.getConcurrencyControl().interruptTransactionIfWaitingForResourceLock(session.getXid(),
+                            Node.INTERRUPTED_DUE_TO_TIMEOUT);
                     session.rollbackAsynchronously(new TransactionTimeoutException());
                 }
             }

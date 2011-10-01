@@ -27,29 +27,29 @@ import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.utilities.TransactionLogsUtility;
 
 public class CrashRecoveryWorker implements Work {
 
     private final NativeXAFileSystem xaFileSystem;
-    private final HashMap<XidImpl, ArrayList<Long>> transactionLogPositions = new HashMap<XidImpl, ArrayList<Long>>(1000);
+    private final HashMap<TransactionInformation, ArrayList<Long>> transactionLogPositions = new HashMap<TransactionInformation, ArrayList<Long>>(1000);
     private final HashMap<Integer, FileChannel> logChannels = new HashMap<Integer, FileChannel>(5);
-    private final HashSet<XidImpl> preparedInDoubtTransactions = new HashSet<XidImpl>(1000);
-    private final HashSet<XidImpl> onePhaseCommittingTransactions = new HashSet<XidImpl>(1000);
-    private final HashSet<XidImpl> heavyWriteTransactionsForRollback = new HashSet<XidImpl>(1000);
+    private final HashSet<TransactionInformation> preparedInDoubtTransactions = new HashSet<TransactionInformation>(1000);
+    private final HashSet<TransactionInformation> onePhaseCommittingTransactions = new HashSet<TransactionInformation>(1000);
+    private final HashSet<TransactionInformation> heavyWriteTransactionsForRollback = new HashSet<TransactionInformation>(1000);
     private volatile boolean released = false;
     private volatile boolean logFilesCleaned = false;
-    private final HashMap<XidImpl, HashSet<File>> transactionsAndFilesWithLatestViewOnDisk = new HashMap<XidImpl, HashSet<File>>(1000);
-    private final ArrayList<XidImpl> committedTransactions = new ArrayList<XidImpl>(1000);
-    private final HashMap<XidImpl, ArrayList<FileSystemStateChangeEvent>> eventsEnqueuePreparedOnly =
-            new HashMap<XidImpl, ArrayList<FileSystemStateChangeEvent>>(1000);
+    private final HashMap<TransactionInformation, HashSet<File>> transactionsAndFilesWithLatestViewOnDisk = new HashMap<TransactionInformation, HashSet<File>>(1000);
+    private final ArrayList<TransactionInformation> committedTransactions = new ArrayList<TransactionInformation>(1000);
+    private final HashMap<TransactionInformation, ArrayList<FileSystemStateChangeEvent>> eventsEnqueuePreparedOnly =
+            new HashMap<TransactionInformation, ArrayList<FileSystemStateChangeEvent>>(1000);
     private final ArrayList<FileSystemStateChangeEvent> eventsEnqueueCommittedNotDequeued =
             new ArrayList<FileSystemStateChangeEvent>(1000);
     private final ArrayList<FileSystemStateChangeEvent> eventsDequeueCommitted = new ArrayList<FileSystemStateChangeEvent>(1000);
-    private final HashMap<XidImpl, FileSystemStateChangeEvent> eventsDequeuePrepared = new HashMap<XidImpl, FileSystemStateChangeEvent>(1000);
-    private final HashMap<XidImpl, Integer> transactionsLatestCheckPoint = new HashMap<XidImpl, Integer>(1000);
+    private final HashMap<TransactionInformation, FileSystemStateChangeEvent> eventsDequeuePrepared = new HashMap<TransactionInformation, FileSystemStateChangeEvent>(1000);
+    private final HashMap<TransactionInformation, Integer> transactionsLatestCheckPoint = new HashMap<TransactionInformation, Integer>(1000);
     private final ArrayList<EndPointActivation> remoteActivations = new ArrayList<EndPointActivation>();
     private final AtomicInteger distanceFromRecoveryCompletion = new AtomicInteger(0);
 
@@ -145,7 +145,7 @@ public class CrashRecoveryWorker implements Work {
                 continue;
             }
             byte operationType = logEntry.getOperationType();
-            XidImpl xid = logEntry.getXid();
+            TransactionInformation xid = logEntry.getXid();
             switch (operationType) {
                 case TransactionLogEntry.COMMIT_BEGINS:
                     onePhaseCommittingTransactions.add(xid);
@@ -210,7 +210,7 @@ public class CrashRecoveryWorker implements Work {
             } catch (EOFException oefe) {
                 return;
             }
-            XidImpl xid = logEntry.getXid();
+            TransactionInformation xid = logEntry.getXid();
             if (onePhaseCommittingTransactions.contains(xid) || preparedInDoubtTransactions.contains(xid)) {
                 if (logEntry.isRedoLogEntry() || logEntry.isUndoLogEntry()) {
                     addLogPositionToTransaction(xid, logIndex, filePositionAtBuffersBeginning);
@@ -238,7 +238,7 @@ public class CrashRecoveryWorker implements Work {
 
     private void recoverOnePhaseTransactions() throws Exception {
         WorkManager workManager = xaFileSystem.getWorkManager();
-        for (XidImpl xid : onePhaseCommittingTransactions) {
+        for (TransactionInformation xid : onePhaseCommittingTransactions) {
             if (released) {
                 return;
             }
@@ -253,7 +253,7 @@ public class CrashRecoveryWorker implements Work {
 
     private void recoverHeavyWriteTransactionsForRollback() throws Exception {
         WorkManager workManager = xaFileSystem.getWorkManager();
-        for (XidImpl xid : heavyWriteTransactionsForRollback) {
+        for (TransactionInformation xid : heavyWriteTransactionsForRollback) {
             if (released) {
                 return;
             }
@@ -263,7 +263,7 @@ public class CrashRecoveryWorker implements Work {
         }
     }
 
-    public ArrayList<FileSystemStateChangeEvent> getEventsFromPreparedTransaction(XidImpl xid) {
+    public ArrayList<FileSystemStateChangeEvent> getEventsFromPreparedTransaction(TransactionInformation xid) {
         return eventsEnqueuePreparedOnly.get(xid);
     }
 
@@ -278,16 +278,16 @@ public class CrashRecoveryWorker implements Work {
         return eventsEnqueueCommittedNotDequeued;
     }
 
-    public void cleanupTransactionInfo(XidImpl xid) throws IOException {
+    public void cleanupTransactionInfo(TransactionInformation xid) throws IOException {
         distanceFromRecoveryCompletion.decrementAndGet();
         checkForRecoveryDone();
     }
 
-    private void addLogPositionToTransaction(XidImpl xid, int logFileIndex, long localPosition) {
+    private void addLogPositionToTransaction(TransactionInformation xid, int logFileIndex, long localPosition) {
         TransactionLogsUtility.addLogPositionToTransaction(xid, logFileIndex, localPosition, transactionLogPositions);
     }
 
-    public ArrayList<Long> getTransactionLogsPositions(XidImpl xid) {
+    public ArrayList<Long> getTransactionLogsPositions(TransactionInformation xid) {
         ArrayList<Long> logPositions = transactionLogPositions.get(xid);
         if (logPositions == null) {
             return new ArrayList<Long>(0);
@@ -295,20 +295,20 @@ public class CrashRecoveryWorker implements Work {
         return logPositions;
     }
 
-    public int getTransactionsLatestCheckPoint(XidImpl xid) {
+    public int getTransactionsLatestCheckPoint(TransactionInformation xid) {
         Integer latestCheckPoint = transactionsLatestCheckPoint.get(xid);
         return latestCheckPoint == null ? -1 : latestCheckPoint;
     }
 
-    public HashSet<XidImpl> getPreparedInDoubtTransactions() {
+    public HashSet<TransactionInformation> getPreparedInDoubtTransactions() {
         return preparedInDoubtTransactions;
     }
 
-    public HashMap<XidImpl, FileSystemStateChangeEvent> getPreparedInDoubtTransactionsOfDequeue() {
+    public HashMap<TransactionInformation, FileSystemStateChangeEvent> getPreparedInDoubtTransactionsOfDequeue() {
         return eventsDequeuePrepared;
     }
 
-    public HashSet<File> getFilesOnDiskForTransaction(XidImpl xid) {
+    public HashSet<File> getFilesOnDiskForTransaction(TransactionInformation xid) {
         return transactionsAndFilesWithLatestViewOnDisk.get(xid);
     }
 

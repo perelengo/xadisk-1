@@ -11,22 +11,26 @@ package org.xadisk.filesystem.workers;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Stack;
+import org.xadisk.filesystem.NativeConcurrencyControl;
+import org.xadisk.filesystem.NativeLock;
 import org.xadisk.filesystem.NativeXAFileSystem;
-import org.xadisk.filesystem.Lock;
 import org.xadisk.filesystem.ResourceDependencyGraph;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class DeadLockDetector extends TimedWorker {
 
-    private final NativeXAFileSystem xaFileSystem;
+    private final NativeXAFileSystem nativeXAFileSystem;
+    private final NativeConcurrencyControl nativeConcurrencyControl;
     private final ResourceDependencyGraph rdg;
     private ResourceDependencyGraph.Node[] nodes = new ResourceDependencyGraph.Node[0];
     private final ArrayList<ResourceDependencyGraph.Node> backEdges = new ArrayList<ResourceDependencyGraph.Node>(10);
 
-    public DeadLockDetector(int frequency, ResourceDependencyGraph rdg, NativeXAFileSystem xaFileSystem) {
+    public DeadLockDetector(int frequency, ResourceDependencyGraph rdg, NativeXAFileSystem nativeXAFileSystem,
+            NativeConcurrencyControl nativeConcurrencyControl) {
         super(frequency);
         this.rdg = rdg;
-        this.xaFileSystem = xaFileSystem;
+        this.nativeXAFileSystem = nativeXAFileSystem;
+        this.nativeConcurrencyControl = nativeConcurrencyControl;
     }
 
     @Override
@@ -48,7 +52,7 @@ public class DeadLockDetector extends TimedWorker {
                 }
             }
         } catch (Throwable t) {
-            xaFileSystem.notifySystemFailure(t);
+            nativeXAFileSystem.notifySystemFailure(t);
         }
     }
 
@@ -56,15 +60,15 @@ public class DeadLockDetector extends TimedWorker {
         nodes = rdg.getNodes();
         for (int i = 0; i < nodes.length; i++) {
             ResourceDependencyGraph.Node node = nodes[i];
-            Lock resource = node.getResourceWaitingFor();
+            NativeLock resource = node.getResourceWaitingFor();
             if (resource == null) {
                 continue;
             }
-            XidImpl holders[];
+            TransactionInformation holders[];
             try {
                 resource.startSynchBlock();
-                HashSet<XidImpl> holdersSet = resource.getHolders();
-                holders = holdersSet.toArray(new XidImpl[holdersSet.size()]);
+                HashSet<TransactionInformation> holdersSet = resource.getHolders();
+                holders = holdersSet.toArray(new TransactionInformation[0]);
             } finally {
                 resource.endSynchBlock();
             }
@@ -138,7 +142,7 @@ public class DeadLockDetector extends TimedWorker {
                 if (!source.isWaitingForResource()) {
                     break;
                 }
-                int currentLocksCount = ((XidImpl) source.getId()).getOwningSession().getNumOwnedExclusiveLocks();
+                int currentLocksCount = source.getId().getNumOwnedExclusiveLocks();
                 if (minimumLocks == -1) {
                     victim = source;
                     minimumLocks = currentLocksCount;
@@ -150,8 +154,9 @@ public class DeadLockDetector extends TimedWorker {
             }
 
             if (victim != null && victim.isWaitingForResource()) {
-                XidImpl victimXid = (XidImpl) victim.getId();
-                xaFileSystem.interruptTransactionIfWaitingForResourceLock(victimXid, XidImpl.INTERRUPTED_DUE_TO_DEADLOCK);
+                TransactionInformation victimXid = (TransactionInformation) victim.getId();
+                nativeConcurrencyControl.interruptTransactionIfWaitingForResourceLock(victimXid,
+                        ResourceDependencyGraph.Node.INTERRUPTED_DUE_TO_DEADLOCK);
             }
         }
     }

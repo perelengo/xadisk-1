@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import javax.resource.spi.endpoint.MessageEndpoint;
 import javax.resource.spi.work.Work;
 import javax.resource.spi.work.WorkException;
+import org.xadisk.bridge.proxies.impl.RemoteLock;
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.bridge.proxies.interfaces.XAFileOutputStream;
@@ -23,6 +24,7 @@ import org.xadisk.bridge.proxies.impl.RemoteMessageEndpoint;
 import org.xadisk.bridge.proxies.impl.RemoteSession;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileInputStream;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileOutputStream;
+import org.xadisk.bridge.proxies.interfaces.Lock;
 import org.xadisk.filesystem.NativeSession;
 
 public class ConversationContext {
@@ -41,11 +43,12 @@ public class ConversationContext {
         this.xaFileSystem = xaFileSystem;
         this.conversationChannel = conversationChannel;
         this.conversationalHostedContext = new ConversationalHostedContext();
-        this.conversationalHostedContext.hostObject(xaFileSystem);
+        this.conversationalHostedContext.hostObject(xaFileSystem);//objectId 0 remotely.
+        this.conversationalHostedContext.hostObject(xaFileSystem.getConcurrencyControl());//objectId 1 remotely.
         this.globalHostedContext = xaFileSystem.getGlobalCallbackContext();
     }
 
-    public Object getInvocationTarget(long objectId) {
+    public Object getLocalObjectFromProxy(long objectId) {
         if (objectId < 0) {
             return globalHostedContext.getHostedObjectWithId(objectId);
         } else {
@@ -55,12 +58,6 @@ public class ConversationContext {
 
     public SocketChannel getConversationChannel() {
         return conversationChannel;
-    }
-
-    public void reAssociatedTransactionThreadWithSessions(Thread thread) {
-        for (NativeSession session : allSessionsInsideThisConversation) {
-            session.reAssociateTransactionThread(thread);
-        }
     }
 
     public byte[] getCurrentMethodInvocation() {
@@ -102,18 +99,27 @@ public class ConversationContext {
     }
 
     Object convertToProxyResponseIfRequired(Object response) {
-        if (response instanceof Session) {
-            allSessionsInsideThisConversation.add((NativeSession) response);
-            return new RemoteSession(conversationalHostedContext.hostObject(response), null);
+        if(xaFileSystem.getHandleGeneralRemoteInvocations()) {
+            if (response instanceof Session) {
+                allSessionsInsideThisConversation.add((NativeSession) response);
+                return new RemoteSession(conversationalHostedContext.hostObject(response), null);
+            }
+                if (response instanceof XAFileInputStream) {
+                return new RemoteXAFileInputStream(conversationalHostedContext.hostObject(response), null);
+            }
+            if (response instanceof XAFileOutputStream) {
+                return new RemoteXAFileOutputStream(conversationalHostedContext.hostObject(response), null);
+            }
+            if (response instanceof MessageEndpoint) {
+                return new RemoteMessageEndpoint(globalHostedContext.hostObject(response), null);
+            }
         }
-        if (response instanceof XAFileInputStream) {
-            return new RemoteXAFileInputStream(conversationalHostedContext.hostObject(response), null);
-        }
-        if (response instanceof XAFileOutputStream) {
-            return new RemoteXAFileOutputStream(conversationalHostedContext.hostObject(response), null);
-        }
-        if (response instanceof MessageEndpoint) {
-            return new RemoteMessageEndpoint(globalHostedContext.hostObject(response), null);
+        if(xaFileSystem.getHandleClusterRemoteInvocations()) {
+            if(response instanceof Lock) {
+                Lock lock = (Lock) response;
+                return new RemoteLock(conversationalHostedContext.hostObject(response),
+                        lock.getResource(), lock.isExclusive());
+            }
         }
         return response;
     }

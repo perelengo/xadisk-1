@@ -67,10 +67,6 @@ public class RemoteMessageEndpoint extends RemoteObjectProxy implements MessageE
     }
 
     public void shutdown() {
-        try {
-            this.invoker.disconnect();
-        } catch (IOException ioe) {
-            //no-op.
-        }
+        disconnect();
     }
 }

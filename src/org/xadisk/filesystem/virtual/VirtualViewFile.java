@@ -21,7 +21,7 @@ import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.OnDiskInfo;
 import org.xadisk.filesystem.TransactionLogEntry;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class VirtualViewFile {
 
@@ -38,7 +38,7 @@ public class VirtualViewFile {
     private final ArrayList<Buffer> virtualViewContentBuffers = new ArrayList<Buffer>(10);
     private final NativeXAFileSystem xaFileSystem;
     private final ArrayList<VirtualViewFile> fileCopies = new ArrayList<VirtualViewFile>(1);
-    private final XidImpl xid;
+    private final TransactionInformation xid;
     private final TransactionVirtualView transactionView;
     private boolean createdPhysicalFileInBackupDir = false;
     private File physicalFileNameInBackupDir = null;

@@ -115,11 +115,7 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
     }
 
     public void shutdown() {
-        try {
-            this.invoker.disconnect();
-        } catch (IOException ioe) {
-            //no-op.
-        }
+        disconnect();
     }
 
     public void waitForBootup(long timeout) throws InterruptedException {

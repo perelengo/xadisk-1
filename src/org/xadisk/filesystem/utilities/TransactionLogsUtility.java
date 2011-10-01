@@ -13,12 +13,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import org.xadisk.filesystem.DurableDiskSession;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class TransactionLogsUtility {
 
-    public static void addLogPositionToTransaction(XidImpl xid, int logFileIndex,
-            long localPosition, Map<XidImpl, ArrayList<Long>> transactionLogPositions) {
+    public static void addLogPositionToTransaction(TransactionInformation xid, int logFileIndex,
+            long localPosition, Map<TransactionInformation, ArrayList<Long>> transactionLogPositions) {
         ArrayList<Long> temp = transactionLogPositions.get(xid);
         if (temp == null) {
             temp = new ArrayList<Long>(25);
@@ -28,7 +28,7 @@ public class TransactionLogsUtility {
         temp.add(localPosition);
     }
 
-    public static void deleteLogsIfPossible(XidImpl xid, Map<XidImpl, ArrayList<Integer>> transactionsAndLogsOccupied,
+    public static void deleteLogsIfPossible(TransactionInformation xid, Map<TransactionInformation, ArrayList<Integer>> transactionsAndLogsOccupied,
             Map<Integer, Integer> transactionLogsAndOpenTransactions, int currentLogIndex,
             String transactionLogBaseName, DurableDiskSession durableDiskSession) throws IOException {
         ArrayList<Integer> logsOccupied = transactionsAndLogsOccupied.get(xid);
@@ -46,7 +46,7 @@ public class TransactionLogsUtility {
         }
     }
 
-    public static void trackTransactionLogsUsage(XidImpl xid, Map<XidImpl, ArrayList<Integer>> transactionsAndLogsOccupied,
+    public static void trackTransactionLogsUsage(TransactionInformation xid, Map<TransactionInformation, ArrayList<Integer>> transactionsAndLogsOccupied,
             Map<Integer, Integer> transactionLogsAndOpenTransactions, int logFileIndex) {
         boolean txnFirstTimeInThisLog = false;
         ArrayList<Integer> logsOccupied = transactionsAndLogsOccupied.get(xid);

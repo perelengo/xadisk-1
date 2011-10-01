@@ -27,7 +27,7 @@ import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.OnDiskInfo;
 import org.xadisk.filesystem.TransactionLogEntry;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.utilities.TransactionLogsUtility;
 
 public class GatheringDiskWriter extends EventWorker {
@@ -35,15 +35,15 @@ public class GatheringDiskWriter extends EventWorker {
     private final int cumulativeBufferSizeForDiskWrite;
     private final AtomicInteger cumulativeBufferSize = new AtomicInteger(0);
     private FileChannel transactionLogChannel;
-    private final ConcurrentHashMap<XidImpl, ArrayList<Buffer>> transactionSubmittedBuffers =
-            new ConcurrentHashMap<XidImpl, ArrayList<Buffer>>(1000);
+    private final ConcurrentHashMap<TransactionInformation, ArrayList<Buffer>> transactionSubmittedBuffers =
+            new ConcurrentHashMap<TransactionInformation, ArrayList<Buffer>>(1000);
     private final NativeXAFileSystem xaFileSystem;
     private final long transactionLogFileMaxSize;
     private final ReentrantLock transactionLogLock = new ReentrantLock(false);
     private final String transactionLogBaseName;
     private int currentLogIndex;
     private final HashMap<Integer, Integer> transactionLogsAndOpenTransactions = new HashMap<Integer, Integer>(2);
-    private final HashMap<XidImpl, ArrayList<Integer>> transactionsAndLogsOccupied = new HashMap<XidImpl, ArrayList<Integer>>(1000);
+    private final HashMap<TransactionInformation, ArrayList<Integer>> transactionsAndLogsOccupied = new HashMap<TransactionInformation, ArrayList<Integer>>(1000);
     private final long maxNonPooledBufferSize;
 
     public GatheringDiskWriter(int cumulativeBufferSizeForDiskWrite, long transactionLogFileMaxSize,
@@ -82,21 +82,21 @@ public class GatheringDiskWriter extends EventWorker {
     void processEvent() {
         try {
             Buffer buffersArray[];
-            XidImpl xids[];
+            TransactionInformation xids[];
             ArrayList<Buffer> allBuffersToWrite = new ArrayList<Buffer>(1000);
-            ArrayList<XidImpl> xidsList = new ArrayList<XidImpl>(1000);
-            Iterator<Map.Entry<XidImpl, ArrayList<Buffer>>> entries = transactionSubmittedBuffers.entrySet().iterator();
+            ArrayList<TransactionInformation> xidsList = new ArrayList<TransactionInformation>(1000);
+            Iterator<Map.Entry<TransactionInformation, ArrayList<Buffer>>> entries = transactionSubmittedBuffers.entrySet().iterator();
             while (entries.hasNext()) {
-                Map.Entry<XidImpl, ArrayList<Buffer>> entry = entries.next();
-                XidImpl xid = entry.getKey();
+                Map.Entry<TransactionInformation, ArrayList<Buffer>> entry = entries.next();
+                TransactionInformation xid = entry.getKey();
                 ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.put(xid, new ArrayList<Buffer>(10));
                 for (Buffer buffer : txnBuffers) {
                     xidsList.add(xid);
                     allBuffersToWrite.add(buffer);
                 }
             }
-            xids = xidsList.toArray(new XidImpl[xidsList.size()]);
-            buffersArray = allBuffersToWrite.toArray(new Buffer[allBuffersToWrite.size()]);
+            xids = xidsList.toArray(new TransactionInformation[0]);
+            buffersArray = allBuffersToWrite.toArray(new Buffer[0]);
             try {
                 transactionLogLock.lock();
                 writeBuffersToTransactionLog(buffersArray, xids, 0);
@@ -108,19 +108,19 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    public void writeRemainingBuffersNow(XidImpl xid) throws IOException {
+    public void writeRemainingBuffersNow(TransactionInformation xid) throws IOException {
         ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.put(xid, new ArrayList<Buffer>(10));
         for (Buffer buffer : txnBuffers) {
             cumulativeBufferSize.getAndAdd(-buffer.getBuffer().remaining());
         }
         try {
-            XidImpl xids[] = new XidImpl[txnBuffers.size()];
+            TransactionInformation xids[] = new TransactionInformation[txnBuffers.size()];
             for (int i = 0; i < xids.length; i++) {
                 xids[i] = xid;
             }
             try {
                 transactionLogLock.lock();
-                writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[txnBuffers.size()]), xids, 0);
+                writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[0]), xids, 0);
             } finally {
                 transactionLogLock.unlock();
             }
@@ -129,7 +129,7 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    private void writeBuffersToTransactionLog(Buffer buffersArray[], XidImpl xids[], int offset) throws IOException {
+    private void writeBuffersToTransactionLog(Buffer buffersArray[], TransactionInformation xids[], int offset) throws IOException {
         ByteBuffer byteBufferArray[] = new ByteBuffer[buffersArray.length];
         long sizeToWriteNow = 0;
         int canProcessTill = buffersArray.length - 1;
@@ -186,16 +186,16 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    private void addLogPositionToTransaction(XidImpl xid, int logFileIndex, long localPosition) {
+    private void addLogPositionToTransaction(TransactionInformation xid, int logFileIndex, long localPosition) {
         xid.getOwningSession().addLogPositionToTransaction(logFileIndex, localPosition);
         TransactionLogsUtility.trackTransactionLogsUsage(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, logFileIndex);
     }
 
-    private void addInMemoryBufferToTransaction(XidImpl xid, Buffer buffer) {
+    private void addInMemoryBufferToTransaction(TransactionInformation xid, Buffer buffer) {
         xid.getOwningSession().addInMemoryBufferToTransaction(buffer);
     }
 
-    public void submitBuffer(Buffer logEntry, XidImpl xid) {
+    public void submitBuffer(Buffer logEntry, TransactionInformation xid) {
         logEntry.flushByteBufferChanges();
         ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.get(xid);
         if (txnBuffers == null) {
@@ -221,24 +221,24 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    public void transactionCommitBegins(XidImpl xid) throws IOException {
+    public void transactionCommitBegins(TransactionInformation xid) throws IOException {
         ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid,
                 TransactionLogEntry.COMMIT_BEGINS));
         forceWrite(temp);
     }
 
-    public void transactionCompletes(XidImpl xid, boolean isCommitted) throws IOException {
+    public void transactionCompletes(TransactionInformation xid, boolean isCommitted) throws IOException {
         ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, isCommitted ? TransactionLogEntry.TXN_COMMIT_DONE : TransactionLogEntry.TXN_ROLLBACK_DONE));
         forceWrite(temp);
     }
 
-    public void transactionPrepareCompletes(XidImpl xid) throws IOException {
+    public void transactionPrepareCompletes(TransactionInformation xid) throws IOException {
         ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid,
                 TransactionLogEntry.PREPARE_COMPLETES));
         forceWrite(temp);
     }
 
-    public void transactionPrepareCompletesForEventDequeue(XidImpl xid, FileSystemStateChangeEvent event) throws IOException {
+    public void transactionPrepareCompletesForEventDequeue(TransactionInformation xid, FileSystemStateChangeEvent event) throws IOException {
         ArrayList<FileSystemStateChangeEvent> events = new ArrayList<FileSystemStateChangeEvent>(1);
         events.add(event);
         ByteBuffer temp = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, events,
@@ -273,7 +273,7 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    public long[] forceUndoLogAndData(XidImpl xid, ByteBuffer logEntryHeader, FileChannel contents, long contentPosition,
+    public long[] forceUndoLogAndData(TransactionInformation xid, ByteBuffer logEntryHeader, FileChannel contents, long contentPosition,
             long contentLength)
             throws IOException {
         long logPosition[] = new long[2];
@@ -324,7 +324,7 @@ public class GatheringDiskWriter extends EventWorker {
         }
     }
 
-    public void cleanupTransactionInfo(XidImpl xid) throws IOException {
+    public void cleanupTransactionInfo(TransactionInformation xid) throws IOException {
         try {
             transactionLogLock.lock();
             TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, currentLogIndex, transactionLogBaseName,

@@ -19,7 +19,7 @@ import org.xadisk.filesystem.Buffer;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.ClosedStreamException;
 import org.xadisk.filesystem.exceptions.FileUnderUseException;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
@@ -30,7 +30,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
     private ByteBuffer byteBuffer;
     private Buffer buffer;
     private final NativeXAFileSystem xaFileSystem;
-    private final XidImpl xid;
+    private final TransactionInformation xid;
     private final GatheringDiskWriter theGatheringDiskWriter;
     private long filePosition;
     private boolean closed = false;
@@ -39,7 +39,7 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
     private final NativeSession owningSession;
     private final ReentrantLock asynchronousRollbackLock;
 
-    public NativeXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
+    public NativeXAFileOutputStream(VirtualViewFile vvf, TransactionInformation xid, boolean heavyWrite,
             NativeSession owningSession, NativeXAFileSystem xaFileSystem) {
         this.xaFileSystem = xaFileSystem;
         this.destination = vvf.getFileName().getAbsolutePath();

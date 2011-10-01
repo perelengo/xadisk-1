@@ -16,7 +16,7 @@ import java.util.HashSet;
 import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
@@ -24,7 +24,7 @@ import org.xadisk.filesystem.exceptions.FileUnderUseException;
 
 public class TransactionVirtualView {
 
-    private final XidImpl owningTransaction;
+    private final TransactionInformation owningTransaction;
     private final HashSet<File> filesWithLatestViewOnDisk = new HashSet<File>(5);
     private final HashSet<VirtualViewFile> viewFilesWithLatestViewOnDisk = new HashSet<VirtualViewFile>(5);
     private final HashSet<VirtualViewFile> viewFilesUsingBackupDir = new HashSet<VirtualViewFile>(5);
@@ -34,7 +34,7 @@ public class TransactionVirtualView {
     private final NativeXAFileSystem xaFileSystem;
     private final DurableDiskSession diskSession;
 
-    public TransactionVirtualView(XidImpl owningTransaction, NativeSession owningSession, NativeXAFileSystem xaFileSystem,
+    public TransactionVirtualView(TransactionInformation owningTransaction, NativeSession owningSession, NativeXAFileSystem xaFileSystem,
             DurableDiskSession diskSession) {
         this.owningTransaction = owningTransaction;
         this.owningSession = owningSession;
@@ -364,7 +364,7 @@ public class TransactionVirtualView {
         return viewFilesWithLatestViewOnDisk;
     }
 
-    XidImpl getOwningTransaction() {
+    TransactionInformation getOwningTransaction() {
         return owningTransaction;
     }
 
