@@ -16,12 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 
 public class RemoteEventProcessingXAResource extends RemoteObjectProxy implements XAResource {
 
     private static final long serialVersionUID = 1L;
-    private transient ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+    private transient ConcurrentHashMap<Xid, TransactionInformation> internalXids = new ConcurrentHashMap<Xid, TransactionInformation>();
     private final Object lockOnInternalXids = new ArrayList<Object>(0);//just needed something that can
     //be made final (for synch block) and is serializable ( so that it is not null on the remote side;
     //because to avoid that readObject needs the line to re-assign the value making it not eligible for final.
@@ -29,7 +29,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
     private void readObject(java.io.ObjectInputStream stream)
             throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
-        this.internalXids = new ConcurrentHashMap<Xid, XidImpl>();
+        this.internalXids = new ConcurrentHashMap<Xid, TransactionInformation>();
     }
 
     public RemoteEventProcessingXAResource(long objectId, RemoteMethodInvoker invoker) {
@@ -38,20 +38,20 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
 
     public void commit(Xid xid, boolean onePhase) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             invokeRemoteMethod("commit", xidImpl, onePhase);
         } catch (XAException xae) {
             throw xae;
         } catch (Throwable th) {
             throw assertExceptionHandling(th);
         } finally {
-            this.shutdown();
+            this.disconnect();
         }
     }
 
     public void end(Xid xid, int flags) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             invokeRemoteMethod("end", xidImpl, flags);
         } catch (XAException xae) {
             throw xae;
@@ -62,7 +62,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
 
     public void forget(Xid xid) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             invokeRemoteMethod("forget", xidImpl);
         } catch (XAException xae) {
             throw xae;
@@ -95,7 +95,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
 
     public int prepare(Xid xid) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             return (Integer) invokeRemoteMethod("prepare", xidImpl);
         } catch (XAException xae) {
             throw xae;
@@ -116,7 +116,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
 
     public void rollback(Xid xid) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             invokeRemoteMethod("rollback", xidImpl);
         } catch (XAException xae) {
             throw xae;
@@ -125,7 +125,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
         } finally {
             //an assumption that this XAR would be used only for a single txn in lifetime. Though its not always true.
             //But correctness is anyway retained, because after disconnection, it would automatically re-connect in case of further method invocations.
-            this.shutdown();
+            this.disconnect();
         }
     }
 
@@ -141,7 +141,7 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
 
     public void start(Xid xid, int flag) throws XAException {
         try {
-            XidImpl xidImpl = mapToInternalXid(xid);
+            TransactionInformation xidImpl = mapToInternalXid(xid);
             invokeRemoteMethod("start", xidImpl, flag);
         } catch (XAException xae) {
             throw xae;
@@ -150,22 +150,14 @@ public class RemoteEventProcessingXAResource extends RemoteObjectProxy implement
         }
     }
 
-    private XidImpl mapToInternalXid(Xid xid) {
+    private TransactionInformation mapToInternalXid(Xid xid) {
         synchronized (lockOnInternalXids) {
-            XidImpl internalXid = internalXids.get(xid);
+            TransactionInformation internalXid = internalXids.get(xid);
             if (internalXid == null) {
-                internalXid = new XidImpl(xid);
+                internalXid = new TransactionInformation(xid);
                 internalXids.put(xid, internalXid);
             }
             return internalXid;
-        }
-    }
-
-    private void shutdown() {
-        try {
-            this.invoker.disconnect();
-        } catch (IOException ioe) {
-            //no-op.
         }
     }
 }

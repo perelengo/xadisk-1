@@ -48,7 +48,7 @@ public class TransactionLogEntry {
     public static final byte REMOTE_ENDPOINT_ACTIVATES = 22;
     public static final byte REMOTE_ENDPOINT_DEACTIVATES = 23;
     public static final String UTF8Charset = "UTF8";
-    private XidImpl xid;
+    private TransactionInformation xid;
     private byte operationType;
     private String fileName;
     private long filePosition;
@@ -79,7 +79,7 @@ public class TransactionLogEntry {
         }
     }
 
-    public static byte[] getLogEntry(XidImpl xid, String file, long filePosition, int fileContentLength,
+    public static byte[] getLogEntry(TransactionInformation xid, String file, long filePosition, int fileContentLength,
             byte appendOrUndoTruncate) {
         byte filePathBytes[] = getUTF8Bytes(file);
         int filePathLength = filePathBytes.length;
@@ -102,7 +102,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    static byte[] getLogEntry(XidImpl xid, String file, byte createFileOrDirOrDeleteOrUndoCreate) {
+    static byte[] getLogEntry(TransactionInformation xid, String file, byte createFileOrDirOrDeleteOrUndoCreate) {
         byte filePathBytes[] = getUTF8Bytes(file);
         int filePathLength = filePathBytes.length;
         ByteBuffer buffer = ByteBuffer.allocate(200 + filePathLength);
@@ -123,7 +123,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, String file, long newLength, byte truncateOrUndoAppend) {
+    public static byte[] getLogEntry(TransactionInformation xid, String file, long newLength, byte truncateOrUndoAppend) {
         byte filePathBytes[] = getUTF8Bytes(file);
         int filePathLength = filePathBytes.length;
         ByteBuffer buffer = ByteBuffer.allocate(200 + filePathLength);
@@ -146,7 +146,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, String sourceFile, String destinationFile, byte moveOrCopyOrUndoDelete) {
+    public static byte[] getLogEntry(TransactionInformation xid, String sourceFile, String destinationFile, byte moveOrCopyOrUndoDelete) {
         byte sourceFilePathBytes[] = getUTF8Bytes(sourceFile);
         byte destFilePathBytes[] = getUTF8Bytes(destinationFile);
         int srcFilePathLength = sourceFilePathBytes.length;
@@ -171,7 +171,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, byte commitStatus) {
+    public static byte[] getLogEntry(TransactionInformation xid, byte commitStatus) {
         ByteBuffer buffer = ByteBuffer.allocate(200);
         buffer.putInt(0);
         buffer.putInt(0);
@@ -186,7 +186,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    static byte[] getLogEntry(XidImpl xid, int checkPointPosition) {
+    static byte[] getLogEntry(TransactionInformation xid, int checkPointPosition) {
         ByteBuffer buffer = ByteBuffer.allocate(200);
         buffer.putInt(0);
         buffer.putInt(0);
@@ -202,7 +202,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, Set<File> files) {
+    public static byte[] getLogEntry(TransactionInformation xid, Set<File> files) {
         byte filePathsBytes[][] = new byte[files.size()][];
         int totalFilePathsLength = 0;
         int i = 0;
@@ -232,7 +232,7 @@ public class TransactionLogEntry {
         return temp;
     }
 
-    public static byte[] getLogEntry(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events, byte enQ_deQ_prepareDequeue) {
+    public static byte[] getLogEntry(TransactionInformation xid, ArrayList<FileSystemStateChangeEvent> events, byte enQ_deQ_prepareDequeue) {
         int totalEventsLength = 0;
         byte[][] eventsBytes = new byte[events.size()][];
         for (int i = 0; i < events.size(); i++) {
@@ -384,7 +384,7 @@ public class TransactionLogEntry {
     }
 
     private static FileSystemStateChangeEvent readEvent(ByteBuffer buffer) {
-        XidImpl enqueuingTransaction = deSerializeXid(buffer);
+        TransactionInformation enqueuingTransaction = deSerializeXid(buffer);
         byte eventType = buffer.get();
         int fileNameLength = buffer.getInt();
         byte fileNameBytes[] = new byte[fileNameLength];
@@ -443,7 +443,7 @@ public class TransactionLogEntry {
         return filePosition;
     }
 
-    public XidImpl getXid() {
+    public TransactionInformation getXid() {
         return xid;
     }
 
@@ -463,7 +463,7 @@ public class TransactionLogEntry {
         return checkPointPosition;
     }
 
-    static byte[] serializeXid(XidImpl xid) {
+    static byte[] serializeXid(TransactionInformation xid) {
         byte[] gid = xid.getGlobalTransactionId();
         byte[] bqual = xid.getBranchQualifier();
         ByteBuffer temp = ByteBuffer.allocate(1 + 1 + 4 + gid.length + bqual.length);
@@ -478,8 +478,8 @@ public class TransactionLogEntry {
         return bytes;
     }
 
-    static XidImpl deSerializeXid(ByteBuffer buffer) {
-        return new XidImpl(buffer);
+    static TransactionInformation deSerializeXid(ByteBuffer buffer) {
+        return new TransactionInformation(buffer);
     }
 
     public static void updateContentLength(ByteBuffer buffer, int contentLength) {

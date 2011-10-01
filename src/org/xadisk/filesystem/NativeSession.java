@@ -24,7 +24,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
+import org.xadisk.bridge.proxies.interfaces.ConcurrencyControl;
+import org.xadisk.bridge.proxies.interfaces.Lock;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
+import org.xadisk.filesystem.exceptions.DeadLockVictimizedException;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
@@ -33,18 +36,20 @@ import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 import org.xadisk.filesystem.exceptions.LockingFailedException;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
+import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 
 public class NativeSession implements SessionCommonness {
-
+    
     private final HashMap<File, Lock> allAcquiredLocks = new HashMap<File, Lock>(1000);
     private final ArrayList<NativeXAFileInputStream> allAcquiredInputStreams = new ArrayList<NativeXAFileInputStream>(5);
     private final ArrayList<NativeXAFileOutputStream> allAcquiredOutputStreams = new ArrayList<NativeXAFileOutputStream>(5);
     private final NativeXAFileSystem xaFileSystem;
+    private final ConcurrencyControl concurrencyControl;
     private volatile int transactionTimeout = 0;
-    private final XidImpl xid;
+    private final TransactionInformation xid;
     private boolean rolledbackPrematurely = false;
     private boolean sessionIsUseless = false;
     private volatile boolean startedCommitting = false;
@@ -54,7 +59,6 @@ public class NativeSession implements SessionCommonness {
     private volatile Throwable systemFailureCause = null;
     private final TransactionVirtualView view;
     private long fileLockWaitTimeout = 0;
-    private final ResourceDependencyGraph RDG;
     private boolean createdForRecovery = false;
     private ArrayList<FileSystemStateChangeEvent> fileStateChangeEventsToRaise = new ArrayList<FileSystemStateChangeEvent>(10);
     private final ArrayList<File> directoriesPinnedInThisSession = new ArrayList<File>(5);
@@ -62,18 +66,17 @@ public class NativeSession implements SessionCommonness {
     private final ReentrantLock asynchronousRollbackLock = new ReentrantLock(false);
     private final ArrayList<Long> transactionLogPositions = new ArrayList<Long>(25);
     private final ArrayList<Buffer> transactionInMemoryBuffers = new ArrayList<Buffer>(25);
-    private int numOwnedExclusiveLocks = 0;
     private boolean publishFileStateChangeEventsOnCommit = false;
     private final HashMap<File, NativeXAFileOutputStream> fileAndOutputStream = new HashMap<File, NativeXAFileOutputStream>(1000);
     private boolean usingReadOnlyOptimization = true;
     private final DurableDiskSession diskSession;
 
-    NativeSession(XidImpl xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
+    NativeSession(TransactionInformation xid, boolean createdForRecovery, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
         xid.setOwningSession(this);
         this.xaFileSystem = xaFileSystem;
+        this.concurrencyControl = xaFileSystem.getConcurrencyControl();
         this.diskSession = xaFileSystem.createDurableDiskSession();
-        this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = createdForRecovery;
         if (createdForRecovery) {
             this.transactionTimeout = 0;
@@ -84,18 +87,17 @@ public class NativeSession implements SessionCommonness {
             this.transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
             this.fileLockWaitTimeout = this.xaFileSystem.getLockTimeOut();
             view = new TransactionVirtualView(xid, this, xaFileSystem, diskSession);
-            RDG.createNodeForTransaction(xid);
             timeOfEntryToTransaction = System.currentTimeMillis();
             xaFileSystem.assignSessionToTransaction(xid, this);
         }
     }
 
-    public NativeSession(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events, NativeXAFileSystem xaFileSystem) {
+    public NativeSession(TransactionInformation xid, ArrayList<FileSystemStateChangeEvent> events, NativeXAFileSystem xaFileSystem) {
         this.xid = xid;
         xid.setOwningSession(this);
         this.xaFileSystem = xaFileSystem;
+        this.concurrencyControl = xaFileSystem.getConcurrencyControl();
         this.diskSession = xaFileSystem.createDurableDiskSession();
-        this.RDG = xaFileSystem.getResourceDependencyGraph();
         this.createdForRecovery = true;
         this.usingReadOnlyOptimization = false;
         this.transactionTimeout = 0;
@@ -300,7 +302,7 @@ public class NativeSession implements SessionCommonness {
             } else if (view.fileExistsAndIsDirectory(src)) {
                 isDirectoryMove = true;
                 checkAnyOpenStreamToDescendantFiles(src);
-                xaFileSystem.pinDirectoryForRename(src, xid);
+                concurrencyControl.pinDirectoryForRename(src, xid);
                 directoriesPinnedInThisSession.add(src);
                 view.moveDirectory(src, dest);
             } else {
@@ -325,7 +327,7 @@ public class NativeSession implements SessionCommonness {
                 if (!success) {
                     releaseLocks(newLocks);
                     if (isDirectoryMove) {
-                        xaFileSystem.releaseRenamePinOnDirectory(src);
+                        concurrencyControl.releaseRenamePinOnDirectory(src);
                     }
                 }
             } finally {
@@ -954,7 +956,7 @@ public class NativeSession implements SessionCommonness {
             while (vvfsInBackupDir.hasNext()) {
                 vvfsInBackupDir.next().cleanupBackup();
             }
-            xaFileSystem.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
+            concurrencyControl.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
         }
 
         for (Buffer buffer : transactionInMemoryBuffers) {
@@ -966,11 +968,9 @@ public class NativeSession implements SessionCommonness {
 
     private void releaseAllLocks() {
         for (Lock lock : allAcquiredLocks.values()) {
-            xaFileSystem.releaseLock(xid, lock);
+            concurrencyControl.releaseLock(xid, lock);
         }
-
         allAcquiredLocks.clear();
-        RDG.removeNodeForTransaction(xid);
     }
 
     private void releaseAllStreams() throws NoTransactionAssociatedException {
@@ -1024,7 +1024,18 @@ public class NativeSession implements SessionCommonness {
             InterruptedException, TransactionRolledbackException {
         Lock newLock = null;
         if (!alreadyHaveALock(f, exclusive)) {
-            newLock = xaFileSystem.acquireFileLock(xid, f, fileLockWaitTimeout, exclusive);
+            try {
+                newLock = concurrencyControl.acquireFileLock(xid, f, fileLockWaitTimeout, exclusive);
+                if(exclusive) {
+                    xid.incrementNumOwnedExclusiveLocks();
+                }
+            } catch(DeadLockVictimizedException dlve) {
+                rollbackPrematurely(dlve);
+                throw new TransactionRolledbackException(dlve);
+            } catch(TransactionTimeoutException tte) {
+                rollbackPrematurely(tte);
+                throw new TransactionRolledbackException(tte);
+            }
             allAcquiredLocks.put(f, newLock);
             //above includes the case of lock upgrade by doing a "redundant put" of the same "value".
         }
@@ -1052,7 +1063,7 @@ public class NativeSession implements SessionCommonness {
         for (Lock lock : locks) {
             if(lock != null) {
                 allAcquiredLocks.remove(lock.getResource());
-                xaFileSystem.releaseLock(xid, lock);
+                concurrencyControl.releaseLock(xid, lock);
             }
         }
     }
@@ -1060,7 +1071,7 @@ public class NativeSession implements SessionCommonness {
     private void releaseLocks(Lock lock) {
         if(lock != null) {
             allAcquiredLocks.remove(lock.getResource());
-            xaFileSystem.releaseLock(xid, lock);
+            concurrencyControl.releaseLock(xid, lock);
         }
     }
 
@@ -1112,33 +1123,36 @@ public class NativeSession implements SessionCommonness {
         addLogPositionToTransaction(-1, indexIntoBufferArray);
     }
 
-    public int getNumOwnedExclusiveLocks() {
-        return numOwnedExclusiveLocks;
-    }
-
-    void incrementNumOwnedExclusiveLocks() {
-        this.numOwnedExclusiveLocks++;
-    }
-
     boolean hasStartedCommitting() {
         return startedCommitting;
     }
 
-    public XidImpl getXid() {
+    public TransactionInformation getXid() {
         return xid;
     }
 
     private void checkAnyOpenStreamToDescendantFiles(File ancestor) throws FileUnderUseException {
         for (NativeXAFileInputStream is : allAcquiredInputStreams) {
-            if (NativeXAFileSystem.isAncestorOf(ancestor, is.getSourceFileName()) && !is.isClosed()) {
+            if (isAncestorOf(ancestor, is.getSourceFileName()) && !is.isClosed()) {
                 throw new FileUnderUseException(is.getSourceFileName().getAbsolutePath(), false);
             }
         }
         for (NativeXAFileOutputStream os : allAcquiredOutputStreams) {
-            if (NativeXAFileSystem.isAncestorOf(ancestor, os.getDestinationFile()) && !os.isClosed()) {
+            if (isAncestorOf(ancestor, os.getDestinationFile()) && !os.isClosed()) {
                 throw new FileUnderUseException(os.getDestinationFile().getAbsolutePath(), false);
             }
         }
+    }
+
+    private boolean isAncestorOf(File a, File b) {
+        File parentB = b.getParentFile();
+        while (parentB != null) {
+            if (a.equals(parentB)) {
+                return true;
+            }
+            parentB = parentB.getParentFile();
+        }
+        return false;
     }
 
     public boolean getPublishFileStateChangeEventsOnCommit() {
@@ -1147,15 +1161,6 @@ public class NativeSession implements SessionCommonness {
 
     public void setPublishFileStateChangeEventsOnCommit(boolean publishFileStateChangeEventsOnCommit) {
         this.publishFileStateChangeEventsOnCommit = publishFileStateChangeEventsOnCommit;
-    }
-
-    public void reAssociateTransactionThread(Thread thread) {
-        //this check is required due to quite possible calls from Txn Manager even after committing
-        //the txn on RemoteManagedConnection (such NPE was seen also).
-        ResourceDependencyGraph.Node xidNode = this.xid.getNodeInResourceDependencyGraph();
-        if (xidNode != null) {
-            xidNode.reAssociatedTransactionThread(thread);
-        }
     }
 
     private void addToFileSystemEvents(FileSystemStateChangeEvent.FileSystemEventType actionType, File affectedObject, boolean isDirectory) {
@@ -1193,7 +1198,7 @@ public class NativeSession implements SessionCommonness {
         this.commit(true);
     }
 
-    public NativeXAFileOutputStream getCachedXAFileOutputStream(VirtualViewFile vvf, XidImpl xid, boolean heavyWrite,
+    public NativeXAFileOutputStream getCachedXAFileOutputStream(VirtualViewFile vvf, TransactionInformation xid, boolean heavyWrite,
             NativeSession owningSession)
             throws FileUnderUseException {
         synchronized (fileAndOutputStream) {

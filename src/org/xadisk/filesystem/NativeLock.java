@@ -13,19 +13,20 @@ import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.xadisk.bridge.proxies.interfaces.Lock;
 
-public class Lock {
+public class NativeLock implements Lock {
 
     private final File resource;
     private boolean exclusive = false;
     private boolean upgraded = false;
     private int numHolders = 0;
-    private final HashSet<XidImpl> holders = new HashSet<XidImpl>(10);
+    private final HashSet<TransactionInformation> holders = new HashSet<TransactionInformation>(10);
     private final ReentrantLock synchLock = new ReentrantLock(false);
     private final Condition mayBeReadable = synchLock.newCondition();
     private final Condition mayBeWritable = synchLock.newCondition();
 
-    Lock(boolean exclusive, File resource) {
+    NativeLock(boolean exclusive, File resource) {
         this.exclusive = exclusive;
         this.resource = resource;
     }
@@ -34,26 +35,26 @@ public class Lock {
         return numHolders;
     }
 
-    boolean isExclusive() {
+    public boolean isExclusive() {
         return exclusive;
     }
 
-    void addHolder(XidImpl xid) {
+    void addHolder(TransactionInformation xid) {
         numHolders++;
         holders.add(xid);
     }
 
-    void removeHolder(XidImpl xid) {
+    void removeHolder(TransactionInformation xid) {
         numHolders--;
         holders.remove(xid);
     }
 
-    public HashSet<XidImpl> getHolders() {
+    public HashSet<TransactionInformation> getHolders() {
         assert synchLock.isHeldByCurrentThread();
         return holders;
     }
 
-    boolean isAHolder(XidImpl xid) {
+    boolean isAHolder(TransactionInformation xid) {
         return holders.contains(xid);
     }
 
@@ -68,7 +69,7 @@ public class Lock {
         this.exclusive = exclusive;
     }
 
-    File getResource() {
+    public File getResource() {
         return resource;
     }
 

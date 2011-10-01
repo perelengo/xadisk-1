@@ -190,7 +190,7 @@ public class NativeXASession implements XASession {
         this.sessionOfXATransaction = session;
     }
 
-    public Session refreshSessionForNewXATransaction(XidImpl xid) {
+    public Session refreshSessionForNewXATransaction(TransactionInformation xid) {
         this.sessionOfXATransaction = ((XAFileSystemCommonness) theXAFileSystem).createSessionForXATransaction(xid);
         this.sessionOfXATransaction.setPublishFileStateChangeEventsOnCommit(publishFileStateChangeEventsOnCommit);
         return this.sessionOfXATransaction;

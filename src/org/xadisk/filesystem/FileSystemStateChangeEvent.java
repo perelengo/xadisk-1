@@ -81,9 +81,9 @@ public class FileSystemStateChangeEvent implements Serializable {
     private final File file;
     private final boolean isDirectory;
     private final FileSystemEventType eventType;
-    private transient final XidImpl enqueuingTransaction;
+    private transient final TransactionInformation enqueuingTransaction;
 
-    FileSystemStateChangeEvent(File file, boolean isDirectory, FileSystemEventType eventType, XidImpl enqueuingTransaction) {
+    FileSystemStateChangeEvent(File file, boolean isDirectory, FileSystemEventType eventType, TransactionInformation enqueuingTransaction) {
         this.file = file;
         this.isDirectory = isDirectory;
         this.eventType = eventType;
@@ -114,7 +114,7 @@ public class FileSystemStateChangeEvent implements Serializable {
         return isDirectory;
     }
 
-    XidImpl getEnqueuingTransaction() {
+    TransactionInformation getEnqueuingTransaction() {
         return enqueuingTransaction;
     }
 

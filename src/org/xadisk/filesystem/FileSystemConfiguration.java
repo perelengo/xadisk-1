@@ -54,6 +54,9 @@ public class FileSystemConfiguration implements Serializable {
     private String serverAddress = "127.0.0.1";
     private Integer serverPort = 9999;
     private Boolean synchronizeDirectoryChanges = true;
+    private Boolean enableClusterMode = false;
+    private String clusterMasterAddress;
+    private Integer clusterMasterPort;
 
     /**
      * A constructor called by the JavaEE Container while deploying XADisk JCA Resource Adapter. The
@@ -565,5 +568,29 @@ public class FileSystemConfiguration implements Serializable {
      */
     public void setSynchronizeDirectoryChanges(Boolean synchronizeDirectoryChanges) {
         this.synchronizeDirectoryChanges = synchronizeDirectoryChanges;
+    }
+
+    public String getClusterMasterAddress() {
+        return clusterMasterAddress;
+    }
+
+    public void setClusterMasterAddress(String clusterMasterAddress) {
+        this.clusterMasterAddress = clusterMasterAddress;
+    }
+
+    public Integer getClusterMasterPort() {
+        return clusterMasterPort;
+    }
+
+    public void setClusterMasterPort(Integer clusterMasterPort) {
+        this.clusterMasterPort = clusterMasterPort;
+    }
+
+    public Boolean getEnableClusterMode() {
+        return enableClusterMode;
+    }
+
+    public void setEnableClusterMode(Boolean enableClusterMode) {
+        this.enableClusterMode = enableClusterMode;
     }
 }

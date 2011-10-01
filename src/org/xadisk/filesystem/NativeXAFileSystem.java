@@ -16,19 +16,15 @@ import org.xadisk.filesystem.workers.observers.CriticalWorkersListener;
 import org.xadisk.filesystem.standalone.StandaloneFileSystemConfiguration;
 import org.xadisk.filesystem.standalone.StandaloneWorkManager;
 import org.xadisk.filesystem.workers.CrashRecoveryWorker;
-import org.xadisk.filesystem.workers.DeadLockDetector;
 import org.xadisk.filesystem.workers.FileSystemEventDelegator;
 import org.xadisk.filesystem.workers.GatheringDiskWriter;
 import org.xadisk.filesystem.workers.ObjectPoolReliever;
 import org.xadisk.filesystem.workers.TransactionTimeoutDetector;
-import org.xadisk.filesystem.exceptions.DeadLockVictimizedException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,17 +35,13 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.xadisk.connector.inbound.EndPointActivation;
-import org.xadisk.filesystem.exceptions.AncestorPinnedException;
-import org.xadisk.filesystem.exceptions.DirectoryPinningFailedException;
-import org.xadisk.filesystem.exceptions.LockingFailedException;
-import org.xadisk.filesystem.exceptions.LockingTimedOutException;
 import org.xadisk.filesystem.exceptions.RecoveryInProgressException;
-import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
-import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
+import org.xadisk.bridge.proxies.impl.RemoteConcurrencyControl;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
+import org.xadisk.bridge.proxies.interfaces.ConcurrencyControl;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
 import org.xadisk.connector.XAResourceImpl;
@@ -64,42 +56,39 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     private static ConcurrentHashMap<String, NativeXAFileSystem> allXAFileSystems = new ConcurrentHashMap<String, NativeXAFileSystem>();
     private final AtomicLong lastTransactionId = new AtomicLong(System.currentTimeMillis() / 1000);
-    private final ConcurrentHashMap<File, Lock> fileLocks = new ConcurrentHashMap<File, Lock>(1000);
     private final BufferPool bufferPool;
     private final SelectorPool selectorPool;
     private final String transactionLogFileBaseName;
     private Logger logger;
-    private final String XADiskHome;
     private final String transactionLogsDir;
     private final DeadLetterMessageEndpoint deadLetter;
     private final FileSystemConfiguration configuration;
-    private final ConcurrentHashMap<XidImpl, NativeSession> transactionAndSession = new ConcurrentHashMap<XidImpl, NativeSession>(1000);
-    private HashSet<XidImpl> transactionsPreparedPreCrash;
+    private final ConcurrentHashMap<TransactionInformation, NativeSession> transactionAndSession =
+            new ConcurrentHashMap<TransactionInformation, NativeSession>(1000);
+    private HashSet<TransactionInformation> transactionsPreparedPreCrash;
     private boolean returnedAllPreparedTransactions = false;
     private final WorkManager workManager;
-    private final ResourceDependencyGraph resourceDependencyGraph;
     private final GatheringDiskWriter gatheringDiskWriter;
     private final CrashRecoveryWorker recoveryWorker;
     private final ObjectPoolReliever bufferPoolReliever;
     private final ObjectPoolReliever selectorPoolReliever;
-    private final DeadLockDetector deadLockDetector;
     private final FileSystemEventDelegator fileSystemEventDelegator;
     private final TransactionTimeoutDetector transactionTimeoutDetector;
     private final PointOfContact pointOfContact;
-    private final int lockTimeOut;
     private boolean recoveryComplete = false;
     private final LinkedBlockingQueue<FileSystemStateChangeEvent> fileSystemEventQueue;
     private volatile boolean systemHasFailed = false;
     private volatile Throwable systemFailureCause = null;
-    private final HashMap<File, XidImpl> directoriesPinnedForRename = new HashMap<File, XidImpl>(1000);
     private final CriticalWorkersListener workListener;
     private final File topLevelBackupDir;
     private File currentBackupDirPath;
     private AtomicLong backupFileNameCounter = new AtomicLong(0);
     private final int maxFilesInBackupDirectory = 100000;
-    private final int defaultTransactionTimeout;
     private final GlobalHostedContext globalCallbackContext = new GlobalHostedContext();
     private final AtomicLong totalNonPooledBufferSize = new AtomicLong(0);
+    private final ConcurrencyControl concurrencyControl;
+    private final boolean handleGeneralRemoteInvocations;
+    private final boolean handleClusterRemoteInvocations;
     
     //fix for bug XADISK-85 and potentially similar ones.
     public static final int FILE_CHANNEL_MAX_TRANSFER = 1024 * 1024 * 8;
@@ -109,7 +98,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         this.configuration = configuration;
         this.workManager = workManager;
         try {
-            XADiskHome = configuration.getXaDiskHome();
+            String XADiskHome = configuration.getXaDiskHome();
             FileIOUtility.createDirectoriesIfRequired(new File(XADiskHome));
             topLevelBackupDir = new File(XADiskHome, "backupDir");
             logger = new Logger(new File(XADiskHome, "xadisk.log"), (byte) 3);
@@ -146,14 +135,9 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             recoveryWorker = new CrashRecoveryWorker(this);
             bufferPoolReliever = new ObjectPoolReliever(bufferPool, configuration.getBufferPoolRelieverInterval(), this);
             selectorPoolReliever = new ObjectPoolReliever(selectorPool, 1000, this);
-            resourceDependencyGraph = new ResourceDependencyGraph();
-            deadLockDetector = new DeadLockDetector(configuration.getDeadLockDetectorInterval(), resourceDependencyGraph,
-                    this);
             transactionTimeoutDetector = new TransactionTimeoutDetector(1, this);
             this.fileSystemEventQueue = new LinkedBlockingQueue<FileSystemStateChangeEvent>();
             this.fileSystemEventDelegator = new FileSystemEventDelegator(this, configuration.getMaximumConcurrentEventDeliveries());
-            this.lockTimeOut = configuration.getLockTimeOut();
-            this.defaultTransactionTimeout = configuration.getTransactionTimeout();
             this.workListener = new CriticalWorkersListener(this);
             File deadLetterDir = new File(XADiskHome, "deadletter");
             diskSession.createDirectoriesIfRequired(deadLetterDir);
@@ -161,12 +145,33 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             
             diskSession.forceToDisk();
             
-            workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
+            if(configuration.getEnableClusterMode()) {
+                if(isValidString(configuration.getClusterMasterAddress())) {
+                    handleClusterRemoteInvocations = false;
+                    String clusterMasterAddress = configuration.getClusterMasterAddress();
+                    if(clusterMasterAddress.charAt(0) == '#') {
+                        String clusterMasterInstanceId = clusterMasterAddress.substring(1);
+                        concurrencyControl = getXAFileSystem(clusterMasterInstanceId).getConcurrencyControl();
+                    } else {
+                        Integer clusterMasterPort = configuration.getClusterMasterPort();
+                        concurrencyControl = new RemoteConcurrencyControl(clusterMasterAddress, clusterMasterPort);
+                    }
+                } else {
+                    handleClusterRemoteInvocations = true;
+                    concurrencyControl = new NativeConcurrencyControl(configuration, workManager, workListener, this);
+                }
+            } else {
+                handleClusterRemoteInvocations = false;
+                concurrencyControl = new NativeConcurrencyControl(configuration, workManager, workListener, this);
+            }
+            
             workManager.startWork(bufferPoolReliever, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(selectorPoolReliever, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(fileSystemEventDelegator, WorkManager.INDEFINITE, null, workListener);
             workManager.startWork(transactionTimeoutDetector, WorkManager.INDEFINITE, null, workListener);
-            if(configuration.getEnableRemoteInvocations()) {
+
+            handleGeneralRemoteInvocations = configuration.getEnableRemoteInvocations();
+            if(handleClusterRemoteInvocations || handleGeneralRemoteInvocations) {
                 pointOfContact = new PointOfContact(this, configuration.getServerPort());
                 workManager.startWork(pointOfContact, WorkManager.INDEFINITE, null, workListener);
             } else {
@@ -257,13 +262,13 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public NativeSession createSessionForLocalTransaction() {
         checkIfCanContinue();
-        NativeSession session = new NativeSession(XidImpl.getXidInstanceForLocalTransaction(getNextLocalTransactionId()), false, this);
+        NativeSession session = new NativeSession(TransactionInformation.getXidInstanceForLocalTransaction(getNextLocalTransactionId()), false, this);
         return session;
     }
 
     public NativeSession createSessionForXATransaction(Xid xid) {
         checkIfCanContinue();
-        NativeSession session = new NativeSession((XidImpl) xid, false, this);
+        NativeSession session = new NativeSession((TransactionInformation) xid, false, this);
         return session;
     }
 
@@ -273,22 +278,22 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     public XAResource getXAResourceForRecovery() {
-        return new XAResourceImpl(this);
+        return new XAResourceImpl(new NativeXASession(this, configuration.getInstanceId()));
     }
 
     public NativeSession getSessionForTransaction(Xid xid) {
         NativeSession session;
-        session = transactionAndSession.get((XidImpl) xid);
+        session = transactionAndSession.get((TransactionInformation) xid);
         if (session != null) {
             return session;
         }
-        if (transactionsPreparedPreCrash.contains((XidImpl) xid)) {
+        if (transactionsPreparedPreCrash.contains((TransactionInformation) xid)) {
             ArrayList<FileSystemStateChangeEvent> events =
-                    recoveryWorker.getEventsFromPreparedTransaction((XidImpl) xid);
+                    recoveryWorker.getEventsFromPreparedTransaction((TransactionInformation) xid);
             if (events != null) {
-                session = new NativeSession((XidImpl) xid, events, this);
+                session = new NativeSession((TransactionInformation) xid, events, this);
             } else {
-                session = new NativeSession((XidImpl) xid, true, this);
+                session = new NativeSession((TransactionInformation) xid, true, this);
             }
             if (session != null) {
                 return session;
@@ -297,11 +302,11 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         return null;
     }
 
-    void removeTransactionSessionEntry(XidImpl xid) {
+    void removeTransactionSessionEntry(TransactionInformation xid) {
         transactionAndSession.remove(xid);
     }
 
-    void assignSessionToTransaction(XidImpl xid, NativeSession session) {
+    void assignSessionToTransaction(TransactionInformation xid, NativeSession session) {
         transactionAndSession.put(xid, session);
     }
 
@@ -310,7 +315,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         return sessions.toArray(new NativeSession[0]);
     }
 
-    public NativeSession createRecoverySession(XidImpl xid, ArrayList<FileSystemStateChangeEvent> events) {
+    public NativeSession createRecoverySession(TransactionInformation xid, ArrayList<FileSystemStateChangeEvent> events) {
         if (events == null) {
             return new NativeSession(xid, true, this);
         } else {
@@ -335,256 +340,6 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         xids = transactionsPreparedPreCrash.toArray(new Xid[transactionsPreparedPreCrash.size()]);
         returnedAllPreparedTransactions = true;
         return xids;
-    }
-
-    public void interruptTransactionIfWaitingForResourceLock(XidImpl xid, byte cause) {
-        synchronized (xid.interruptFlagLock) {
-            xid.setInterruptCause(cause);
-            ResourceDependencyGraph.Node node = xid.getNodeInResourceDependencyGraph();
-            if (node != null && node.isWaitingForResource()) {
-                node.getTransactionThread().interrupt();
-            }
-        }
-    }
-
-    Lock acquireFileLock(XidImpl requestor, File f, long time, boolean exclusive) throws
-            LockingFailedException, InterruptedException, TransactionRolledbackException {
-        if(exclusive) {
-            return acquireExclusiveLock(requestor, f, time);
-        } else {
-            return acquireSharedLock(requestor, f, time);
-        }
-    }
-
-    private Lock acquireSharedLock(XidImpl requestor, File f, long time) throws
-            LockingFailedException, InterruptedException, TransactionRolledbackException {
-        Lock lock;
-
-        lock = fileLocks.get(f);
-        if (lock == null) {
-            synchronized (directoriesPinnedForRename) {
-                lock = fileLocks.get(f);
-                if (lock == null) {
-                    checkIfAnyAncestorPinnedForRename(f, requestor);
-                    lock = new Lock(false, f);
-                    lock.addHolder(requestor);
-                    fileLocks.put(f, lock);
-                    return lock;
-                }
-            }
-        }
-
-        try {
-            lock.startSynchBlock();
-            if (!lock.isExclusive()) {
-                synchronized (directoriesPinnedForRename) {
-                    checkIfAnyAncestorPinnedForRename(f, requestor);
-                    lock.addHolder(requestor);
-                    return lock;
-                }
-            }
-            long remainingTime = time;
-            boolean indefiniteWait = (time == 0);
-            resourceDependencyGraph.addDependency(requestor, lock);
-            while (lock.isExclusive()) {
-                try {
-                    long now1 = System.currentTimeMillis();
-                    lock.waitTillReadable(remainingTime);
-                    if (!lock.isExclusive()) {
-                        break;
-                    }
-                    long now2 = System.currentTimeMillis();
-                    if(!indefiniteWait) {
-                        remainingTime = remainingTime - (now2 - now1);
-                        if (remainingTime <= 0) {
-                            removeDependencyFromRDG(requestor);
-                            throw new LockingTimedOutException(f.getAbsolutePath());
-                        }
-                    }
-                } catch (InterruptedException ie) {
-                    removeDependencyFromRDG(requestor);
-                    if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_DEADLOCK) {
-                        DeadLockVictimizedException dlve = new DeadLockVictimizedException(f.getAbsolutePath());
-                        requestor.getOwningSession().rollbackPrematurely(dlve);
-                        throw new TransactionRolledbackException(dlve);
-                    } else if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_TIMEOUT) {
-                        TransactionTimeoutException ttoe = new TransactionTimeoutException();
-                        requestor.getOwningSession().rollbackPrematurely(ttoe);
-                        throw new TransactionRolledbackException(ttoe);
-                    }
-                    throw ie;
-                }
-            }
-            removeDependencyFromRDG(requestor);
-            synchronized (directoriesPinnedForRename) {
-                checkIfAnyAncestorPinnedForRename(f, requestor);
-                lock.addHolder(requestor);
-                return lock;
-            }
-        } finally {
-            lock.endSynchBlock();
-        }
-    }
-
-    void removeDependencyFromRDG(XidImpl requestor) {
-        synchronized (requestor.interruptFlagLock) {
-            resourceDependencyGraph.removeDependency(requestor);
-            Thread.interrupted();
-        }
-    }
-
-    private boolean canUpgradeLock(Lock lock, XidImpl requestor) {
-        return lock.getNumHolders() == 1 && lock.isAHolder(requestor);
-    }
-
-    public static boolean isAncestorOf(File a, File b) {
-        File parentB = b.getParentFile();
-        while (parentB != null) {
-            if (a.equals(parentB)) {
-                return true;
-            }
-            parentB = parentB.getParentFile();
-        }
-        return false;
-    }
-
-    private void checkIfAnyAncestorPinnedForRename(File f, XidImpl exceptionalSelf) throws AncestorPinnedException {
-        File parent = f.getParentFile();
-        while (parent != null) {
-            XidImpl pinHolder = directoriesPinnedForRename.get(parent);
-            if (pinHolder != null && !pinHolder.equals(exceptionalSelf)) {
-                throw new AncestorPinnedException(f.getAbsolutePath(), parent.getAbsolutePath());
-            }
-            parent = parent.getParentFile();
-        }
-    }
-
-    void pinDirectoryForRename(File dir, XidImpl exceptionalSelf) throws
-            DirectoryPinningFailedException {
-        synchronized (directoriesPinnedForRename) {
-            for (File file : fileLocks.keySet()) {
-                if (isAncestorOf(dir, file)) {
-                    Lock lock = fileLocks.get(file);
-                    Iterator<XidImpl> holders = lock.getHolders().iterator();
-                    while (holders.hasNext()) {
-                        if (!holders.next().equals(exceptionalSelf)) {
-                            throw new DirectoryPinningFailedException(dir.getAbsolutePath(), file.getAbsolutePath());
-                        }
-                    }
-                }
-            }
-            directoriesPinnedForRename.put(dir, exceptionalSelf);
-        }
-    }
-
-    void releaseRenamePinOnDirectories(Collection<File> dirs) {
-        synchronized (directoriesPinnedForRename) {
-            for (File dir : dirs) {
-                directoriesPinnedForRename.remove(dir);
-            }
-        }
-    }
-
-    void releaseRenamePinOnDirectory(File dir) {
-        synchronized (directoriesPinnedForRename) {
-            directoriesPinnedForRename.remove(dir);
-        }
-    }
-
-    private Lock acquireExclusiveLock(XidImpl requestor, File f, long time)
-            throws LockingFailedException, InterruptedException, TransactionRolledbackException {
-        Lock lock;
-
-        lock = fileLocks.get(f);
-        if (lock == null) {
-            synchronized (directoriesPinnedForRename) {
-                lock = fileLocks.get(f);
-                if (lock == null) {
-                    checkIfAnyAncestorPinnedForRename(f, requestor);
-                    lock = new Lock(true, f);
-                    lock.addHolder(requestor);
-                    fileLocks.put(f, lock);
-                    requestor.getOwningSession().incrementNumOwnedExclusiveLocks();
-                    return lock;
-                }
-            }
-        }
-
-        try {
-            lock.startSynchBlock();
-            if (canUpgradeLock(lock, requestor)) {
-                synchronized (directoriesPinnedForRename) {
-                    checkIfAnyAncestorPinnedForRename(f, requestor);
-                    lock.setExclusive(true);
-                    lock.markUpgraded();
-                    requestor.getOwningSession().incrementNumOwnedExclusiveLocks();
-                    return lock;
-                }
-            }
-
-            long remainingTime = time;
-            boolean indefiniteWait = (time == 0);
-            resourceDependencyGraph.addDependency(requestor, lock);
-            while (!(lock.getNumHolders() == 0 || canUpgradeLock(lock, requestor))) {
-                try {
-                    long now1 = System.currentTimeMillis();
-                    lock.waitTillWritable(remainingTime);
-                    if (lock.getNumHolders() == 0 || canUpgradeLock(lock, requestor)) {
-                        break;
-                    }
-                    long now2 = System.currentTimeMillis();
-                    if(!indefiniteWait) {
-                        remainingTime = remainingTime - (now2 - now1);
-                        if (remainingTime <= 0) {
-                            removeDependencyFromRDG(requestor);
-                            throw new LockingTimedOutException(f.getAbsolutePath());
-                        }
-                    }
-                } catch (InterruptedException ie) {
-                    removeDependencyFromRDG(requestor);
-                    if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_DEADLOCK) {
-                        DeadLockVictimizedException dlve = new DeadLockVictimizedException(f.getAbsolutePath());
-                        requestor.getOwningSession().rollbackPrematurely(dlve);
-                        throw new TransactionRolledbackException(dlve);
-                    } else if (requestor.getInterruptCause() == XidImpl.INTERRUPTED_DUE_TO_TIMEOUT) {
-                        TransactionTimeoutException ttoe = new TransactionTimeoutException();
-                        requestor.getOwningSession().rollbackPrematurely(ttoe);
-                        throw new TransactionRolledbackException(ttoe);
-                    }
-                    throw ie;
-                }
-            }
-            removeDependencyFromRDG(requestor);
-            synchronized (directoriesPinnedForRename) {
-                checkIfAnyAncestorPinnedForRename(f, requestor);
-                lock.setExclusive(true);
-                if (canUpgradeLock(lock, requestor)) {
-                    lock.markUpgraded();
-                } else {
-                    lock.addHolder(requestor);
-                }
-                requestor.getOwningSession().incrementNumOwnedExclusiveLocks();
-                return lock;
-            }
-        } finally {
-            lock.endSynchBlock();
-        }
-    }
-
-    void releaseLock(XidImpl releasor, Lock lock) {
-        try {
-            lock.startSynchBlock();
-            //TODO: write a good code to delete unnecessary entries from the fileLocks map.
-            lock.removeHolder(releasor);
-            if (lock.isExclusive()) {
-                lock.reset();
-                lock.notifyReadWritable();
-            } else {
-                lock.notifyWritable();
-            }
-        } finally {
-            lock.endSynchBlock();
-        }
     }
 
     public BufferPool getBufferPool() {
@@ -631,8 +386,11 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         workManager.startWork(work, WorkManager.INDEFINITE, null, workListener);
     }
 
-    ResourceDependencyGraph getResourceDependencyGraph() {
-        return resourceDependencyGraph;
+    public ConcurrencyControl getConcurrencyControl() {
+        if(concurrencyControl instanceof RemoteConcurrencyControl) {
+            return ((RemoteConcurrencyControl) concurrencyControl).getNewInstance();
+        }
+        return concurrencyControl;
     }
 
     public long getNextLocalTransactionId() {
@@ -654,7 +412,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         
         bufferPoolReliever.release();
         selectorPoolReliever.release();
-        deadLockDetector.release();
+        concurrencyControl.shutdown();
         recoveryWorker.release();
         gatheringDiskWriter.release();
         gatheringDiskWriter.deInitialize();
@@ -673,7 +431,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     int getLockTimeOut() {
-        return lockTimeOut;
+        return configuration.getLockTimeOut();
     }
 
     public File getNextBackupFileName() throws IOException {
@@ -773,7 +531,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     }
 
     public int getDefaultTransactionTimeout() {
-        return defaultTransactionTimeout;
+        return configuration.getTransactionTimeout();
     }
 
     public String getXADiskSystemId() {
@@ -802,5 +560,13 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public static long maxTransferToChannel(long upperLimitOnBytes) {
         return Math.min(upperLimitOnBytes, FILE_CHANNEL_MAX_TRANSFER);
+    }
+
+    public boolean getHandleClusterRemoteInvocations() {
+        return handleClusterRemoteInvocations;
+    }
+
+    public boolean getHandleGeneralRemoteInvocations() {
+        return handleGeneralRemoteInvocations;
     }
 }

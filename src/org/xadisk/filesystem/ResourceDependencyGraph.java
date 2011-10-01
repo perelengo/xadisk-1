@@ -13,34 +13,30 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ResourceDependencyGraph {
 
-    private final ConcurrentHashMap<XidImpl, Node> nodes = new ConcurrentHashMap<XidImpl, Node>(1000);
+    private final ConcurrentHashMap<TransactionInformation, Node> nodes = new ConcurrentHashMap<TransactionInformation, Node>(1000);
 
     ResourceDependencyGraph() {
     }
 
-    void addDependency(XidImpl dependent, Lock resource) {
-        Node source = dependent.getNodeInResourceDependencyGraph();
-        source.setResourceWaitingFor(resource);
+    void addDependency(TransactionInformation dependent, NativeLock resource) {
+        Node node = new Node(dependent, 0, resource, Thread.currentThread());
+        nodes.put(dependent, node);
+        dependent.setNodeInResourceDependencyGraph(node);
     }
 
-    void removeDependency(XidImpl dependent) {
+    void removeDependency(TransactionInformation dependent) {
         Node source = dependent.getNodeInResourceDependencyGraph();
         source.setResourceWaitingFor(null);
-    }
-
-    void removeNodeForTransaction(XidImpl xid) {
-        nodes.remove(xid);
-        xid.setNodeInResourceDependencyGraph(null);
-    }
-
-    void createNodeForTransaction(XidImpl xid) {
-        Node node = new Node(xid, 0, Thread.currentThread());
-        nodes.put(xid, node);
-        xid.setNodeInResourceDependencyGraph(node);
+        nodes.remove(dependent);
+        dependent.setNodeInResourceDependencyGraph(null);
     }
 
     public Node[] getNodes() {
-        return nodes.values().toArray(new Node[nodes.size()]);
+        return nodes.values().toArray(new Node[0]);
+    }
+
+    public Node getNode(TransactionInformation dependent) {
+        return nodes.get(dependent);
     }
 
     /*public Node generateNodeForTesting() {
@@ -50,24 +46,29 @@ public class ResourceDependencyGraph {
     }*/
     
     public static class Node {
-
-        private final Object id;
+        
+        public static final byte INTERRUPTED_DUE_TO_DEADLOCK = 1;
+        public static final byte INTERRUPTED_DUE_TO_TIMEOUT = 2;
+    
+        private final TransactionInformation id;
         private final ArrayList<Node> neighbors = new ArrayList<Node>(10);
+        private final Thread threadWaitingForLock;
+        private volatile byte interruptCause = 0;
+        private final Object interruptFlagLock = new ArrayList<Object>(0);//making it transient means it would be seen as null
+        //in the remote xadisk, and was giving NPE. We also made this String as Object is not serializable. Doesn't
+        //matter what is the actual Object anyway.
+    
         private int mark;
         private int prepostVisit[] = new int[2];
         private Node parent = null;
         private int nextNeighborToProcess = 0;
-        private volatile Thread transactionThread;
-        private volatile Lock resourceWaitingFor = null;
+        private volatile NativeLock resourceWaitingFor;
 
-        private Node(Object id, int defaultMark, Thread transactionThread) {
+        private Node(TransactionInformation id, int defaultMark, NativeLock resourceWaitingFor, Thread threadWaitingForLock) {
             this.id = id;
             this.mark = defaultMark;
-            this.transactionThread = transactionThread;
-        }
-
-        public void reAssociatedTransactionThread(Thread transactionThread) {
-            this.transactionThread = transactionThread;
+            this.resourceWaitingFor = resourceWaitingFor;
+            this.threadWaitingForLock = threadWaitingForLock;
         }
 
         public void addNeighbor(Node n) {
@@ -106,7 +107,7 @@ public class ResourceDependencyGraph {
             this.parent = parent;
         }
 
-        public Object getId() {
+        public TransactionInformation getId() {
             return id;
         }
 
@@ -131,16 +132,28 @@ public class ResourceDependencyGraph {
             nextNeighborToProcess++;
         }
 
-        Thread getTransactionThread() {
-            return transactionThread;
-        }
-
-        void setResourceWaitingFor(Lock resourceWaitingFor) {
+        void setResourceWaitingFor(NativeLock resourceWaitingFor) {
             this.resourceWaitingFor = resourceWaitingFor;
         }
-
-        public Lock getResourceWaitingFor() {
+        
+        public NativeLock getResourceWaitingFor() {
             return resourceWaitingFor;
+        }
+
+        public Thread getThreadWaitingForLock() {
+            return threadWaitingForLock;
+        }
+
+        public byte getInterruptCause() {
+            return interruptCause;
+        }
+
+        public void setInterruptCause(byte interruptCause) {
+            this.interruptCause = interruptCause;
+        }
+
+        public Object getInterruptFlagLock() {
+            return interruptFlagLock;
         }
     }
 }

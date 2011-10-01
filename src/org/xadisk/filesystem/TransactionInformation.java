@@ -14,23 +14,19 @@ import java.util.ArrayList;
 import javax.transaction.xa.Xid;
 import org.xadisk.filesystem.ResourceDependencyGraph.Node;
 
-public class XidImpl implements Xid, Serializable {
+public class TransactionInformation implements Xid, Serializable {
 
     private static final long serialVersionUID = 1L;
     
-    public static final byte INTERRUPTED_DUE_TO_DEADLOCK = 1;
-    public static final byte INTERRUPTED_DUE_TO_TIMEOUT = 2;
     private final byte[] gid;
     private final byte[] bqual;
     private final int formatId;
+    private int numOwnedExclusiveLocks = 0;
+    
     private transient volatile ResourceDependencyGraph.Node nodeInResourceDependencyGraph = null;
-    private transient volatile byte interruptCause = 0;
-    public final Object interruptFlagLock = new ArrayList<Object>(0);//making it transient means it would be seen as null
-    //in the remote xadisk, and was giving NPE. We also made this String as Object is not serializable. Doesn't
-    //matter what is the actual Object anyway.
     private transient NativeSession owningSession;
 
-    XidImpl(ByteBuffer buffer) {
+    TransactionInformation(ByteBuffer buffer) {
         int gidLength = buffer.get();
         int bqualLength = buffer.get();
         this.formatId = buffer.getInt();
@@ -40,10 +36,16 @@ public class XidImpl implements Xid, Serializable {
         buffer.get(bqual);
     }
 
-    public XidImpl(Xid xid) {
+    public TransactionInformation(Xid xid) {
         gid = xid.getGlobalTransactionId();
         bqual = xid.getBranchQualifier();
         formatId = xid.getFormatId();
+    }
+
+    public TransactionInformation(byte[] gid, byte[] bqual, int formatId) {
+        this.gid = gid;
+        this.bqual = bqual;
+        this.formatId = formatId;
     }
 
     public byte[] getBranchQualifier() {
@@ -62,8 +64,8 @@ public class XidImpl implements Xid, Serializable {
         if (obj == this) {
             return true;
         }
-        if (obj instanceof XidImpl) {
-            XidImpl xid = (XidImpl) obj;
+        if (obj instanceof TransactionInformation) {
+            TransactionInformation xid = (TransactionInformation) obj;
             if (xid.getFormatId() != formatId) {
                 return false;
             }
@@ -104,22 +106,14 @@ public class XidImpl implements Xid, Serializable {
         this.nodeInResourceDependencyGraph = nodeInResourceDependencyGraph;
     }
 
-    public byte getInterruptCause() {
-        return interruptCause;
-    }
-
-    public void setInterruptCause(byte interruptCause) {
-        this.interruptCause = interruptCause;
-    }
-
-    public static XidImpl getXidInstanceForLocalTransaction(long localTransactionId) {
+    public static TransactionInformation getXidInstanceForLocalTransaction(long localTransactionId) {
         ByteBuffer tidBuffer = ByteBuffer.allocate(20);
         tidBuffer.put((byte) 8);
         tidBuffer.put((byte) 0);
         tidBuffer.putInt(101);
         tidBuffer.putLong(localTransactionId);
         tidBuffer.flip();
-        return new XidImpl(tidBuffer);
+        return new TransactionInformation(tidBuffer);
     }
 
     public NativeSession getOwningSession() {
@@ -128,5 +122,13 @@ public class XidImpl implements Xid, Serializable {
 
     public void setOwningSession(NativeSession owningSession) {
         this.owningSession = owningSession;
+    }
+
+    public int getNumOwnedExclusiveLocks() {
+        return numOwnedExclusiveLocks;
+    }
+    
+    public void incrementNumOwnedExclusiveLocks() {
+        this.numOwnedExclusiveLocks++;
     }
 }
