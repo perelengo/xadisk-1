@@ -16,15 +16,16 @@ import javax.transaction.xa.Xid;
 import org.xadisk.filesystem.NativeXASession;
 import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.XAFileSystemCommonness;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.exceptions.XASystemException;
+import org.xadisk.filesystem.utilities.MiscUtils;
 
 public class XAResourceImpl implements XAResource {
 
     private final NativeXASession xaSession;
     private final XAFileSystemCommonness xaFileSystem;
-    private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>(1000);
+    private final ConcurrentHashMap<Xid, TransactionInformation> internalXids = new ConcurrentHashMap<Xid, TransactionInformation>(1000);
     private volatile int transactionTimeout;
 
     public XAResourceImpl(NativeXASession xaSession) {
@@ -33,27 +34,21 @@ public class XAResourceImpl implements XAResource {
         transactionTimeout = xaFileSystem.getDefaultTransactionTimeout();
     }
 
-    public XAResourceImpl(XAFileSystemCommonness xaFileSystem) {
-        //this xar object supposed to be used only during recovery (i.e. calling recover method on this).
-        this.xaSession = null;
-        this.xaFileSystem = xaFileSystem;
-    }
-
     public void start(Xid xid, int flag) throws XAException {
-        XidImpl internalXid = mapToInternalXid(xid);
+        TransactionInformation internalXid = mapToInternalXid(xid);
         if (flag == XAResource.TMNOFLAGS) {
             try {
                 Session session = xaSession.refreshSessionForNewXATransaction(internalXid);
                 session.setTransactionTimeout(transactionTimeout);
             } catch (XASystemException xase) {
-                throw new XAException(XAException.XAER_RMFAIL);
+                throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, xase);
             }
             xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
         }
         if (flag == XAResource.TMJOIN) {
             Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
             if (sessionOfTransaction == null) {
-                throw new XAException(XAException.XAER_INVAL);
+                throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
             }
             xaSession.setSessionOfExistingXATransaction(sessionOfTransaction);
             xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
@@ -61,7 +56,7 @@ public class XAResourceImpl implements XAResource {
         if (flag == XAResource.TMRESUME) {
             Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
             if (sessionOfTransaction == null) {
-                throw new XAException(XAException.XAER_INVAL);
+                throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
             }
             xaSession.setSessionOfExistingXATransaction(sessionOfTransaction);
             xaSession.setTypeOfCurrentTransaction(NativeXASession.XA_TRANSACTION);
@@ -69,10 +64,10 @@ public class XAResourceImpl implements XAResource {
     }
 
     public void end(Xid xid, int flag) throws XAException {
-        XidImpl internalXid = mapToInternalXid(xid);
+        TransactionInformation internalXid = mapToInternalXid(xid);
         Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
         if (sessionOfTransaction == null) {
-            throw new XAException(XAException.XAER_INVAL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
         }
         if (flag == XAResource.TMSUCCESS) {
             xaSession.setTypeOfCurrentTransaction(NativeXASession.NO_TRANSACTION);
@@ -86,10 +81,10 @@ public class XAResourceImpl implements XAResource {
     }
 
     public int prepare(Xid xid) throws XAException {
-        XidImpl internalXid = mapToInternalXid(xid);
+        TransactionInformation internalXid = mapToInternalXid(xid);
         Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
         if (sessionOfTransaction == null) {
-            throw new XAException(XAException.XAER_INVAL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
         }
         try {
             if(((SessionCommonness)sessionOfTransaction).isUsingReadOnlyOptimization()) {
@@ -101,25 +96,25 @@ public class XAResourceImpl implements XAResource {
             }
         } catch (NoTransactionAssociatedException note) {
             releaseFromInternalXidMap(xid);
-            throw new XAException(XAException.XA_RBROLLBACK);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XA_RBROLLBACK, note);
         } catch (XASystemException xase) {
             releaseFromInternalXidMap(xid);
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, xase);
         }
     }
 
     public void rollback(Xid xid) throws XAException {
-        XidImpl internalXid = mapToInternalXid(xid);
+        TransactionInformation internalXid = mapToInternalXid(xid);
         Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
         if (sessionOfTransaction == null) {
-            throw new XAException(XAException.XAER_INVAL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
         }
         try {
             sessionOfTransaction.rollback();
         } catch (NoTransactionAssociatedException note) {
-            throw new XAException(XAException.XA_RBROLLBACK);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XA_RBROLLBACK, note);
         } catch (XASystemException xase) {
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, xase);
         } finally {
             releaseFromInternalXidMap(xid);
         }
@@ -127,17 +122,17 @@ public class XAResourceImpl implements XAResource {
     }
 
     public void commit(Xid xid, boolean onePhase) throws XAException {
-        XidImpl internalXid = mapToInternalXid(xid);
+        TransactionInformation internalXid = mapToInternalXid(xid);
         Session sessionOfTransaction = xaFileSystem.getSessionForTransaction(internalXid);
         if (sessionOfTransaction == null) {
-            throw new XAException(XAException.XAER_INVAL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_INVAL, null);
         }
         try {
             ((SessionCommonness)sessionOfTransaction).commit(onePhase);
         } catch (NoTransactionAssociatedException note) {
-            throw new XAException(XAException.XA_RBROLLBACK);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XA_RBROLLBACK, note);
         } catch (XASystemException xase) {
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, xase);
         } finally {
             releaseFromInternalXidMap(xid);
         }
@@ -170,10 +165,10 @@ public class XAResourceImpl implements XAResource {
         return true;
     }
 
-    private XidImpl mapToInternalXid(Xid xid) {
-        XidImpl internalXid = internalXids.get(xid);
+    private TransactionInformation mapToInternalXid(Xid xid) {
+        TransactionInformation internalXid = internalXids.get(xid);
         if (internalXid == null) {
-            internalXid = new XidImpl(xid);
+            internalXid = new TransactionInformation(xid);
             internalXids.put(xid, internalXid);
         }
         return internalXid;

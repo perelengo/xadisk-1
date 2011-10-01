@@ -21,17 +21,18 @@ import javax.transaction.xa.Xid;
 import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
-import org.xadisk.filesystem.XidImpl;
+import org.xadisk.filesystem.TransactionInformation;
+import org.xadisk.filesystem.utilities.MiscUtils;
 
 public class LocalEventProcessingXAResource implements XAResource {
 
-    private final ConcurrentHashMap<Xid, XidImpl> internalXids = new ConcurrentHashMap<Xid, XidImpl>(1000);
+    private final ConcurrentHashMap<Xid, TransactionInformation> internalXids = new ConcurrentHashMap<Xid, TransactionInformation>(1000);
     private final Object lockOnInternalXids = new ArrayList<Object>(0);
     private final NativeXAFileSystem xaFileSystem;
     private final FileSystemStateChangeEvent event;
     private volatile boolean returnedAllPreparedTransactions = false;
     private final boolean isCreatedForRecovery;
-    private volatile HashMap<XidImpl, FileSystemStateChangeEvent> dequeuingTransactionsPreparedPreCrash;
+    private volatile HashMap<TransactionInformation, FileSystemStateChangeEvent> dequeuingTransactionsPreparedPreCrash;
     private byte transactionOutcome = Status.STATUS_NO_TRANSACTION;
 
     public LocalEventProcessingXAResource(NativeXAFileSystem xaFileSystem, FileSystemStateChangeEvent event) {
@@ -59,7 +60,7 @@ public class LocalEventProcessingXAResource implements XAResource {
     }
 
     public int prepare(Xid xid) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        TransactionInformation xidImpl = mapToInternalXid(xid);
         if (isCreatedForRecovery) {
             //not expected.
         }
@@ -67,13 +68,13 @@ public class LocalEventProcessingXAResource implements XAResource {
             xaFileSystem.getTheGatheringDiskWriter().transactionPrepareCompletesForEventDequeue(xidImpl, event);
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailureAndContinue(ioe);
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, ioe);
         }
         return XAResource.XA_OK;
     }
 
     public void commit(Xid xid, boolean onePhase) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        TransactionInformation xidImpl = mapToInternalXid(xid);
         FileSystemStateChangeEvent eventForTransaction = null;
         try {
             if (isCreatedForRecovery) {
@@ -93,14 +94,14 @@ public class LocalEventProcessingXAResource implements XAResource {
             this.transactionOutcome = Status.STATUS_COMMITTED;
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailureAndContinue(ioe);
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, ioe);
         } finally {
             releaseFromInternalXidMap(xid);
         }
     }
 
     public void rollback(Xid xid) throws XAException {
-        XidImpl xidImpl = mapToInternalXid(xid);
+        TransactionInformation xidImpl = mapToInternalXid(xid);
         try {
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xidImpl, false);
             if (isCreatedForRecovery) {
@@ -109,7 +110,7 @@ public class LocalEventProcessingXAResource implements XAResource {
             this.transactionOutcome = Status.STATUS_ROLLEDBACK;
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailureAndContinue(ioe);
-            throw new XAException(XAException.XAER_RMFAIL);
+            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMFAIL, ioe);
         } finally {
             releaseFromInternalXidMap(xid);
         }
@@ -134,8 +135,8 @@ public class LocalEventProcessingXAResource implements XAResource {
                 getPreparedInDoubtTransactionsOfDequeue();
 
         Xid xids[];
-        Set<XidImpl> xidsSet = dequeuingTransactionsPreparedPreCrash.keySet();
-        xids = xidsSet.toArray(new Xid[xidsSet.size()]);
+        Set<TransactionInformation> xidsSet = dequeuingTransactionsPreparedPreCrash.keySet();
+        xids = xidsSet.toArray(new Xid[0]);
         returnedAllPreparedTransactions = true;
         return xids;
     }
@@ -158,11 +159,11 @@ public class LocalEventProcessingXAResource implements XAResource {
         return false;
     }
 
-    private XidImpl mapToInternalXid(Xid xid) {
+    private TransactionInformation mapToInternalXid(Xid xid) {
         synchronized (lockOnInternalXids) {
-            XidImpl internalXid = internalXids.get(xid);
+            TransactionInformation internalXid = internalXids.get(xid);
             if (internalXid == null) {
-                internalXid = new XidImpl(xid);
+                internalXid = new TransactionInformation(xid);
                 internalXids.put(xid, internalXid);
             }
             return internalXid;
