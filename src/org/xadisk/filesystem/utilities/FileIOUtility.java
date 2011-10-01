@@ -162,6 +162,12 @@ public class FileIOUtility {
     }
 
     private static boolean makeSpaceForGC() {
+        /**
+         * I know that this mechanism of doing gc when file operations fail is weird. But I had no other option than to use
+         * this workaround which would get triggered very very rarely (when that jvm bug gets triggered). Things like
+         * not closing channel/stream are ususally the cause for file delete/rename failure, but a check over the
+         * complete xadisk code confirms that the cause here is something else (a jvm bug).
+        **/
         System.gc();
         System.gc();
         System.gc();

@@ -142,6 +142,7 @@ public class FileSystemStateChangeEvent implements Serializable {
     public String toString() {
         return "Event Type : " + this.eventType.name()
                 + " || File Name : " + this.file
-                + " || Is a Directory : " + this.isDirectory;
+                + " || Is a Directory : " + this.isDirectory
+                + System.getProperty("line.separator");
     }
 }

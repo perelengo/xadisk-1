@@ -131,4 +131,19 @@ public class TransactionInformation implements Xid, Serializable {
     public void incrementNumOwnedExclusiveLocks() {
         this.numOwnedExclusiveLocks++;
     }
+
+    @Override
+    public String toString() {
+        return "gid : \t" + getHexString(gid) + "\n" +
+                "bqual : \t" + getHexString(bqual) + "\n" +
+                "formatId : \t" + Integer.toHexString(formatId);
+    }
+
+    private String getHexString(byte[] bs) {
+        StringBuilder sb = new StringBuilder();
+        for(byte b : bs) {
+            sb.append(Integer.toHexString(b)).append(" ");
+        }
+        return sb.toString();
+    }
 }
