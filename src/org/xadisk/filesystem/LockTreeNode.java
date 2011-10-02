@@ -40,8 +40,12 @@ public class LockTreeNode {
     }
 
     boolean attemptPinning(TransactionInformation requestor) {
-        return pinHolder.get() == null || pinHolder.get().equals(requestor) ||
-                pinHolder.compareAndSet(null, requestor);
+        TransactionInformation holderTransaction = pinHolder.get();
+        if(holderTransaction == null) {
+            return pinHolder.compareAndSet(null, requestor);
+        } else {
+            return holderTransaction.equals(requestor);
+        }
     }
 
     void releasePin() {

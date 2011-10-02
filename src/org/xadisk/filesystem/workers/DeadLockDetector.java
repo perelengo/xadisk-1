@@ -11,6 +11,7 @@ package org.xadisk.filesystem.workers;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Stack;
+import org.xadisk.bridge.proxies.impl.RemoteTransactionInformation;
 import org.xadisk.filesystem.NativeConcurrencyControl;
 import org.xadisk.filesystem.NativeLock;
 import org.xadisk.filesystem.NativeXAFileSystem;
@@ -73,9 +74,13 @@ public class DeadLockDetector extends TimedWorker {
                 resource.endSynchBlock();
             }
             for (int j = 0; j < holders.length; j++) {
-                ResourceDependencyGraph.Node neighbor = holders[j].getNodeInResourceDependencyGraph();
-                if (neighbor != null && neighbor != node)
-                {
+                ResourceDependencyGraph.Node neighbor;
+                if(holders[j] instanceof RemoteTransactionInformation) {
+                    neighbor = rdg.getNode(holders[j]);
+                } else {
+                    neighbor = holders[j].getNodeInResourceDependencyGraph();
+                }
+                if (neighbor != null && neighbor != node) {
                     node.addNeighbor(neighbor);
                 }
             }

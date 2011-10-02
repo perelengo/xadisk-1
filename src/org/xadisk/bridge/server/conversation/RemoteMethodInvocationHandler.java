@@ -256,16 +256,15 @@ public class RemoteMethodInvocationHandler implements Work {
                 return XAResource.class;
             }
             if (obj instanceof Xid) {
-                //todo - use some cleaner approach here.
-                if(obj instanceof RemoteTransactionInformation) {
-                    return TransactionInformation.class;
-                }
                 return Xid.class;
             }
         }
         if(xaFileSystem.getHandleClusterRemoteInvocations()) {
             if (obj instanceof Lock) {
                 return Lock.class;
+            }
+            if(obj instanceof RemoteTransactionInformation) {
+                return TransactionInformation.class;
             }
         }
         return obj.getClass();
