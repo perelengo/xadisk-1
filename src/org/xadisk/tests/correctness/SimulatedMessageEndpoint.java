@@ -33,7 +33,7 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
 
     public void beforeDelivery(Method meth) throws NoSuchMethodException, ResourceException {
         this.generatedXid = TransactionInformation.getXidInstanceForLocalTransaction(
-                ((NativeXAFileSystem)XAFileSystemProxy.getNativeXAFileSystemReference("1")).getNextLocalTransactionId());
+                ((NativeXAFileSystem)XAFileSystemProxy.getNativeXAFileSystemReference("local")).getNextLocalTransactionId());
         try {
             epXAR.start(generatedXid, XAResource.TMNOFLAGS);
         } catch (XAException xae) {
@@ -45,7 +45,7 @@ public class SimulatedMessageEndpoint implements MessageEndpoint, FileSystemEven
     public void onFileSystemEvent(FileSystemStateChangeEvent event) {
         System.out.println("Received " + event.getEventType() + " event for file " + event.getFile());
         if (this.goTill == SimulatedMessageEndpointFactory.GoTill.consume) {
-            throw new ArrayIndexOutOfBoundsException();
+            throw new ArrayIndexOutOfBoundsException("intentional");
         }
         owningFactory.incrementEventsReceivedCount();
         try {

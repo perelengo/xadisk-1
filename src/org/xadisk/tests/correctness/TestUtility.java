@@ -40,7 +40,7 @@ public class TestUtility {
                 return null;
             }
         } else {
-            return XAFileSystemProxy.getNativeXAFileSystemReference("1");
+            return XAFileSystemProxy.getNativeXAFileSystemReference("local");
         }
     }
 

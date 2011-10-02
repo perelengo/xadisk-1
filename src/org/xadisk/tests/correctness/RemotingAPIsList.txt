@@ -1,9 +1,0 @@
-these interfaces should be tested both for local and remote access
-Session
-XASession
-XAFileInputStream
-XAFileOutputStream
-MessageEndpointFactory
-MessageEndpoint
-XAFileSystem
-Event Processing XAResource

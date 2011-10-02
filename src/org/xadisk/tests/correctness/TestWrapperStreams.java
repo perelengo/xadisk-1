@@ -24,7 +24,7 @@ public class TestWrapperStreams {
 
     public static void main(String args[]) {
         try {
-            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "");
+            StandaloneFileSystemConfiguration configuration = new StandaloneFileSystemConfiguration(XADiskSystemDirectory, "local");
             configuration.setWorkManagerCorePoolSize(100);
             configuration.setWorkManagerMaxPoolSize(100);
             configuration.setServerPort(9998);

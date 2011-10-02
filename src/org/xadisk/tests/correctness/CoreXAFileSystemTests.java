@@ -240,7 +240,7 @@ public class CoreXAFileSystemTests {
         currentCheckpoint++;
     }
 
-    public static void testIOOperationsPostCrash(String testDirectory) throws Exception {
+    public void testIOOperationsPostCrash(String testDirectory) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -254,7 +254,7 @@ public class CoreXAFileSystemTests {
         }
     }
 
-    public static void testDynamicReadWrite(String testDirectory) throws Exception {
+    public void testDynamicReadWrite(String testDirectory) throws Exception {
         String roots[] = new String[2];
         roots[0] = testDirectory + SEPERATOR + "dir1";
         roots[1] = testDirectory + SEPERATOR + "dir2";
@@ -468,7 +468,7 @@ public class CoreXAFileSystemTests {
 
         SimulatedMessageEndpointFactory smef = new SimulatedMessageEndpointFactory();
         EndPointActivation epActivation = new EndPointActivation(smef, actSpec);
-        XAFileSystemCommonness xaFileSystem = new RemoteXAFileSystem("localhost", TestUtility.remoteXADiskPort, NativeXAFileSystem.getXAFileSystem("1"));
+        XAFileSystemCommonness xaFileSystem = new RemoteXAFileSystem("localhost", TestUtility.remoteXADiskPort, NativeXAFileSystem.getXAFileSystem("local"));
         xaFileSystem.registerEndPointActivation(epActivation);
 
         Session session = xaFileSystem.createSessionForLocalTransaction();
