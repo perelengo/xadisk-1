@@ -8,8 +8,6 @@ import javax.resource.spi.work.WorkException;
 import javax.resource.spi.work.WorkListener;
 import javax.resource.spi.work.WorkManager;
 import org.xadisk.bridge.proxies.impl.RemoteTransactionInformation;
-import org.xadisk.bridge.proxies.interfaces.ConcurrencyControl;
-import org.xadisk.bridge.proxies.interfaces.Lock;
 import org.xadisk.filesystem.exceptions.AncestorPinnedException;
 import org.xadisk.filesystem.exceptions.DeadLockVictimizedException;
 import org.xadisk.filesystem.exceptions.DirectoryPinningFailedException;

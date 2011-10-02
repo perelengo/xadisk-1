@@ -1,4 +1,4 @@
-package org.xadisk.bridge.proxies.interfaces;
+package org.xadisk.filesystem;
 
 import java.io.File;
 import java.io.Serializable;

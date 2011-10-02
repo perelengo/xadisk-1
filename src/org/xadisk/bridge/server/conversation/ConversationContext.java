@@ -24,7 +24,7 @@ import org.xadisk.bridge.proxies.impl.RemoteMessageEndpoint;
 import org.xadisk.bridge.proxies.impl.RemoteSession;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileInputStream;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileOutputStream;
-import org.xadisk.bridge.proxies.interfaces.Lock;
+import org.xadisk.filesystem.Lock;
 import org.xadisk.filesystem.NativeSession;
 
 public class ConversationContext {

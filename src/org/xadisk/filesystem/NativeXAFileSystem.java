@@ -41,7 +41,6 @@ import org.xadisk.bridge.proxies.facilitators.RemoteMethodInvoker;
 import org.xadisk.bridge.proxies.impl.RemoteConcurrencyControl;
 import org.xadisk.bridge.proxies.impl.RemoteMessageEndpointFactory;
 import org.xadisk.bridge.proxies.impl.RemoteXAFileSystem;
-import org.xadisk.bridge.proxies.interfaces.ConcurrencyControl;
 import org.xadisk.bridge.server.conversation.GlobalHostedContext;
 import org.xadisk.bridge.server.PointOfContact;
 import org.xadisk.connector.XAResourceImpl;

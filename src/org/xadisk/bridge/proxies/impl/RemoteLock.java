@@ -2,7 +2,7 @@ package org.xadisk.bridge.proxies.impl;
 
 import java.io.File;
 import org.xadisk.bridge.proxies.facilitators.RemoteObjectProxy;
-import org.xadisk.bridge.proxies.interfaces.Lock;
+import org.xadisk.filesystem.Lock;
 
 public class RemoteLock extends RemoteObjectProxy implements Lock {
 

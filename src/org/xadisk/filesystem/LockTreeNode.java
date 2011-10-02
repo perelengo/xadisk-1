@@ -34,22 +34,6 @@ public class LockTreeNode {
     LockTreeNode[] getAllChildren() {
         return children.values().toArray(new LockTreeNode[0]);
     }
-
-    /*public LockTreeNode createChildWithLock(String name, XidImpl requestor, boolean withExclusiveLock) {
-    LockTreeNode node = children.get(name);
-    if (node != null) {
-    return null;
-    } else {
-    LockTreeNode newNode = new LockTreeNode(new File(path, name), withExclusiveLock);
-    node = children.putIfAbsent(name, newNode);
-    if(node == newNode) {
-    node.getLock().addHolder(requestor);
-    return newNode;
-    } else {
-    return null;
-    }
-    }
-    }*/
     
     boolean isPinnedByOtherTransaction(TransactionInformation thisTransaction) {
         return !(pinHolder.get() == null || pinHolder.get().equals(thisTransaction));

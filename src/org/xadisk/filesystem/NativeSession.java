@@ -24,8 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
-import org.xadisk.bridge.proxies.interfaces.ConcurrencyControl;
-import org.xadisk.bridge.proxies.interfaces.Lock;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.filesystem.exceptions.DeadLockVictimizedException;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;

@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import org.xadisk.bridge.proxies.interfaces.Lock;
 
 public class NativeLock implements Lock {
 

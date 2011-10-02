@@ -34,7 +34,7 @@ import org.xadisk.bridge.proxies.facilitators.OptimizedRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.SerializedMethod;
 import org.xadisk.bridge.proxies.impl.RemoteLock;
 import org.xadisk.bridge.proxies.impl.RemoteTransactionInformation;
-import org.xadisk.bridge.proxies.interfaces.Lock;
+import org.xadisk.filesystem.Lock;
 import org.xadisk.filesystem.TransactionInformation;
 
 public class RemoteMethodInvocationHandler implements Work {

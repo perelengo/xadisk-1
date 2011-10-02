@@ -458,7 +458,8 @@ public class VirtualViewFile {
             try {
                 //TODO - remove this check. it is for debugging file deletion/renaming failure in rare cases.
                 if(fileViewChannel.isOpen()) {
-                    throw new IOException("The File Channel was left open.");
+                    //throw new IOException("The File Channel was left open.");
+                    fileViewChannel.close();
                 }
             } catch (IOException ioe) {
                 xaFileSystem.notifySystemFailure(ioe);
