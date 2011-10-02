@@ -29,9 +29,9 @@ public class TransactionTimeoutDetector extends TimedWorker {
             NativeSession sessions[] = xaFileSystem.getAllSessions();
             for (int i = 0; i < sessions.length; i++) {
                 NativeSession session = sessions[i];
-                int timeoutValue = session.getTransactionTimeout();
-                int birthTime = (int) (session.getTimeOfEntryToTransaction() / 1000);
-                int timeNow = (int) (System.currentTimeMillis() / 1000);
+                long timeoutValue = session.getTransactionTimeout() * 1000;
+                long birthTime = session.getTimeOfEntryToTransaction();
+                long timeNow = System.currentTimeMillis();
                 if (timeoutValue > 0 && timeNow - birthTime > timeoutValue) {
                     xaFileSystem.getConcurrencyControl().interruptTransactionIfWaitingForResourceLock(session.getXid(),
                             Node.INTERRUPTED_DUE_TO_TIMEOUT);
