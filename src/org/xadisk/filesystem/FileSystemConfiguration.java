@@ -464,15 +464,7 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Returns the value of serverAddress.
-     * <p> An XADisk instance listens (if {@link #setEnableRemoteInvocations(Boolean)
-     * enableRemoteInvocations} is true) on a network port to receive calls from remote application clients.
-     * The two properties called ServerAddress and ServerPort are used by the XADisk instance to facilitate this
-     * interaction with remote applications.
-     * <p> They are also used by the XADisk JCA Resource Adapter to facilitate inbound messaging from
-     * remote XADisk instances to MDBs deployed in the same JavaEE Server.
-     * <p> The value for ServerAddress should be set such that the applications running
-     * on the remote JVMs can contact this XADisk instance using this ServerAddress; i.e. the
-     * ServerAddress should be reachable (as in <i>network-reachability</i>) to them.
+     * <p> See the description for {@link #getEnableRemoteInvocations()}.
      * <p> Default value is '127.0.0.1', which will allow the XADisk instance to serve only those applications
      * running on the same machine as the XADisk instance.
      * @return value of serverAddress.
@@ -483,15 +475,7 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Sets the value of serverAddress.
-     * <p> An XADisk instance listens (if {@link #setEnableRemoteInvocations(Boolean)
-     * enableRemoteInvocations} is true) on a network port to receive calls from remote application clients.
-     * The two properties called ServerAddress and ServerPort are used by the XADisk instance to facilitate this
-     * interaction with remote applications.
-     * <p> They are also used by the XADisk JCA Resource Adapter to facilitate inbound messaging from
-     * remote XADisk instances to MDBs deployed in the same JavaEE Server.
-     * <p> The value for ServerAddress should be set such that the applications running
-     * on the remote JVMs can contact this XADisk instance using this ServerAddress; i.e. the
-     * ServerAddress should be reachable (as in <i>network-reachability</i>) to them.
+     * <p> See the description for {@link #getEnableRemoteInvocations()}.
      * <p> Default value is '127.0.0.1', which will allow the XADisk instance to serve only those applications
      * running on the same machine as the XADisk instance.
      * @param serverAddress new value of serverAddress.
@@ -502,7 +486,7 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Returns the value of serverPort.
-     * <p> See the description for {@link #getServerAddress}.
+     * <p> See the description for {@link #getEnableRemoteInvocations()}.
      * <p> Default value is 9999.
      * @return value of serverPort.
      */
@@ -512,7 +496,7 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Sets the value of serverPort.
-     * <p> See the description for {@link #setServerAddress setServerAddress()}.
+     * <p> See the description for {@link #getEnableRemoteInvocations()}.
      * <p> Default value is 9999.
      * @param serverPort new value of serverPort.
      */
@@ -522,8 +506,18 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Returns the value of enableRemoteInvocations.
-     * <p> This flag can be used to specify whether the XADisk instance should listen
-     * for remote invocations. See the description for {@link #getServerAddress}.
+     * <p> An XADisk instance can be configured to receive remote invocations. This allows remote application
+     * clients to perform operations over the XADisk instance. This feature also allows XADisk JCA Resource
+     * Adapter to facilitate inbound messaging from remote XADisk instances to the MDBs deployed in
+     * the same JavaEE Server.
+     * <p> The following configuration is required to enable an XADisk instance to accept such remote invocations:
+     * <ol>
+     * <li> enableRemoteInvocations flag must be set to true.
+     * <li> {@link #getServerAddress() serverAddress} should be set such that the applications running
+     * on the remote JVMs can contact this XADisk instance using this address.
+     * <li> {@link #getServerPort() serverPort} should be set to a port available on the machine. The
+     * XADisk instance would listen at the specified port to receive calls from remote applications.
+     * </ol>
      * <p> Default value is false.
      * @return value of enableRemoteInvocations.
      */
@@ -533,8 +527,18 @@ public class FileSystemConfiguration implements Serializable {
 
     /**
      * Sets the value of enableRemoteInvocations.
-     * <p> This flag can be used to specify whether the XADisk instance should listen
-     * for remote invocations. See the description for {@link #getServerAddress}.
+     * <p> An XADisk instance can be configured to receive remote invocations. This allows remote application
+     * clients to perform operations over the XADisk instance. This feature also allows XADisk JCA Resource
+     * Adapter to facilitate inbound messaging from remote XADisk instances to the MDBs deployed in
+     * the same JavaEE Server.
+     * <p> The following configuration is required to enable an XADisk instance to accept such remote invocations:
+     * <ol>
+     * <li> enableRemoteInvocations flag must be set to true.
+     * <li> {@link #getServerAddress() serverAddress} should be set such that the applications running
+     * on the remote JVMs can contact this XADisk instance using this address.
+     * <li> {@link #getServerPort() serverPort} should be set to a port available on the machine. The
+     * XADisk instance would listen at the specified port to receive calls from remote applications.
+     * </ol>
      * <p> Default value is false.
      * @param enableRemoteInvocations new value of enableRemoteInvocations.
      */
@@ -570,26 +574,95 @@ public class FileSystemConfiguration implements Serializable {
         this.synchronizeDirectoryChanges = synchronizeDirectoryChanges;
     }
 
+    /**
+     * Returns the value of clusterMasterAddress.
+     * <p> See the description for {@link #getEnableClusterMode()}.
+     * <p> There is no default value.
+     * @return value of clusterMasterAddress.
+     * @since 1.2
+     */
     public String getClusterMasterAddress() {
         return clusterMasterAddress;
     }
 
+    /**
+     * Sets the value of clusterMasterAddress.
+     * <p> See the description for {@link #getEnableClusterMode()}.
+     * <p> There is no default value.
+     * @param clusterMasterAddress new value of clusterMasterAddress.
+     * @since 1.2
+     */
     public void setClusterMasterAddress(String clusterMasterAddress) {
         this.clusterMasterAddress = clusterMasterAddress;
     }
 
+    /**
+     * Returns the value of clusterMasterPort.
+     * <p> See the description for {@link #getEnableClusterMode()}.
+     * <p> There is no default value.
+     * @return value of clusterMasterPort.
+     * @since 1.2
+     */
     public Integer getClusterMasterPort() {
         return clusterMasterPort;
     }
 
+    /**
+     * Sets the value of clusterMasterPort.
+     * <p> See the description for {@link #getEnableClusterMode()}.
+     * <p> There is no default value.
+     * @param clusterMasterPort new value of clusterMasterPort.
+     * @since 1.2
+     */
     public void setClusterMasterPort(Integer clusterMasterPort) {
         this.clusterMasterPort = clusterMasterPort;
     }
 
+    /**
+     * Returns the value of enableClusterMode.
+     * <p> An XADisk cluster consists of a set of XADisk instances with exactly one of them
+     * being the master instance. To enable XADisk clustering, the following configuration
+     * is required:
+     * <ol>
+     * <li> enableClusterMode flag must be set to true for all instances in the cluster.
+     * <li> {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * must be set for the master instance. The {@link #getEnableRemoteInvocations() enableRemoteInvocations}
+     * flag is not required to be set for configuring the master instance.
+     * <li> {@link #getClusterMasterAddress() clusterMasterAddress}/{@link #getClusterMasterPort() clusterMasterPort}
+     * must be set for all instances in the cluster except the master instance. These values
+     * correspond to the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * configured in the master instance.
+     * <li> (Optional) For instances running in the same JVM as the master instance,
+     * {@link #getClusterMasterAddress() clusterMasterAddress} can optionally be set to "#masterInstanceId".
+     * </ol>
+     * <p> Default value is false.
+     * @return value of enableClusterMode.
+     * @since 1.2
+     */
     public Boolean getEnableClusterMode() {
         return enableClusterMode;
     }
 
+    /**
+     * Sets the value of enableClusterMode.
+     * <p> An XADisk cluster consists of a set of XADisk instances with exactly one of them
+     * being the master instance. To enable XADisk clustering, the following configuration
+     * is required:
+     * <ol>
+     * <li> enableClusterMode flag must be set to true for all instances in the cluster.
+     * <li> {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * must be set for the master instance.
+     * <li> {@link #getClusterMasterAddress() clusterMasterAddress}/{@link #getClusterMasterPort() clusterMasterPort}
+     * must be set for all instances in the cluster except the master instance. These values
+     * correspond to the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * configured in the master instance.
+     * <li> (Optional) For instances running in the same JVM as the master instance,
+     * {@link #getClusterMasterAddress() clusterMasterAddress} can optionally be set to "#masterInstanceId".
+     * </ol>
+     * <p> Default value is false.
+     * @param enableClusterMode new value of enableClusterMode.
+     * @since 1.2
+     */
     public void setEnableClusterMode(Boolean enableClusterMode) {
         this.enableClusterMode = enableClusterMode;
     }

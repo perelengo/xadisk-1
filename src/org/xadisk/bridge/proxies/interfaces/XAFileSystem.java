@@ -48,7 +48,9 @@ public interface XAFileSystem {
     /**
      * Returns an XAResource object which would enable a standalone JTA Transaction Manager
      * to perform transaction recovery after a crash. Typically, a Transaction Manager
-     * would retrieve the list of transactions to be recovered using the method {@link XAResource#recover(int)}.
+     * would retrieve the list of transactions to be recovered using the method {@link XAResource#recover(int) recover()},
+     * and then would complete each transaction using {@link XAResource#commit(javax.transaction.xa.Xid, boolean) commit()}
+     * or {@link XAResource#rollback(javax.transaction.xa.Xid) rollback()}.
      * <p> This method is useful for those applications which are running in a non-JCA environment
      * and are using a standalone JTA Transaction Manager with XADisk and other XA-enabled resources.
      * @return the XAResource object.
