@@ -626,11 +626,10 @@ public class FileSystemConfiguration implements Serializable {
      * <ol>
      * <li> enableClusterMode flag must be set to true for all instances in the cluster.
      * <li> {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
-     * must be set for the master instance. The {@link #getEnableRemoteInvocations() enableRemoteInvocations}
-     * flag is not required to be set for configuring the master instance.
+     * must be set for the master instance.
      * <li> {@link #getClusterMasterAddress() clusterMasterAddress}/{@link #getClusterMasterPort() clusterMasterPort}
-     * must be set for all instances in the cluster except the master instance. These values
-     * correspond to the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * must not be set for the master instance. For all other instances in the cluster these values must be
+     * set as the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
      * configured in the master instance.
      * <li> (Optional) For instances running in the same JVM as the master instance,
      * {@link #getClusterMasterAddress() clusterMasterAddress} can optionally be set to "#masterInstanceId".
@@ -653,8 +652,8 @@ public class FileSystemConfiguration implements Serializable {
      * <li> {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
      * must be set for the master instance.
      * <li> {@link #getClusterMasterAddress() clusterMasterAddress}/{@link #getClusterMasterPort() clusterMasterPort}
-     * must be set for all instances in the cluster except the master instance. These values
-     * correspond to the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
+     * must not be set for the master instance. For all other instances in the cluster these values must be
+     * set as the values of {@link #getServerAddress() serverAddress}/{@link #getServerPort() serverPort}
      * configured in the master instance.
      * <li> (Optional) For instances running in the same JVM as the master instance,
      * {@link #getClusterMasterAddress() clusterMasterAddress} can optionally be set to "#masterInstanceId".
