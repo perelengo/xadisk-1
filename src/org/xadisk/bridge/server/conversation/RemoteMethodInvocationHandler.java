@@ -256,6 +256,9 @@ public class RemoteMethodInvocationHandler implements Work {
                 return XAResource.class;
             }
             if (obj instanceof Xid) {
+                if(obj instanceof RemoteTransactionInformation) {
+                    return TransactionInformation.class;
+                }
                 return Xid.class;
             }
         }
