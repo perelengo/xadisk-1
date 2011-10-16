@@ -619,6 +619,8 @@ public class NativeSession implements SessionCommonness {
             FileChannel logReaderChannel = null;
             String transactionLogBaseName = xaFileSystem.getTransactionLogFileBaseName();
             int latestCheckPointForRecoveryCase = 0;
+            HashSet<File> srcFilesMoved = new HashSet<File>();
+            HashSet<File> srcFilesCopied = new HashSet<File>();
             if (createdForRecovery) {
                 filesDirectlyWrittenToDisk = xaFileSystem.getRecoveryWorker().getFilesOnDiskForTransaction(xid);
                 logPositions = xaFileSystem.getRecoveryWorker().getTransactionLogsPositions(xid);
@@ -652,44 +654,70 @@ public class NativeSession implements SessionCommonness {
                     logEntry = TransactionLogEntry.getNextTransactionLogEntry(logReaderChannel, localPosition, false);
                 }
                 if (logEntry.getOperationType() == TransactionLogEntry.FILE_APPEND) {
-                    if (filesDirectlyWrittenToDisk.contains(new File(logEntry.getFileName()))) {
+                    File f = new File(logEntry.getFileName());
+                    if (filesDirectlyWrittenToDisk.contains(f)) {
                         continue;
                     }
+                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
                     commitFileAppend(logEntry, temp, logReaderChannel, logFileIndex, localPosition);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_DELETE) {
                     String fileName = logEntry.getFileName();
-                    if (filesDirectlyWrittenToDisk.contains(new File(fileName))) {
+                    File f = new File(fileName);
+                    if (filesDirectlyWrittenToDisk.contains(f)) {
                         continue;
                     }
+                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
                     commitDeleteFile(fileName);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_CREATE) {
                     String fileName = logEntry.getFileName();
-                    if (filesDirectlyWrittenToDisk.contains(new File(fileName))) {
+                    File f = new File(fileName);
+                    if (filesDirectlyWrittenToDisk.contains(f)) {
                         continue;
                     }
+                    checkPointDuringCreationAgainstMove(i - 2, f, srcFilesCopied, srcFilesMoved);
                     commitCreateFile(fileName);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.DIR_CREATE) {
-                    commitCreateDir(logEntry.getFileName());
+                    String dirName = logEntry.getFileName();
+                    checkPointDuringCreationAgainstMove(i - 2, new File(dirName), srcFilesCopied, srcFilesMoved);
+                    commitCreateDir(dirName);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_COPY) {
                     File dest = new File(logEntry.getDestFileName());
                     if (filesDirectlyWrittenToDisk.contains(dest)) {
                         continue;
                     }
-                    commitFileCopy(logEntry, i);
+                    checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
+                    commitFileCopy(logEntry, srcFilesCopied);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_MOVE) {
+                    File src = new File(logEntry.getFileName());
                     File dest = new File(logEntry.getDestFileName());
                     if (filesDirectlyWrittenToDisk.contains(dest)) {
                         continue;
                     }
-                    commitFileMove(logEntry, i);
+                    boolean isDirectoryMove = src.isDirectory();
+                    if(isDirectoryMove) {
+                        declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
+                        commitMove(logEntry);
+                        declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
+                    } else {
+                        if(!checkPointDuringModificationAgainstCopy(i - 2, src, srcFilesCopied, srcFilesMoved)) {
+                            checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
+                        }
+                        commitFileMove(logEntry, srcFilesMoved);
+                    }
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_TRUNCATE) {
-                    String fileName = logEntry.getFileName();
-                    if (filesDirectlyWrittenToDisk.contains(new File(fileName))) {
+                    File f = new File(logEntry.getFileName());
+                    if (filesDirectlyWrittenToDisk.contains(f)) {
                         continue;
                     }
+                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
                     commitFileTruncate(logEntry);
                 } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_SPECIAL_MOVE) {
-                    commitFileSpecialMove(logEntry, i);
+                    File src = new File(logEntry.getFileName());
+                    File dest = new File(logEntry.getDestFileName());
+                    if(!checkPointDuringModificationAgainstCopy(i - 2, src, srcFilesCopied, srcFilesMoved)) {
+                        checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
+                    }
+                    commitFileSpecialMove(logEntry, srcFilesMoved);
                 }
             }
             diskSession.forceToDisk();
@@ -698,10 +726,6 @@ public class NativeSession implements SessionCommonness {
                 logChannel.close();
             }
             cleanup();
-            //we should not raise events before actually making the commit changes; else the MDBs
-            //wouldn't find what they wanted to look for. The below is in-memory operation, so
-            //after a crash, we need to check enQed, but not deQed, events for all committed txns
-            //and populate them in in-memory queue again.
             raiseFileStateChangeEvents();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
@@ -710,6 +734,32 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    private boolean checkPointDuringModificationAgainstCopy(int currentLogPosition, File fileBeingModified,
+            HashSet<File> srcFilesCopied, HashSet<File> srcFilesMoved) throws IOException {
+        if(srcFilesCopied.contains(fileBeingModified)) {
+            declareCheckPoint(currentLogPosition, srcFilesMoved, srcFilesMoved);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkPointDuringCreationAgainstMove(int currentLogPosition, File fileBeingCreated,
+            HashSet<File> srcFilesCopied, HashSet<File> srcFilesMoved) throws IOException {
+        if(srcFilesMoved.contains(fileBeingCreated)) {
+            declareCheckPoint(currentLogPosition, srcFilesCopied, srcFilesMoved);
+            return true;
+        }
+        return false;
+    }
+
+    private void declareCheckPoint(int currentLogPosition, HashSet<File> srcFilesCopied, HashSet<File> srcFilesMoved) throws IOException {
+        diskSession.forceToDisk();
+        ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, currentLogPosition));
+        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        srcFilesMoved.clear();
+        srcFilesCopied.clear();
+    }
+    
     public void completeReadOnlyTransaction() throws NoTransactionAssociatedException {
         //would be called both for commit and rollbacck of a read-only txn.
         if(!usingReadOnlyOptimization) {
@@ -782,7 +832,7 @@ public class NativeSession implements SessionCommonness {
         diskSession.createDirectory(f);
     }
 
-    private void commitFileCopy(TransactionLogEntry logEntry, int checkPointPosition) throws IOException {
+    private void commitFileCopy(TransactionLogEntry logEntry, HashSet<File> srcFilesCopied) throws IOException {
         File src = new File(logEntry.getFileName());
         File dest = new File(logEntry.getDestFileName());
         if (dest.exists()) {
@@ -790,25 +840,26 @@ public class NativeSession implements SessionCommonness {
             diskSession.createFile(dest);
         }
         FileIOUtility.copyFile(src, dest, true);
-        ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
-        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        srcFilesCopied.add(src);
     }
 
-    private void commitFileMove(TransactionLogEntry logEntry, int checkPointPosition) throws IOException {
+    private void commitFileMove(TransactionLogEntry logEntry, HashSet<File> srcFilesMoved) throws IOException {
+        commitMove(logEntry);
+        srcFilesMoved.add(new File(logEntry.getFileName()));
+    }
+
+    private void commitMove(TransactionLogEntry logEntry) throws IOException {
         File src = new File(logEntry.getFileName());
         File dest = new File(logEntry.getDestFileName());
         if (!src.exists()) {
             return;
         }
-
         if (dest.isDirectory()) {
             diskSession.deleteDirectoryRecursively(dest);
         } else if (dest.exists()) {
             diskSession.deleteFile(dest);
         }
         diskSession.renameTo(src, dest);
-        ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
-        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
     }
 
     private void commitFileTruncate(TransactionLogEntry logEntry) throws IOException {
@@ -824,7 +875,7 @@ public class NativeSession implements SessionCommonness {
         fc.close();
     }
 
-    private void commitFileSpecialMove(TransactionLogEntry logEntry, int checkPointPosition) throws IOException {
+    private void commitFileSpecialMove(TransactionLogEntry logEntry, HashSet<File> srcFilesMoved) throws IOException {
         File src = new File(logEntry.getFileName());
         File dest = new File(logEntry.getDestFileName());
         if (!src.exists()) {
@@ -834,8 +885,7 @@ public class NativeSession implements SessionCommonness {
             diskSession.deleteFile(dest);
         }
         diskSession.renameTo(src, dest);
-        ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, checkPointPosition));
-        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        srcFilesMoved.add(src);
     }
 
     private void raiseFileStateChangeEvents() {
