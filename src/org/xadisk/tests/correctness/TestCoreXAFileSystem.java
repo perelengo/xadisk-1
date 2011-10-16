@@ -105,6 +105,10 @@ public class TestCoreXAFileSystem {
             configuration.setServerAddress("localhost");
             configuration.setServerPort(Configuration.getNextServerPort());
             configuration.setEnableRemoteInvocations(true);
+            if(postCrash) {
+                //the cleanup of xadisk system dir was failing due to the loaded native-lib from the system dir.
+                configuration.setSynchronizeDirectoryChanges(false);
+            }
             NativeXAFileSystem nativeXAFileSystem = NativeXAFileSystem.bootXAFileSystemStandAlone(configuration);
             nativeXAFileSystem.waitForBootup(-1);
 
@@ -119,8 +123,12 @@ public class TestCoreXAFileSystem {
                 for (CoreXAFileSystemTests.testNames testName : CoreXAFileSystemTests.testNames.values()) {
                     if (testName.name().contains("Crash") && postCrash
                             || !testName.name().contains("Crash") && !postCrash) {
+                        String testDirectory = testName.toString();
+                        if(postCrash) {
+                            testDirectory = testDirectory.substring(0, testDirectory.length() - 9);
+                        }
                         tests[threadIndex++] = new Thread(new RunnableTest(testName,
-                                topLevelTestDirectory + SEPERATOR + testName + testReplica));
+                                topLevelTestDirectory + SEPERATOR + testDirectory + testReplica));
                     }
                 }
                 for (int i = 0; i < 4; i++) {
