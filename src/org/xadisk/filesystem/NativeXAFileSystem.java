@@ -97,13 +97,14 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         this.configuration = configuration;
         this.workManager = workManager;
         try {
-            String XADiskHome = configuration.getXaDiskHome();
-            FileIOUtility.createDirectoriesIfRequired(new File(XADiskHome));
-            topLevelBackupDir = new File(XADiskHome, "backupDir");
-            logger = new Logger(new File(XADiskHome, "xadisk.log"), (byte) 3);
+            File xaDiskHome = new File(configuration.getXaDiskHome()).getAbsoluteFile();
+            String xaDiskHomePath = xaDiskHome.getPath();
+            FileIOUtility.createDirectoriesIfRequired(xaDiskHome);
+            topLevelBackupDir = new File(xaDiskHome, "backupDir");
+            logger = new Logger(new File(xaDiskHome, "xadisk.log"), (byte) 3);
 
             if(configuration.getSynchronizeDirectoryChanges()) {
-                boolean success = DurableDiskSession.setupDirectorySynchronization(new File(XADiskHome));
+                boolean success = DurableDiskSession.setupDirectorySynchronization(xaDiskHome);
                 if(!success) {
                     logger.logWarning("XADisk has failed to load its native library "
                     + "required for directory-synchronization.\n"
@@ -121,7 +122,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             if (!topLevelBackupDir.isDirectory()) {
                 diskSession.createDirectory(topLevelBackupDir);
             }
-            transactionLogsDir = XADiskHome + File.separator + "txnlogs";
+            transactionLogsDir = xaDiskHomePath + File.separator + "txnlogs";
             diskSession.createDirectoriesIfRequired(new File(transactionLogsDir));
             transactionLogFileBaseName = transactionLogsDir + File.separator + "xadisk.log";
             bufferPool = new BufferPool(configuration.getDirectBufferPoolSize(), configuration.getNonDirectBufferPoolSize(),
@@ -138,7 +139,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             this.fileSystemEventQueue = new LinkedBlockingQueue<FileSystemStateChangeEvent>();
             this.fileSystemEventDelegator = new FileSystemEventDelegator(this, configuration.getMaximumConcurrentEventDeliveries());
             this.workListener = new CriticalWorkersListener(this);
-            File deadLetterDir = new File(XADiskHome, "deadletter");
+            File deadLetterDir = new File(xaDiskHome, "deadletter");
             diskSession.createDirectoriesIfRequired(deadLetterDir);
             this.deadLetter = new DeadLetterMessageEndpoint(deadLetterDir, this);
             
