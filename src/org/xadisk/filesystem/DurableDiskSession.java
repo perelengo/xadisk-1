@@ -1,5 +1,5 @@
 /*
-Copyright Â© 2010-2011, Nitin Verma (project owner for XADisk http://xadisk.java.net/). All rights reserved.
+Copyright © 2010-2011, Nitin Verma (project owner for XADisk http://xadisk.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -43,9 +43,10 @@ public class DurableDiskSession {
             }
         }
         if(success) {
-            forceDirectoryHierarchy(xaDiskHome);
+            return forceDirectoryHierarchy(xaDiskHome);
+        } else {
+            return false;
         }
-        return success;
     }
     
     private static boolean testDirectorySynchronizationSetup() throws IOException {
@@ -74,7 +75,7 @@ public class DurableDiskSession {
         return testDirectorySynchronizationSetup();
     }
     
-    private static void forceDirectoryHierarchy(File directory) throws IOException {
+    private static boolean forceDirectoryHierarchy(File directory) throws IOException {
         List<String> allParents = new ArrayList<String>();
         File parentDirectory = directory;
         while(parentDirectory != null) {
@@ -82,7 +83,7 @@ public class DurableDiskSession {
             parentDirectory = parentDirectory.getParentFile();
         }
         Collections.reverse(allParents);
-        forceDirectories(allParents.toArray(new String[0]));
+        return forceDirectories(allParents.toArray(new String[0]));
     }
     
     private static native boolean forceDirectories(String directoryPaths[]);
