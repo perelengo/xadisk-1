@@ -38,6 +38,7 @@ import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.utilities.FileIOUtility;
+import org.xadisk.filesystem.utilities.MiscUtils;
 
 public class NativeSession implements SessionCommonness {
     
@@ -393,8 +394,8 @@ public class NativeSession implements SessionCommonness {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            File parentDir = f.getParentFile();
-            if (parentDir != null) {
+            if (!MiscUtils.isRootPath(f)) {
+                File parentDir = f.getParentFile();
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 success = true;
@@ -432,8 +433,8 @@ public class NativeSession implements SessionCommonness {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            File parentDir = f.getParentFile();
-            if (parentDir != null) {
+            if (!MiscUtils.isRootPath(f)) {
+                File parentDir = f.getParentFile();
                 newLock = acquireLockIfRequired(parentDir, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 success = true;

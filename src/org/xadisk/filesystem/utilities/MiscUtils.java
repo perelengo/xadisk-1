@@ -7,6 +7,7 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.filesystem.utilities;
 
+import java.io.File;
 import javax.transaction.xa.XAException;
 
 public class MiscUtils {
@@ -15,5 +16,23 @@ public class MiscUtils {
         XAException xae = new XAException(errorCode);
         xae.initCause(cause);
         return xae;
+    }
+    
+    public static boolean isRootPath(File f) {
+        if(f.getParentFile() == null) {
+            return true;
+        }
+        if(f.getAbsolutePath().startsWith("\\\\")) {
+            File parent = f.getParentFile();
+            //parent=null is infeasible here.
+            File grandParent = parent.getParentFile();
+            if(grandParent == null) {
+                return false;
+            }
+            if(grandParent.getParentFile() == null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -21,6 +21,7 @@ import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
 import org.xadisk.filesystem.exceptions.FileAlreadyExistsException;
 import org.xadisk.filesystem.exceptions.FileNotExistsException;
 import org.xadisk.filesystem.exceptions.FileUnderUseException;
+import org.xadisk.filesystem.utilities.MiscUtils;
 
 public class TransactionVirtualView {
 
@@ -83,7 +84,7 @@ public class TransactionVirtualView {
 
     public boolean isNormalFileBeingReadOrWritten(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return false;
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -99,7 +100,7 @@ public class TransactionVirtualView {
 
     public boolean fileExistsAndIsNormal(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return false;//a root can never be a file.
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -111,7 +112,7 @@ public class TransactionVirtualView {
 
     public boolean fileExistsAndIsDirectory(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return f.isDirectory(); //f may be a root.
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -128,7 +129,7 @@ public class TransactionVirtualView {
 
     public boolean isDirectoryWritable(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return f.canWrite();
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -140,7 +141,7 @@ public class TransactionVirtualView {
 
     public boolean isNormalFileWritable(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return false;
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -152,7 +153,7 @@ public class TransactionVirtualView {
 
     public boolean isDirectoryReadable(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return f.canRead();
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -164,7 +165,7 @@ public class TransactionVirtualView {
 
     public boolean isNormalFileReadable(File f) {
         try {
-            if(f.getParentFile() == null) {
+            if(MiscUtils.isRootPath(f)) {
                 return false;
             }
             VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -175,7 +176,7 @@ public class TransactionVirtualView {
     }
 
     public VirtualViewFile getVirtualViewFile(File f) throws FileNotExistsException {
-        if(f.getParentFile() == null) {
+        if(MiscUtils.isRootPath(f)) {
                 throw new FileNotExistsException(f.getAbsolutePath());
         }
         VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
@@ -293,19 +294,27 @@ public class TransactionVirtualView {
         if (vvd != null) {
             return vvd;
         }
-        File ancestor = f.getParentFile();
+        VirtualViewDirectory ancestorOfTruth = null;;
         File childDirectory = f;
-        VirtualViewDirectory ancestorOfTruth = null;
         ArrayList<String> pathSteps = new ArrayList<String>(10);
-        pathSteps.add(childDirectory.getName());
-        while (ancestor != null) {
-            pathSteps.add(ancestor.getName());
-            ancestorOfTruth = virtualViewDirs.get(ancestor);
-            if (ancestorOfTruth != null) {
-                break;
+        
+        if(MiscUtils.isRootPath(f)) {
+            ancestorOfTruth = null;
+        } else {
+            File ancestor = f.getParentFile();
+            pathSteps.add(childDirectory.getName());
+            while (true) {
+                pathSteps.add(ancestor.getName());
+                ancestorOfTruth = virtualViewDirs.get(ancestor);
+                if (ancestorOfTruth != null) {
+                    break;
+                }
+                childDirectory = ancestor;
+                if(MiscUtils.isRootPath(ancestor)) {
+                    break;
+                }
+                ancestor = ancestor.getParentFile();
             }
-            childDirectory = ancestor;
-            ancestor = ancestor.getParentFile();
         }
         if (ancestorOfTruth == null) {
             if (!f.isDirectory()) {
