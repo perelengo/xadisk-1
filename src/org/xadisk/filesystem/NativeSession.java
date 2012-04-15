@@ -396,7 +396,7 @@ public class NativeSession implements SessionCommonness {
             checkIfCanContinue();
             if (!MiscUtils.isRootPath(f)) {
                 File parentDir = f.getParentFile();
-                newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                newLock = acquireLockIfRequired(f, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 success = true;
                 return view.fileExists(f);
@@ -435,7 +435,7 @@ public class NativeSession implements SessionCommonness {
             checkIfCanContinue();
             if (!MiscUtils.isRootPath(f)) {
                 File parentDir = f.getParentFile();
-                newLock = acquireLockIfRequired(parentDir, lockExclusively);
+                newLock = acquireLockIfRequired(f, lockExclusively);
                 checkPermission(PermissionType.READ_DIRECTORY, parentDir);
                 success = true;
                 return view.fileExistsAndIsDirectory(f);
