@@ -665,4 +665,18 @@ public class FileSystemConfiguration implements Serializable {
     public void setEnableClusterMode(Boolean enableClusterMode) {
         this.enableClusterMode = enableClusterMode;
     }
+
+	@Override
+	public boolean equals(Object obj) {
+		if(obj instanceof FileSystemConfiguration) {
+			FileSystemConfiguration that = (FileSystemConfiguration) obj;
+			return this.instanceId.equals(that.instanceId);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return instanceId.hashCode();
+	}
 }
