@@ -50,6 +50,9 @@ public abstract class XAFileSystemProxy {
     /**
      * If an application wants to connect to an XADisk instance running on a remote
      * JVM, it can call this method.
+	 * Such reference to remote XADisk instance and all of the subsequently derived
+	 * {@link Session} objects share a common communication channel with the remote
+	 * XADisk instance, and hence cannot be used by multiple threads.
      * @param serverAddres the network address/name of the remote machine on which the
      * XADisk instance is running.
      * @param serverPort the network port of the remote machine on which the XADisk
