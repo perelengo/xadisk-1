@@ -9,7 +9,10 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.filesystem.virtual;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.xadisk.filesystem.DurableDiskSession;
 import org.xadisk.filesystem.NativeXAFileSystem;
@@ -18,13 +21,17 @@ import org.xadisk.filesystem.exceptions.FileNotExistsException;
 
 class VirtualViewDirectory {
 
-    private final HashMap<String, File> allFiles = new HashMap<String, File>(20);
-    private final HashMap<String, File> allDirs = new HashMap<String, File>(20);
+	//1. not all instances of locked files may end-up in the below maps, so never rely on these maps in those directions.
+	//2. below maps are populated whenever files/dirs are created/deleted/moved-in in the transaction. Adding to the map even for existence/permission
+	//check is risky because if after checking, the operation throws exception the locks are released, but it the entry would remain in this map.
+	//3. a locked file/dir in the map does not imply read/write permission, it simply means that a change was made in that file/dir. So, we do not
+	//depend upon the entries in the map for permission checks.
+    private final HashMap<String, LockedFileInfo> lockedFilesInfo = new HashMap<String, LockedFileInfo>(20);
+    private final HashMap<String, LockedFileInfo> lockedDirsInfo = new HashMap<String, LockedFileInfo>(20);
     private final File pointsToPhysicalDirectory;
     private final HashMap<String, VirtualViewFile> virtualViewFiles = new HashMap<String, VirtualViewFile>(20);
     private final TransactionVirtualView owningView;
     private File virtualDirName;
-    private boolean haveReadDirContents = false;
     private final NativeXAFileSystem xaFileSystem;
     private final DurableDiskSession diskSession;
 
@@ -37,24 +44,8 @@ class VirtualViewDirectory {
         this.diskSession = diskSession;
     }
 
-    private void readDirectoryContents() {
-        if (haveReadDirContents || pointsToPhysicalDirectory == null) {
-            return;
-        }
-        File allPhysicalFiles[] = pointsToPhysicalDirectory.listFiles();
-        for (int i = 0; i < allPhysicalFiles.length; i++) {
-            if (allPhysicalFiles[i].isDirectory()) {
-                allDirs.put(allPhysicalFiles[i].getName(), allPhysicalFiles[i]);
-            } else {
-                allFiles.put(allPhysicalFiles[i].getName(), allPhysicalFiles[i]);
-            }
-        }
-        haveReadDirContents = true;
-    }
-
     void createFile(String fileName, boolean isDirectory)
             throws FileAlreadyExistsException {
-        readDirectoryContents();
         if (fileExists(fileName) || dirExists(fileName)) {
             throw new FileAlreadyExistsException(fileName);
         }
@@ -62,94 +53,76 @@ class VirtualViewDirectory {
             //throw new InsufficientPermissionOnFileException();
         }
         if (isDirectory) {
-            allDirs.put(fileName, null);
+            lockedDirsInfo.put(fileName, new LockedFileInfo(null, true));
         } else {
-            allFiles.put(fileName, null);
+            lockedFilesInfo.put(fileName, new LockedFileInfo(null, true));
         }
     }
 
     void moveDirectoryInto(String dirName, File pointsToPhysicalDir)
             throws FileAlreadyExistsException {
-        readDirectoryContents();
         if (fileExists(dirName) || dirExists(dirName)) {
             throw new FileAlreadyExistsException(dirName);
         }
         if (!isWritable()) {
             //throw new InsufficientPermissionOnFileException();
         }
-        allDirs.put(dirName, pointsToPhysicalDir);
+		lockedDirsInfo.put(dirName, new LockedFileInfo(pointsToPhysicalDir, true));
     }
 
     void moveFileInto(String fileName, File pointsToPhysicalFile)
             throws FileAlreadyExistsException {
-        readDirectoryContents();
         if (fileExists(fileName) || dirExists(fileName)) {
             throw new FileAlreadyExistsException(fileName);
         }
         if (!isWritable()) {
             //throw new InsufficientPermissionOnFileException();
         }
-        allFiles.put(fileName, pointsToPhysicalFile);
+        lockedFilesInfo.put(fileName, new LockedFileInfo(pointsToPhysicalFile, true));
     }
 
     void deleteFile(String fileName) throws FileNotExistsException {
-        readDirectoryContents();
         if (!fileExists(fileName)) {
             throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + fileName);
         }
         if (!isWritable()) {
             //throw new InsufficientPermissionOnFileException();
         }
-        allFiles.remove(fileName);
+		lockedFilesInfo.put(fileName, new LockedFileInfo(null, false));
     }
 
     void deleteDir(String fileName) throws FileNotExistsException {
-        readDirectoryContents();
         if (!dirExists(fileName)) {
             throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + fileName);
         }
         if (!this.isWritable()) {
             //throw new InsufficientPermissionOnFileException();
         }
-        allDirs.remove(fileName);
+        lockedDirsInfo.put(fileName, new LockedFileInfo(null, false));
     }
 
     boolean fileExists(String file) {
-        boolean exists = allFiles.containsKey(file);
-        if (haveReadDirContents) {
-            return exists;
-        } else {
-            if (exists) {
-                return true;
-            }
+        LockedFileInfo lockedFileInfo = lockedFilesInfo.get(file);
+		if(lockedFileInfo != null) {
+			return lockedFileInfo.isExisting();
+		} else {
             if (pointsToPhysicalDirectory == null) {
                 return false;
             } else {
-                boolean physicallyExists = new File(pointsToPhysicalDirectory, file).isFile();
-                if (physicallyExists) {
-                    allFiles.put(file, new File(pointsToPhysicalDirectory, file));
-                }
-                return physicallyExists;
+                return new File(pointsToPhysicalDirectory, file).isFile();
             }
         }
     }
 
     boolean dirExists(String file) {
-        boolean exists = allDirs.containsKey(file);
-        if (haveReadDirContents) {
-            return exists;
-        } else {
-            if (exists) {
-                return true;
-            }
+		LockedFileInfo lockedDirInfo = lockedDirsInfo.get(file);
+		if(lockedDirInfo != null) {
+			return lockedDirInfo.isExisting();
+		} else {
             if (pointsToPhysicalDirectory == null) {
                 return false;
             } else {
-                boolean physicallyExists = new File(pointsToPhysicalDirectory, file).isDirectory();
-                if (physicallyExists) {
-                    allDirs.put(file, new File(pointsToPhysicalDirectory, file));
-                }
-                return physicallyExists;
+                return new File(pointsToPhysicalDirectory, file).isDirectory();
             }
         }
     }
@@ -161,78 +134,110 @@ class VirtualViewDirectory {
         return true;
     }
 
+	private File getPhysicalPath(String name, boolean isDirectory) {
+		//this method assumes the existence check has been done.
+		LockedFileInfo lockedInfo;
+		if(isDirectory) {
+			lockedInfo = lockedDirsInfo.get(name);
+		} else {
+			lockedInfo = lockedFilesInfo.get(name);
+		}
+		if(lockedInfo != null) {
+			File pointsToPhysical = lockedInfo.getPointsToPhysical();
+			return pointsToPhysical;
+		} else {
+			if (pointsToPhysicalDirectory == null) {
+                return null;
+            } else {
+				return new File(pointsToPhysicalDirectory, name);
+            }
+		}
+	}
+	
     File pointsToPhysicalFile(String file) throws FileNotExistsException {
         if (!fileExists(file)) {
             throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + file);
         }
-        return allFiles.get(file);
+		return getPhysicalPath(file, false);
     }
 
     File pointsToPhysicalDirectory(String file) throws FileNotExistsException {
         if (!dirExists(file)) {
             throw new FileNotExistsException(virtualDirName.getAbsolutePath() + File.separator + file);
         }
-        return allDirs.get(file);
+		return getPhysicalPath(file, true);
     }
 
+	private void updateFileDirExistence(Set<String> allFilesDirs, HashMap<String, LockedFileInfo> lockedFilesDirsInfo) {
+		for(Entry<String, LockedFileInfo> entry : lockedFilesDirsInfo.entrySet()) {
+			LockedFileInfo fileDirInfo = entry.getValue();
+			if(fileDirInfo.isExisting()) {
+				//adding does not mean that the file was not found from physical dir above.
+				allFilesDirs.add(entry.getKey());
+			} else {
+				allFilesDirs.remove(entry.getKey());
+			}
+		}
+	}
+	
     String[] listFilesAndDirectories() {
-        readDirectoryContents();
-        Set<String> allFilesKeys = allFiles.keySet();
-        Set<String> allDirsKeys = allDirs.keySet();
-        String files[] = allFilesKeys.toArray(new String[0]);
-        String dirs[] = allDirsKeys.toArray(new String[0]);
-        String all[] = new String[files.length + dirs.length];
-        for (int i = 0; i < files.length; i++) {
-            all[i] = files[i];
-        }
-        for (int i = files.length; i < dirs.length + files.length; i++) {
-            all[i] = dirs[i - files.length];
-        }
-        return all;
+		Set<String> allFilesDirs = new HashSet<String>();
+		if(pointsToPhysicalDirectory != null) {
+			allFilesDirs.addAll(Arrays.asList(pointsToPhysicalDirectory.list()));
+		}
+		updateFileDirExistence(allFilesDirs, lockedFilesInfo);
+		updateFileDirExistence(allFilesDirs, lockedDirsInfo);
+        return allFilesDirs.toArray(new String[0]);
     }
+	
+	private boolean isPermissionAvailable(String name, boolean isDirectory, boolean writePermission) {
+		LockedFileInfo lockedInfo;
+		if(isDirectory) {
+			lockedInfo = lockedDirsInfo.get(name);
+		} else {
+			lockedInfo = lockedFilesInfo.get(name);
+		}
+		if(lockedInfo != null) {
+			if(!lockedInfo.isExisting()) {
+				return false;
+			}
+			File pointsToPhysical = lockedInfo.getPointsToPhysical();
+			if (pointsToPhysical != null) {
+				if(writePermission) {
+					return pointsToPhysical.canWrite();
+				} else {
+					return pointsToPhysical.canRead();
+				}
+			} else {
+				return true;
+			}
+		} else {
+			if (pointsToPhysicalDirectory == null) {
+                return false;
+            } else {
+				if(writePermission) {
+					return new File(pointsToPhysicalDirectory, name).canWrite();
+				} else {
+					return new File(pointsToPhysicalDirectory, name).canRead();
+				}
+            }
+		}
+	}
 
     boolean isFileWritable(String fileName) {
-        if (!fileExists(fileName)) {
-            return false;
-        }
-        File pointsToPhysical = allFiles.get(fileName);
-        if (pointsToPhysical != null) {
-            return pointsToPhysical.canWrite();
-        }
-        return true;
+        return isPermissionAvailable(fileName, false, true);
     }
 
     boolean isFileReadable(String fileName) {
-        if (!fileExists(fileName)) {
-            return false;
-        }
-        File pointsToPhysical = allFiles.get(fileName);
-        if (pointsToPhysical != null) {
-            return pointsToPhysical.canRead();
-        }
-        return true;
+        return isPermissionAvailable(fileName, false, false);
     }
 
     boolean isDirWritable(String fileName) {
-        if (!dirExists(fileName)) {
-            return false;
-        }
-        File pointsToPhysical = allDirs.get(fileName);
-        if (pointsToPhysical != null) {
-            return pointsToPhysical.canWrite();
-        }
-        return true;
+        return isPermissionAvailable(fileName, true, true);
     }
 
     boolean isDirReadable(String fileName) {
-        if (!dirExists(fileName)) {
-            return false;
-        }
-        File pointsToPhysical = allDirs.get(fileName);
-        if (pointsToPhysical != null) {
-            return pointsToPhysical.canRead();
-        }
-        return true;
+        return isPermissionAvailable(fileName, true, false);
     }
 
     File getPointsToPhysicalDirectory() {
@@ -294,4 +299,30 @@ class VirtualViewDirectory {
             vvf.propagatedAncestorMoveCall(new File(targetPath.getAbsolutePath(), fileName));
         }
     }
+	
+	private class LockedFileInfo {
+		private File pointsToPhysical;
+		private boolean existing;
+
+		public LockedFileInfo(File pointsToPhysical, boolean existing) {
+			this.pointsToPhysical = pointsToPhysical;
+			this.existing = existing;
+		}
+
+		public File getPointsToPhysical() {
+			return pointsToPhysical;
+		}
+
+		public void setPointsToPhysical(File pointsToPhysical) {
+			this.pointsToPhysical = pointsToPhysical;
+		}
+
+		public boolean isExisting() {
+			return existing;
+		}
+
+		public void setExisting(boolean existing) {
+			this.existing = existing;
+		}
+	}
 }
