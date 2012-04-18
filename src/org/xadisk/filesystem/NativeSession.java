@@ -1219,7 +1219,7 @@ public class NativeSession implements SessionCommonness {
             fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(affectedObject, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.CREATED, xid));
             parentDirectory = affectedObject.getParentFile();
             if (parentDirectory != null) {
-                fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
+                fileStateChangeEventsToRaise.add(new DirectoryModificationEvent(affectedObject, parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
             }
             return;
         }
@@ -1227,7 +1227,7 @@ public class NativeSession implements SessionCommonness {
             fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(affectedObject, isDirectory, FileSystemStateChangeEvent.FileSystemEventType.DELETED, xid));
             parentDirectory = affectedObject.getParentFile();
             if (parentDirectory != null) {
-                fileStateChangeEventsToRaise.add(new FileSystemStateChangeEvent(parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
+                fileStateChangeEventsToRaise.add(new DirectoryModificationEvent(affectedObject, parentDirectory, true, FileSystemStateChangeEvent.FileSystemEventType.MODIFIED, xid));
             }
             return;
         }

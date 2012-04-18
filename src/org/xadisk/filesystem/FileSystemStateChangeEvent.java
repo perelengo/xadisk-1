@@ -19,6 +19,9 @@ import org.xadisk.connector.inbound.FileSystemEventListener;
  * by XADisk. Such a {@link MessageDrivenBean} is handed-over this event object
  * through the {@link FileSystemEventListener#onFileSystemEvent(FileSystemStateChangeEvent)
  * onFileSystemEvent} method.
+ * 
+ * Note that in case of directory modification, an event object of subclass
+ * {@link DirectoryModificationEvent} is generated.
  *
  * @since 1.0
  */
