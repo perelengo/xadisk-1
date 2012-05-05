@@ -279,9 +279,9 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     private void removeDependencyFromRDG(TransactionInformation requestor) {
         synchronized (requestor.getNodeInResourceDependencyGraph().getInterruptFlagLock()) {
             resourceDependencyGraph.removeDependency(requestor);
-            Thread.interrupted();
+				Thread.interrupted();
+			}
         }
-    }
 
     public ResourceDependencyGraph getResourceDependencyGraph() {
         return resourceDependencyGraph;
@@ -292,17 +292,23 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     }
 
     public void interruptTransactionIfWaitingForResourceLock(TransactionInformation xid, byte cause) {
-        ResourceDependencyGraph.Node node;
-        if(xid instanceof RemoteTransactionInformation) {
-            node = resourceDependencyGraph.getNode(xid);
-        } else {
-            node = xid.getNodeInResourceDependencyGraph();
-        }
-        if(node != null) {
-            synchronized (node.getInterruptFlagLock()) {
-                node.setInterruptCause(cause);
-                node.getThreadWaitingForLock().interrupt();
+        ResourceDependencyGraph.Node node1 = getNodeForTransaction(xid);
+        if(node1 != null) {
+            synchronized (node1.getInterruptFlagLock()) {
+				ResourceDependencyGraph.Node node2 = getNodeForTransaction(xid);
+				if(node1 == node2) {
+					node1.setInterruptCause(cause);
+					node1.getThreadWaitingForLock().interrupt();
+				}
             }
         }
     }
+	
+	private ResourceDependencyGraph.Node getNodeForTransaction(TransactionInformation xid) {
+		if(xid instanceof RemoteTransactionInformation) {
+            return resourceDependencyGraph.getNode(xid);
+        } else {
+            return xid.getNodeInResourceDependencyGraph();
+        }
+	}
 }
