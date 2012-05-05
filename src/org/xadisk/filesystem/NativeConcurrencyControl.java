@@ -277,11 +277,14 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     }
 
     private void removeDependencyFromRDG(TransactionInformation requestor) {
-        synchronized (requestor.getNodeInResourceDependencyGraph().getInterruptFlagLock()) {
+		ResourceDependencyGraph.Node node = requestor.getNodeInResourceDependencyGraph();
+        synchronized (node.getInterruptFlagLock()) {
             resourceDependencyGraph.removeDependency(requestor);
+			if(node.getInterruptCause() != 0) {
 				Thread.interrupted();
 			}
         }
+    }
 
     public ResourceDependencyGraph getResourceDependencyGraph() {
         return resourceDependencyGraph;
