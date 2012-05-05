@@ -24,9 +24,8 @@ public class FileIOUtility {
     public static void renameTo(File src, File dest) throws IOException {
         if (!src.renameTo(dest)) {
             if (renamePossible(src, dest)) {
-                boolean interrupted = false;
                 while (!src.renameTo(dest)) {
-                    interrupted |= makeSpaceForGC();
+					makeSpaceForGC();
                     if (src.renameTo(dest)) {
                         break;
                     }
@@ -43,9 +42,6 @@ public class FileIOUtility {
 						dest.setLastModified(src.lastModified());
                         deleteFile(src);
                     }
-                }
-                if (interrupted) {
-                    Thread.currentThread().interrupt();
                 }
             } else {
                 throw new IOException("Rename not feasible from " + src + " to " + dest);
@@ -67,12 +63,8 @@ public class FileIOUtility {
         if (!f.exists()) {
             throw new IOException("File does not exist.");
         }
-        boolean interrupted = false;
         while (!f.delete()) {
-            interrupted |= makeSpaceForGC();
-        }
-        if (interrupted) {
-            Thread.currentThread().interrupt();
+			makeSpaceForGC();
         }
     }
 
@@ -105,12 +97,8 @@ public class FileIOUtility {
         if (!f.getParentFile().canWrite()) {
             throw new IOException("Parent directory not writable.");
         }
-        boolean interrupted = false;
         while (!f.createNewFile()) {
-            interrupted |= makeSpaceForGC();
-        }
-        if (interrupted) {
-            Thread.currentThread().interrupt();
+			makeSpaceForGC();
         }
     }
 
@@ -124,12 +112,8 @@ public class FileIOUtility {
         if (!dir.getParentFile().canWrite()) {
             throw new IOException("Parent directory not writable.");
         }
-        boolean interrupted = false;
         while (!dir.mkdir()) {
-            interrupted |= makeSpaceForGC();
-        }
-        if (interrupted) {
-            Thread.currentThread().interrupt();
+			makeSpaceForGC();
         }
     }
 
@@ -149,18 +133,14 @@ public class FileIOUtility {
             throw new IOException("The directory is not readable.");
         }
         String children[] = dir.list();
-        boolean interrupted = false;
         while (children == null) {
-            interrupted |= makeSpaceForGC();
+			makeSpaceForGC();
             children = dir.list();
-        }
-        if (interrupted) {
-            Thread.currentThread().interrupt();
         }
         return children;
     }
 
-    private static boolean makeSpaceForGC() {
+    private static void makeSpaceForGC() throws IOException {
         /**
          * I know that this mechanism of doing gc when file operations fail is weird. But I had no other option than to use
          * this workaround which would get triggered very very rarely (when that jvm bug gets triggered). Things like
@@ -170,12 +150,12 @@ public class FileIOUtility {
         System.gc();
         System.gc();
         System.gc();
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ie) {
-            return true;
-        }
-        return false;
+		try {
+			Thread.sleep(100);
+		} catch(InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			throw (IOException) new IOException().initCause(ie);
+		}
     }
 
     public static void readFromChannel(FileChannel fc, ByteBuffer buffer, int bufferOffset, int num)
