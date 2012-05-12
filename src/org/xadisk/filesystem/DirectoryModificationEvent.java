@@ -7,6 +7,7 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.filesystem;
 
 import java.io.File;
+import java.io.Serializable;
 import javax.ejb.MessageDrivenBean;
 import org.xadisk.connector.inbound.FileSystemEventListener;
 
@@ -19,11 +20,13 @@ import org.xadisk.connector.inbound.FileSystemEventListener;
  *
  * @since 1.2.1
  */
-public class DirectoryModificationEvent extends FileSystemStateChangeEvent {
+public class DirectoryModificationEvent extends FileSystemStateChangeEvent implements Serializable {
 
+	private static final long serialVersionUID = 1L;
+	
 	private final File childFilePath;
 
-	public DirectoryModificationEvent(File childFilePath, File file, boolean isDirectory, FileSystemEventType eventType,
+	DirectoryModificationEvent(File childFilePath, File file, boolean isDirectory, FileSystemEventType eventType,
 			TransactionInformation enqueuingTransaction) {
 		super(file, isDirectory, eventType, enqueuingTransaction);
 		this.childFilePath = childFilePath;
