@@ -7,6 +7,8 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.filesystem;
 
 import java.io.File;
+import javax.ejb.MessageDrivenBean;
+import org.xadisk.connector.inbound.FileSystemEventListener;
 
 /**
  * An object of this class represents a directory modification event (a child object
