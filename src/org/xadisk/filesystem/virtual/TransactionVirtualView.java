@@ -127,52 +127,36 @@ public class TransactionVirtualView {
         return vvd.listFilesAndDirectories();
     }
 
-    public boolean isDirectoryWritable(File f) {
-        try {
-            if(MiscUtils.isRootPath(f)) {
-                return f.canWrite();
-            }
-            VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
-            return parentVVD.isDirWritable(f.getName());
-        } catch (FileNotExistsException fne) {
-            return false;
-        }
+    public boolean isDirectoryWritable(File f) throws FileNotExistsException {
+		if(MiscUtils.isRootPath(f)) {
+			return f.canWrite();
+		}
+		VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
+		return parentVVD.isDirWritable(f.getName());
     }
 
-    public boolean isNormalFileWritable(File f) {
-        try {
-            if(MiscUtils.isRootPath(f)) {
-                return false;
-            }
-            VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
-            return parentVVD.isFileWritable(f.getName());
-        } catch (FileNotExistsException fne) {
-            return false;
-        }
+    public boolean isNormalFileWritable(File f) throws FileNotExistsException {
+		if(MiscUtils.isRootPath(f)) {
+			return false;
+		}
+		VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
+		return parentVVD.isFileWritable(f.getName());
     }
 
-    public boolean isDirectoryReadable(File f) {
-        try {
-            if(MiscUtils.isRootPath(f)) {
-                return f.canRead();
-            }
-            VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
-            return parentVVD.isDirReadable(f.getName());
-        } catch (FileNotExistsException fne) {
-            return false;
-        }
+    public boolean isDirectoryReadable(File f) throws FileNotExistsException {
+		if(MiscUtils.isRootPath(f)) {
+			return f.canRead();
+		}
+		VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
+		return parentVVD.isDirReadable(f.getName());
     }
 
-    public boolean isNormalFileReadable(File f) {
-        try {
-            if(MiscUtils.isRootPath(f)) {
-                return false;
-            }
-            VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
-            return parentVVD.isFileReadable(f.getName());
-        } catch (FileNotExistsException fne) {
-            return false;
-        }
+    public boolean isNormalFileReadable(File f) throws FileNotExistsException {
+		if(MiscUtils.isRootPath(f)) {
+			return false;
+		}
+		VirtualViewDirectory parentVVD = getVirtualViewDirectory(f.getParentFile());
+		return parentVVD.isFileReadable(f.getName());
     }
 
     public VirtualViewFile getVirtualViewFile(File f) throws FileNotExistsException {

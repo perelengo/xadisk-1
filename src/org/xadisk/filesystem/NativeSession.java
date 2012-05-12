@@ -397,7 +397,11 @@ public class NativeSession implements SessionCommonness {
             if (!MiscUtils.isRootPath(f)) {
                 File parentDir = f.getParentFile();
                 newLock = acquireLockIfRequired(f, lockExclusively);
-                checkPermission(PermissionType.READ_DIRECTORY, parentDir);
+				try {
+					checkPermission(PermissionType.READ_DIRECTORY, parentDir);
+				} catch(FileNotExistsException fnee) {
+					return false;
+				}
                 success = true;
                 return view.fileExists(f);
             } else {
@@ -436,7 +440,11 @@ public class NativeSession implements SessionCommonness {
             if (!MiscUtils.isRootPath(f)) {
                 File parentDir = f.getParentFile();
                 newLock = acquireLockIfRequired(f, lockExclusively);
-                checkPermission(PermissionType.READ_DIRECTORY, parentDir);
+				try {
+					checkPermission(PermissionType.READ_DIRECTORY, parentDir);
+				} catch(FileNotExistsException fnee) {
+					return false;
+				}
                 success = true;
                 return view.fileExistsAndIsDirectory(f);
             } else {
@@ -1043,7 +1051,8 @@ public class NativeSession implements SessionCommonness {
         return true;
     }
 
-    private void checkPermission(PermissionType operation, File f) throws InsufficientPermissionOnFileException {
+    private void checkPermission(PermissionType operation, File f) throws FileNotExistsException,
+			InsufficientPermissionOnFileException {
         switch (operation) {
             case READ_FILE:
                 if (view.isNormalFileReadable(f)) {
