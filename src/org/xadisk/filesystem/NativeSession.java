@@ -836,7 +836,7 @@ public class NativeSession implements SessionCommonness {
     private void commitCreateDir(String fileName) throws IOException {
         File f = new File(fileName);
         if (f.exists()) {
-            diskSession.deleteDirectoryRecursively(f);
+			return;
         }
         diskSession.createDirectory(f);
     }
