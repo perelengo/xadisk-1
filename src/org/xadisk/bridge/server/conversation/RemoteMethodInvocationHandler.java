@@ -34,6 +34,8 @@ import org.xadisk.bridge.proxies.facilitators.OptimizedRemoteReference;
 import org.xadisk.bridge.proxies.facilitators.SerializedMethod;
 import org.xadisk.bridge.proxies.impl.RemoteLock;
 import org.xadisk.bridge.proxies.impl.RemoteTransactionInformation;
+import org.xadisk.filesystem.DirectoryModificationEvent;
+import org.xadisk.filesystem.FileSystemStateChangeEvent;
 import org.xadisk.filesystem.Lock;
 import org.xadisk.filesystem.TransactionInformation;
 
@@ -176,12 +178,12 @@ public class RemoteMethodInvocationHandler implements Work {
             }
             if(xaFileSystem.getHandleClusterRemoteInvocations()) {
                 if (args[i] instanceof RemoteLock) {
-                RemoteLock remoteLock = (RemoteLock) args[i];
-                args[i] = context.getLocalObjectFromProxy(remoteLock.getRemoteObjectId());
-                argTypes[i] = args[i].getClass();
+					RemoteLock remoteLock = (RemoteLock) args[i];
+					args[i] = context.getLocalObjectFromProxy(remoteLock.getRemoteObjectId());
+					argTypes[i] = args[i].getClass();
+				}
             }
-            }
-            argTypes[i] = getApplicableInterfaceClassIfRequired(args[i]);
+            argTypes[i] = getSpecificClassTypeIfRequired(args[i]);
             argTypes[i] = getPrimitiveClassIfRequired(argTypes[i]);
         }
     }
@@ -247,7 +249,7 @@ public class RemoteMethodInvocationHandler implements Work {
         return type;
     }
 
-    private Class getApplicableInterfaceClassIfRequired(Object obj) {
+    private Class getSpecificClassTypeIfRequired(Object obj) {
         //this was to do avoid a strange/unexpected error saying NoSuchMethodException in cases
         //when the parameter-type (during method invocation via reflection) was specified as an
         //implementing class name instead of the interface.
@@ -261,6 +263,9 @@ public class RemoteMethodInvocationHandler implements Work {
                 }
                 return Xid.class;
             }
+			if(obj instanceof DirectoryModificationEvent) {
+				return FileSystemStateChangeEvent.class;
+			}
         }
         if(xaFileSystem.getHandleClusterRemoteInvocations()) {
             if (obj instanceof Lock) {
