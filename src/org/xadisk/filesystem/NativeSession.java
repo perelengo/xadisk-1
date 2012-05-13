@@ -746,7 +746,7 @@ public class NativeSession implements SessionCommonness {
     private boolean checkPointDuringModificationAgainstCopy(int currentLogPosition, File fileBeingModified,
             HashSet<File> srcFilesCopied, HashSet<File> srcFilesMoved) throws IOException {
         if(srcFilesCopied.contains(fileBeingModified)) {
-            declareCheckPoint(currentLogPosition, srcFilesMoved, srcFilesMoved);
+            declareCheckPoint(currentLogPosition, srcFilesCopied, srcFilesMoved);
             return true;
         }
         return false;
