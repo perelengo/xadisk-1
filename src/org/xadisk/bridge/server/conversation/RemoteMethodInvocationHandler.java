@@ -141,7 +141,7 @@ public class RemoteMethodInvocationHandler implements Work {
         Object response;
         try {
             response = method.invoke(targetObject, args);
-            processOptimizedRemoteReferences(targetObject, remoteReferences, regenerateObjects);
+            processOptimizedRemoteReferences(response, remoteReferences, regenerateObjects);
             //note that in case of method thrown exception, the remote arguments are not geting updated. That would be fine for current applications.
             response = context.convertToProxyResponseIfRequired(response);
             postInvocation(targetObject, method);
@@ -196,10 +196,14 @@ public class RemoteMethodInvocationHandler implements Work {
                 if (ref instanceof ByteArrayRemoteReference) {
                     ByteArrayRemoteReference barr = (ByteArrayRemoteReference) ref;
                     Integer bytesGotUpdated = (Integer) response;
-                    byte[] inputArgument = (byte[]) regenerateObjects.get(i);
-                    byte[] minimalToSend = new byte[bytesGotUpdated];
-                    System.arraycopy(inputArgument, 0, minimalToSend, 0, bytesGotUpdated);
-                    barr.setResultObject(minimalToSend);
+					if(bytesGotUpdated == -1) {
+						barr.setResultObject(null);
+					} else {
+						byte[] inputArgument = (byte[]) regenerateObjects.get(i);
+						byte[] minimalToSend = new byte[bytesGotUpdated];
+						System.arraycopy(inputArgument, 0, minimalToSend, 0, bytesGotUpdated);
+						barr.setResultObject(minimalToSend);
+					}
                 }
             }
         }

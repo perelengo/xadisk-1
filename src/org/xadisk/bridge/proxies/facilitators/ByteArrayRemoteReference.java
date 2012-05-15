@@ -31,8 +31,12 @@ public class ByteArrayRemoteReference extends OptimizedRemoteReference<byte[]> {
     }
 
     public void mergeWithRemoteObject(byte[] resultBytes) {
-        byte[] result = resultBytes;
-        System.arraycopy(result, 0, originalByteArray, offsetForUpdate, result.length);
+		if(resultBytes == null) {
+			return;//case when -1 is returned.
+		} else {
+			byte[] result = resultBytes;
+			System.arraycopy(result, 0, originalByteArray, offsetForUpdate, result.length);
+		}
     }
 
     public byte[] getResultObject() {
