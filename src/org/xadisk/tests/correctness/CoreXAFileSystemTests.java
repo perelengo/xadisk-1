@@ -310,11 +310,12 @@ public class CoreXAFileSystemTests {
             currentViewFileSize += appendAmountInEachRound;
             xosSource1.flush();
 
-            for (long i = 0; i < currentViewFileSize / 1000000; i++) {
+            for (long i = 0; i < currentViewFileSize / 100000; i++) {
                 long position = randomPosition.nextInt((int) currentViewFileSize - 1);
                 xisSource1.position(position);
-                int readByte = xisSource1.read();
-                if (readByte != position % modulo) {
+				byte b[] = new byte[1];
+                xisSource1.read(b);
+                if (b[0] != position % modulo) {
                     throw new Exception("Testcase testDynamicReadWrite failed for position : " + position);
                 }
             }
