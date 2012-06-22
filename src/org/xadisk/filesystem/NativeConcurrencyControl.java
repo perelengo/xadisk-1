@@ -1,14 +1,15 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+ Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
-This source code is being made available to the public under the terms specified in the license
-"Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
-*/
+ This source code is being made available to the public under the terms specified in the license
+ "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
+ */
 
 package org.xadisk.filesystem;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import javax.resource.spi.work.WorkException;
@@ -263,9 +264,16 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
             throw new DirectoryPinningFailedException(dirToRename, node.getPath().getAbsolutePath());
         }
         NativeLock lock = node.getLock();
-        Iterator<TransactionInformation> holders = lock.getHolders().iterator();
-        while (holders.hasNext()) {
-            if (!holders.next().equals(requestor)) {
+        TransactionInformation holders[];
+        try {
+            lock.startSynchBlock();
+            HashSet<TransactionInformation> holdersSet = lock.getHolders();
+            holders = holdersSet.toArray(new TransactionInformation[0]);
+        } finally {
+            lock.endSynchBlock();
+        }
+        for (int i = 0; i < holders.length; i++) {
+            if (!holders[i].equals(requestor)) {
                 node.releasePin();
                 throw new DirectoryPinningFailedException(dirToRename, node.getPath().getAbsolutePath());
             }
@@ -277,12 +285,12 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     }
 
     private void removeDependencyFromRDG(TransactionInformation requestor) {
-		ResourceDependencyGraph.Node node = requestor.getNodeInResourceDependencyGraph();
+        ResourceDependencyGraph.Node node = requestor.getNodeInResourceDependencyGraph();
         synchronized (node.getInterruptFlagLock()) {
             resourceDependencyGraph.removeDependency(requestor);
-			if(node.getInterruptCause() != 0) {
-				Thread.interrupted();
-			}
+            if (node.getInterruptCause() != 0) {
+                Thread.interrupted();
+            }
         }
     }
 
@@ -296,22 +304,22 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
 
     public void interruptTransactionIfWaitingForResourceLock(TransactionInformation xid, byte cause) {
         ResourceDependencyGraph.Node node1 = getNodeForTransaction(xid);
-        if(node1 != null) {
+        if (node1 != null) {
             synchronized (node1.getInterruptFlagLock()) {
-				ResourceDependencyGraph.Node node2 = getNodeForTransaction(xid);
-				if(node1 == node2) {
-					node1.setInterruptCause(cause);
-					node1.getThreadWaitingForLock().interrupt();
-				}
+                ResourceDependencyGraph.Node node2 = getNodeForTransaction(xid);
+                if (node1 == node2) {
+                    node1.setInterruptCause(cause);
+                    node1.getThreadWaitingForLock().interrupt();
+                }
             }
         }
     }
-	
-	private ResourceDependencyGraph.Node getNodeForTransaction(TransactionInformation xid) {
-		if(xid instanceof RemoteTransactionInformation) {
+
+    private ResourceDependencyGraph.Node getNodeForTransaction(TransactionInformation xid) {
+        if (xid instanceof RemoteTransactionInformation) {
             return resourceDependencyGraph.getNode(xid);
         } else {
             return xid.getNodeInResourceDependencyGraph();
         }
-	}
+    }
 }
