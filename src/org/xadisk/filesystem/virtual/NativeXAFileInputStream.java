@@ -172,7 +172,11 @@ public class NativeXAFileInputStream implements XAFileInputStream {
                 throw new IllegalArgumentException("Argument should be a non-negative integer.");
             }
             long filesize = vvf.getLength();
-            long readPositionAfterSkip = (position - byteBuffer.remaining()) + n;
+            int bufferedBytesRemaining = 0;
+            if(filledAtleastOnce) {
+                bufferedBytesRemaining = byteBuffer.remaining();
+            }
+            long readPositionAfterSkip = (position - bufferedBytesRemaining) + n;
             if (readPositionAfterSkip > filesize) {
                 n = n - (readPositionAfterSkip - filesize);
                 readPositionAfterSkip = filesize;
