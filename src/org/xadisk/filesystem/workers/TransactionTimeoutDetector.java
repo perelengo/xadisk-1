@@ -42,4 +42,14 @@ public class TransactionTimeoutDetector extends TimedWorker {
             xaFileSystem.notifySystemFailure(t);
         }
     }
+
+    @Override
+    public void release() {
+        super.release();
+    }
+
+    @Override
+    public void run() {
+        super.run();
+    }
 }

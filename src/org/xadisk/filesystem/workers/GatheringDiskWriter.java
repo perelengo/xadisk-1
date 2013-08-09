@@ -376,4 +376,14 @@ public class GatheringDiskWriter extends EventWorker {
             recordEndPointActivation(activation);
         }
     }
+
+    @Override
+    public void release() {
+        super.release();
+    }
+
+    @Override
+    public void run() {
+        super.run();
+    }
 }

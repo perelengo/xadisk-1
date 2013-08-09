@@ -172,4 +172,14 @@ public class DeadLockDetector extends TimedWorker {
         }
         backEdges.clear();
     }
+
+    @Override
+    public void release() {
+        super.release();
+    }
+
+    @Override
+    public void run() {
+        super.run();
+    }
 }

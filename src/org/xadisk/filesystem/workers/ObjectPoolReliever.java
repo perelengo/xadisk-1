@@ -30,4 +30,14 @@ public class ObjectPoolReliever extends TimedWorker {
             xaFileSystem.notifySystemFailure(t);
         }
     }
+
+    @Override
+    public void release() {
+        super.release();
+    }
+
+    @Override
+    public void run() {
+        super.run();
+    }
 }
