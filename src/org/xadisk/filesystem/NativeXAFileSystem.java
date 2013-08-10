@@ -287,7 +287,8 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         if (session != null) {
             return session;
         }
-        if (transactionsPreparedPreCrash.contains((TransactionInformation) xid)) {
+        if (transactionsPreparedPreCrash != null &&
+                transactionsPreparedPreCrash.contains((TransactionInformation) xid)) {
             ArrayList<FileSystemStateChangeEvent> events =
                     recoveryWorker.getEventsFromPreparedTransaction((TransactionInformation) xid);
             if (events != null) {
