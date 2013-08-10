@@ -319,7 +319,7 @@ public class TransactionVirtualView {
                 physicalPathForVVD.append(File.separator).append(pathSteps.get(i));
             }
             File physicalDir = new File(physicalPathForVVD.toString());
-            if (!physicalDir.exists()) {
+            if (!physicalDir.isDirectory()) {
                 throw new FileNotExistsException(f.getAbsolutePath());
             }
             vvd = new VirtualViewDirectory(f, physicalDir, this, xaFileSystem, diskSession);
