@@ -30,17 +30,10 @@ public class FileIOUtility {
                         break;
                     }
                     if (!src.isDirectory()) {
-                        FileChannel srcFC = new FileInputStream(src).getChannel();
-                        FileChannel destFC = new FileOutputStream(dest).getChannel();
-                        long size = srcFC.size();
-                        long num = 0;
-                        while (num < size) {
-                            num += destFC.transferFrom(srcFC, num, NativeXAFileSystem.maxTransferToChannel(size - num));
-                        }
-                        srcFC.close();
-                        destFC.close();
-						dest.setLastModified(src.lastModified());
+                        copyFile(src, dest, false);
+                        dest.setLastModified(src.lastModified());
                         deleteFile(src);
+                        break;
                     }
                 }
             } else {
