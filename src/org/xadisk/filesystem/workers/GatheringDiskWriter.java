@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import org.xadisk.connector.inbound.EndPointActivation;
@@ -35,8 +36,8 @@ public class GatheringDiskWriter extends EventWorker {
     private final int cumulativeBufferSizeForDiskWrite;
     private final AtomicInteger cumulativeBufferSize = new AtomicInteger(0);
     private FileChannel transactionLogChannel;
-    private final ConcurrentHashMap<TransactionInformation, ArrayList<Buffer>> transactionSubmittedBuffers =
-            new ConcurrentHashMap<TransactionInformation, ArrayList<Buffer>>(1000);
+    private final ConcurrentHashMap<TransactionInformation, ConcurrentLinkedQueue<Buffer>> transactionSubmittedBuffers =
+            new ConcurrentHashMap<TransactionInformation, ConcurrentLinkedQueue<Buffer>>(1000);
     private final NativeXAFileSystem xaFileSystem;
     private final long transactionLogFileMaxSize;
     private final ReentrantLock transactionLogLock = new ReentrantLock(false);
@@ -81,51 +82,49 @@ public class GatheringDiskWriter extends EventWorker {
     @Override
     void processEvent() {
         try {
+            transactionLogLock.lock();
             Buffer buffersArray[];
             TransactionInformation xids[];
             ArrayList<Buffer> allBuffersToWrite = new ArrayList<Buffer>(1000);
             ArrayList<TransactionInformation> xidsList = new ArrayList<TransactionInformation>(1000);
-            Iterator<Map.Entry<TransactionInformation, ArrayList<Buffer>>> entries = transactionSubmittedBuffers.entrySet().iterator();
+            Iterator<Map.Entry<TransactionInformation, ConcurrentLinkedQueue<Buffer>>> entries = transactionSubmittedBuffers.entrySet().iterator();
             while (entries.hasNext()) {
-                Map.Entry<TransactionInformation, ArrayList<Buffer>> entry = entries.next();
+                Map.Entry<TransactionInformation, ConcurrentLinkedQueue<Buffer>> entry = entries.next();
                 TransactionInformation xid = entry.getKey();
-                ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.put(xid, new ArrayList<Buffer>(10));
-                for (Buffer buffer : txnBuffers) {
+                ConcurrentLinkedQueue<Buffer> txnBuffers = transactionSubmittedBuffers.get(xid);
+                Buffer buffer;
+                while((buffer = txnBuffers.poll()) != null) {
                     xidsList.add(xid);
                     allBuffersToWrite.add(buffer);
                 }
             }
             xids = xidsList.toArray(new TransactionInformation[0]);
             buffersArray = allBuffersToWrite.toArray(new Buffer[0]);
-            try {
-                transactionLogLock.lock();
-                writeBuffersToTransactionLog(buffersArray, xids, 0);
-            } finally {
-                transactionLogLock.unlock();
-            }
+            writeBuffersToTransactionLog(buffersArray, xids, 0);
         } catch (Throwable t) {
             xaFileSystem.notifySystemFailure(t);
+        } finally {
+            transactionLogLock.unlock();
         }
     }
 
-    public void writeRemainingBuffersNow(TransactionInformation xid) throws IOException {
-        ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.put(xid, new ArrayList<Buffer>(10));
-        for (Buffer buffer : txnBuffers) {
-            cumulativeBufferSize.getAndAdd(-buffer.getBuffer().remaining());
-        }
+    public void writeRemainingBuffersNow(TransactionInformation xid) throws 
+            IOException {
         try {
+            transactionLogLock.lock();
+            ConcurrentLinkedQueue<Buffer> txnBuffers = transactionSubmittedBuffers.remove(xid);
+            for (Buffer buffer : txnBuffers) {
+                cumulativeBufferSize.getAndAdd(-buffer.getBuffer().remaining());
+            }
             TransactionInformation xids[] = new TransactionInformation[txnBuffers.size()];
             for (int i = 0; i < xids.length; i++) {
                 xids[i] = xid;
             }
-            try {
-                transactionLogLock.lock();
-                writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[0]), xids, 0);
-            } finally {
-                transactionLogLock.unlock();
-            }
+            writeBuffersToTransactionLog(txnBuffers.toArray(new Buffer[0]), xids, 0);
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
+        } finally {
+            transactionLogLock.unlock();
         }
     }
 
@@ -197,9 +196,9 @@ public class GatheringDiskWriter extends EventWorker {
 
     public void submitBuffer(Buffer logEntry, TransactionInformation xid) {
         logEntry.flushByteBufferChanges();
-        ArrayList<Buffer> txnBuffers = transactionSubmittedBuffers.get(xid);
+        ConcurrentLinkedQueue<Buffer> txnBuffers = transactionSubmittedBuffers.get(xid);
         if (txnBuffers == null) {
-            txnBuffers = new ArrayList<Buffer>(10);
+            txnBuffers = new ConcurrentLinkedQueue<Buffer>();
             txnBuffers.add(logEntry);
             transactionSubmittedBuffers.put(xid, txnBuffers);
         } else {
@@ -333,7 +332,6 @@ public class GatheringDiskWriter extends EventWorker {
         } finally {
             transactionLogLock.unlock();
         }
-        transactionSubmittedBuffers.remove(xid);
     }
 
     private void ensureLogFileCapacity(long sizeToWriteNow) throws IOException {
