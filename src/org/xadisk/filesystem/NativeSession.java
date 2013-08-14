@@ -55,6 +55,7 @@ public class NativeSession implements SessionCommonness {
     private Throwable rollbackCause = null;
     private volatile boolean systemHasFailed = false;
     private volatile boolean systemGotShutdown = false;
+    private volatile boolean operationsCanContinue = true;
     private volatile Throwable systemFailureCause = null;
     private final TransactionVirtualView view;
     private long fileLockWaitTimeout = 0;
@@ -121,6 +122,7 @@ public class NativeSession implements SessionCommonness {
         try {
             rollback();
             this.rolledbackPrematurely = true;
+            this.operationsCanContinue = false;
             this.rollbackCause = rollbackCause;
         } catch (TransactionRolledbackException trbe) {
         } catch (NoTransactionAssociatedException note) {
@@ -129,11 +131,13 @@ public class NativeSession implements SessionCommonness {
 
     void notifySystemFailure(Throwable systemFailureCause) {
         this.systemHasFailed = true;
+        this.operationsCanContinue = false;
         this.systemFailureCause = systemFailureCause;
     }
 
     void notifySystemShutdown() {
         this.systemGotShutdown = true;
+        this.operationsCanContinue = false;
     }
 
     public NativeXAFileInputStream createXAFileInputStream(File f)
@@ -999,6 +1003,7 @@ public class NativeSession implements SessionCommonness {
 
     private void cleanup() throws IOException {
         this.sessionIsUseless = true;
+        this.operationsCanContinue = false;
         if (createdForRecovery) {
             xaFileSystem.getRecoveryWorker().cleanupTransactionInfo(xid);
         } else {
@@ -1142,17 +1147,21 @@ public class NativeSession implements SessionCommonness {
     }
 
     public void checkIfCanContinue() throws NoTransactionAssociatedException {
-        if (rolledbackPrematurely) {
-            throw new TransactionRolledbackException(rollbackCause);
-        }
-        if (sessionIsUseless) {
-            throw new NoTransactionAssociatedException();
-        }
-        if (systemHasFailed) {
-            throw new XASystemNoMoreAvailableException(systemFailureCause);
-        }
-        if(systemGotShutdown) {
-            throw new XASystemNoMoreAvailableException();
+        if(operationsCanContinue) {
+            return;
+        } else {
+            if (rolledbackPrematurely) {
+                throw new TransactionRolledbackException(rollbackCause);
+            }
+            if (sessionIsUseless) {
+                throw new NoTransactionAssociatedException();
+            }
+            if (systemHasFailed) {
+                throw new XASystemNoMoreAvailableException(systemFailureCause);
+            }
+            if(systemGotShutdown) {
+                throw new XASystemNoMoreAvailableException();
+            }
         }
     }
 

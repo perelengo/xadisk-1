@@ -167,9 +167,6 @@ public class NativeXAFileOutputStream implements XAFileOutputStream {
     }
 
     private void checkIfCanContinue() throws NoTransactionAssociatedException, ClosedStreamException {
-        if (closed) {
-            throw new ClosedStreamException();
-        }
         owningSession.checkIfCanContinue();
     }
 

@@ -315,9 +315,6 @@ public class NativeXAFileInputStream implements XAFileInputStream {
     }
 
     private void checkIfCanContinue() throws NoTransactionAssociatedException, ClosedStreamException {
-        if (closed) {
-            throw new ClosedStreamException();
-        }
         owningSession.checkIfCanContinue();
     }
 
