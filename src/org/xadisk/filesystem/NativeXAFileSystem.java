@@ -78,6 +78,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     private final LinkedBlockingQueue<FileSystemStateChangeEvent> fileSystemEventQueue;
     private volatile boolean systemHasFailed = false;
     private volatile Throwable systemFailureCause = null;
+    private volatile boolean systemShuttingDown = false;
     private final CriticalWorkersListener workListener;
     private final File topLevelBackupDir;
     private File currentBackupDirPath;
@@ -404,6 +405,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public void shutdown() throws IOException {
         logger.logInfo("Shutting down the XADisk instance...");
+        systemShuttingDown = true;
         NativeSession allSessions[];
         Collection<NativeSession> sessionsCollection = transactionAndSession.values();
         allSessions = sessionsCollection.toArray(new NativeSession[0]);
@@ -497,12 +499,15 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         }
     }
 
-    public void checkIfCanContinue() {
+    private void checkIfCanContinue() {
         if (systemHasFailed) {
             throw new XASystemNoMoreAvailableException(systemFailureCause);
         }
         if (!recoveryComplete) {
             throw new RecoveryInProgressException();
+        }
+        if(systemShuttingDown) {
+            throw new XASystemNoMoreAvailableException();
         }
     }
 
