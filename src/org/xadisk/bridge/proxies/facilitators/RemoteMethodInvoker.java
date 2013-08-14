@@ -9,6 +9,7 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.bridge.proxies.facilitators;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -94,8 +95,9 @@ public class RemoteMethodInvoker implements Serializable {
 
             byte[] toSend = baos.toByteArray();
             int lengthOfInvocation = toSend.length;
-
-            OutputStream socketOS = socket.getOutputStream();
+            
+            OutputStream socketOS = new BufferedOutputStream(
+                    socket.getOutputStream(), 1024);
             socketOS.write(getDataOutputCompliantBytesFromInteger(lengthOfInvocation));
             socketOS.write(toSend);
             socketOS.flush();
