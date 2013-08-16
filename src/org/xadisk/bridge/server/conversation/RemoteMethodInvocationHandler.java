@@ -80,6 +80,8 @@ public class RemoteMethodInvocationHandler implements Work {
                 }
                 Set<SelectionKey> selectionKeys = writeSelector.selectedKeys();
                 //this will be only one key always, the above one.
+                //we needed to use selector here as the channel is being used in
+                //ConversationGateway in multiplexing (which requires non-blocking mode).
                 channel.write(toSend);
                 selectionKeys.clear();
             }

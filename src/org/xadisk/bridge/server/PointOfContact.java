@@ -5,6 +5,10 @@ This source code is being made available to the public under the terms specified
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
 */
 
+/*
+ * Many Thanks to Jasper Siepkes for suggesting the bug fix for
+ * https://java.net/jira/browse/XADISK-140
+*/
 
 package org.xadisk.bridge.server;
 
@@ -49,12 +53,19 @@ public class PointOfContact implements Work {
             }
         } catch (Throwable t) {
             xaFileSystem.notifySystemFailure(t);
+        } finally {
+            conversationGateway.release();
+            closeServerSocket();
         }
     }
 
     public void release() {
         enabled = false;
-        conversationGateway.release();
+        closeServerSocket();
+        //we need to close the channel here to come out of accept.
+    }
+
+    private void closeServerSocket() {
         try {
             serverSocketChannel.close();
         } catch (Throwable t) {

@@ -5,6 +5,10 @@ This source code is being made available to the public under the terms specified
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
 */
 
+/*
+ * Many Thanks to Jasper Siepkes for suggesting the bug fix for
+ * https://java.net/jira/browse/XADISK-140
+*/
 
 package org.xadisk.bridge.server.conversation;
 
@@ -67,23 +71,34 @@ public class ConversationGateway implements Work {
                         buffer.flip();
                         context.updateWithConversation(buffer);
                     } catch (IOException ioe) {
-                        selectionKey.cancel();
+                        closeClientConversation(selectionKey, channel);
                     }
                 }
                 selectedReadable.clear();
             }
-            informDisconnectionToClients();
         } catch (Throwable t) {
             xaFileSystem.notifySystemFailure(t);
+        } finally {
+            closeAllClientConversations();
         }
     }
-
+    
     public void release() {
         this.enabled = false;
         this.selector.wakeup();
     }
+    
+    private void closeClientConversation(SelectionKey selectionKey, SocketChannel channel) {
+        selectionKey.cancel();
+        try {
+            channel.socket().close();
+        } catch(Throwable t) {
+            //no-op.
+        }
+    }
 
-    private void informDisconnectionToClients() {
+    private void closeAllClientConversations() {
+        //no need to cancel keys as we will close selector itself.
         Set<SelectionKey> connectedClientKeys = selector.keys();
         for (SelectionKey key : connectedClientKeys) {
             try {
@@ -91,6 +106,11 @@ public class ConversationGateway implements Work {
             } catch (Throwable t) {
                 //no-op.
             }
+        }
+        try {
+            selector.close();
+        } catch(Throwable t) {
+            //no-op.
         }
     }
 }
