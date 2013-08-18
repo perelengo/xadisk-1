@@ -104,6 +104,10 @@ public class CrashRecoveryWorker implements Work {
             }
             collectTransactionLogPositions(logChannels.get(logIndex).position(0), logIndex);
         }
+
+        distanceFromRecoveryCompletion.set(preparedInDoubtTransactions.size()
+                + onePhaseCommittingTransactions.size() + eventsDequeuePrepared.size()
+                + heavyWriteTransactionsForRollback.size());
     }
 
     public void run() {
@@ -112,9 +116,6 @@ public class CrashRecoveryWorker implements Work {
             recoverOnePhaseTransactions();
             recoverHeavyWriteTransactionsForRollback();
             prepareEventsToPopulate();
-            distanceFromRecoveryCompletion.set(preparedInDoubtTransactions.size()
-                    + onePhaseCommittingTransactions.size() + eventsDequeuePrepared.size()
-                    + heavyWriteTransactionsForRollback.size());
             checkForRecoveryDone();
         } catch (Throwable t) {
             xaFileSystem.notifySystemFailure(t);
@@ -216,7 +217,7 @@ public class CrashRecoveryWorker implements Work {
                     addLogPositionToTransaction(xid, logIndex, filePositionAtBuffersBeginning);
                 }
                 if (logEntry.getOperationType() == TransactionLogEntry.CHECKPOINT_AVOIDING_COPY_OR_MOVE_REDO) {
-                    transactionsLatestCheckPoint.put(xid, logEntry.getCheckPointPosition());
+                    updateTransactionsLatestCheckPoint(xid, logEntry.getCheckPointPosition());
                 }
                 if (logEntry.getOperationType() == TransactionLogEntry.FILES_ALREADY_ONDISK) {
                     transactionsAndFilesWithLatestViewOnDisk.put(xid, logEntry.getFileList());
@@ -298,6 +299,15 @@ public class CrashRecoveryWorker implements Work {
     public int getTransactionsLatestCheckPoint(TransactionInformation xid) {
         Integer latestCheckPoint = transactionsLatestCheckPoint.get(xid);
         return latestCheckPoint == null ? -1 : latestCheckPoint;
+    }
+
+    private void updateTransactionsLatestCheckPoint(TransactionInformation xid, int checkPoint) {
+        int currentLatestCheckPoint = getTransactionsLatestCheckPoint(xid);
+        if(currentLatestCheckPoint < checkPoint) {
+            //as the multiple checkpoints from the same transaction could be spread across
+            //txn-logs and we may not discover them in increasing order.
+            transactionsLatestCheckPoint.put(xid, checkPoint);
+        }
     }
 
     public HashSet<TransactionInformation> getPreparedInDoubtTransactions() {
