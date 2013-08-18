@@ -11,6 +11,7 @@ package org.xadisk.connector.outbound;
 import javax.resource.spi.ConnectionEvent;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 import org.xadisk.filesystem.FileSystemConfiguration;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 
 /**
  * This class is applicable only when invoking XADisk as a JCA Resource Adapter.
@@ -46,7 +47,8 @@ public class XADiskUserLocalTransaction {
      * Commits the local transaction bound to this object.
      * @throws NoTransactionAssociatedException
      */
-    public void commitLocalTransaction() throws NoTransactionAssociatedException {
+    public void commitLocalTransaction() throws NoTransactionAssociatedException,
+        TransactionFailedException {
         localTxnImpl._commit();
         mc.raiseUserLocalTransactionEvent(ConnectionEvent.LOCAL_TRANSACTION_COMMITTED);
     }
@@ -55,7 +57,8 @@ public class XADiskUserLocalTransaction {
      * Rolls back the local transaction bound to this object.
      * @throws NoTransactionAssociatedException
      */
-    public void rollbackLocalTransaction() throws NoTransactionAssociatedException {
+    public void rollbackLocalTransaction() throws NoTransactionAssociatedException,
+        TransactionFailedException {
         localTxnImpl._rollback();
         mc.raiseUserLocalTransactionEvent(ConnectionEvent.LOCAL_TRANSACTION_ROLLEDBACK);
     }

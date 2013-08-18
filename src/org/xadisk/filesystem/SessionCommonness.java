@@ -10,10 +10,11 @@ package org.xadisk.filesystem;
 
 import org.xadisk.bridge.proxies.interfaces.Session;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 
 public interface SessionCommonness extends Session {
 
-    public void commit(boolean onePhase) throws NoTransactionAssociatedException;
+    public void commit(boolean onePhase) throws NoTransactionAssociatedException, TransactionFailedException;
     
     public void prepare() throws NoTransactionAssociatedException;
 

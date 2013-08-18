@@ -22,10 +22,12 @@ import org.xadisk.filesystem.workers.ObjectPoolReliever;
 import org.xadisk.filesystem.workers.TransactionTimeoutDetector;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.resource.spi.work.Work;
@@ -89,6 +91,8 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     private final ConcurrencyControl concurrencyControl;
     private final boolean handleGeneralRemoteInvocations;
     private final boolean handleClusterRemoteInvocations;
+    private final ConcurrentLinkedQueue<TransactionInformation> failedTransactions =
+            new ConcurrentLinkedQueue<TransactionInformation>();
     
     //fix for bug XADISK-85 and potentially similar ones.
     public static final int FILE_CHANNEL_MAX_TRANSFER = 1024 * 1024 * 8;
@@ -344,6 +348,38 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         return xids;
     }
 
+    public void notifyTransactionFailure(TransactionInformation xid) {
+        failedTransactions.add(xid);
+    }
+    
+    public byte[][] getIdentifiersForFailedTransactions() {
+        TransactionInformation identifiers[] = failedTransactions.toArray(new TransactionInformation[0]);
+        byte identifiersBytes[][] = new byte[identifiers.length][];
+        int i = 0;
+        for(TransactionInformation identifier: identifiers) {
+            identifiersBytes[i++] = identifier.getBytes();
+        }
+        return identifiersBytes;
+    }
+    
+    public void declareTransactionAsComplete(byte[] transactionIdentifier) {
+        try {
+            TransactionInformation xid = new TransactionInformation(ByteBuffer.wrap(transactionIdentifier));
+            gatheringDiskWriter.transactionCompletes(xid, true);
+            NativeSession session = transactionAndSession.get(xid);
+            if(session != null) {
+                //the xadisk has not gone down after failure.
+                session.completeTheTransaction();
+            } else {
+                //case of recovery going on.
+                recoveryWorker.cleanupTransactionInfo(xid);
+            }
+            failedTransactions.remove(xid);
+        } catch(IOException ioe) {
+            notifySystemFailure(ioe);
+        }
+    }
+    
     public BufferPool getBufferPool() {
         return bufferPool;
     }

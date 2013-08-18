@@ -116,6 +116,19 @@ public class TransactionInformation implements Xid, Serializable {
         return new TransactionInformation(tidBuffer);
     }
 
+    public byte[] getBytes() {
+        ByteBuffer temp = ByteBuffer.allocate(1 + 1 + 4 + gid.length + bqual.length);
+        temp.put((byte) gid.length);
+        temp.put((byte) bqual.length);
+        temp.putInt(formatId);
+        temp.put(gid);
+        temp.put(bqual);
+        byte bytes[] = new byte[temp.capacity()];
+        temp.flip();
+        temp.get(bytes);
+        return bytes;
+    }
+
     public NativeSession getOwningSession() {
         return owningSession;
     }

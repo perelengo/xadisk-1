@@ -19,6 +19,7 @@ import org.xadisk.filesystem.exceptions.FileUnderUseException;
 import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 import org.xadisk.filesystem.exceptions.LockingFailedException;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 
 public class RemoteSession extends RemoteObjectProxy implements SessionCommonness {
 
@@ -356,25 +357,29 @@ public class RemoteSession extends RemoteObjectProxy implements SessionCommonnes
         }
     }
 
-    public void commit() throws NoTransactionAssociatedException {
+    public void commit() throws NoTransactionAssociatedException, TransactionFailedException {
         this.commit(true);
     }
 
-    public void commit(boolean onePhase) throws NoTransactionAssociatedException {
+    public void commit(boolean onePhase) throws NoTransactionAssociatedException, TransactionFailedException {
         try {
             invokeRemoteMethod("commit", onePhase);
         } catch (NoTransactionAssociatedException note) {
             throw note;
+        } catch (TransactionFailedException tfe) {
+            throw tfe;
         } catch (Throwable t) {
             throw assertExceptionHandling(t);
         }
     }
 
-    public void rollback() throws NoTransactionAssociatedException {
+    public void rollback() throws NoTransactionAssociatedException, TransactionFailedException {
         try {
             invokeRemoteMethod("rollback");
         } catch (NoTransactionAssociatedException note) {
             throw note;
+        } catch (TransactionFailedException tfe) {
+            throw tfe;
         } catch (Throwable t) {
             throw assertExceptionHandling(t);
         }

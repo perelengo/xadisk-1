@@ -24,8 +24,9 @@ public class FileIOUtility {
     public static void renameTo(File src, File dest) throws IOException {
         if (!src.renameTo(dest)) {
             if (renamePossible(src, dest)) {
+                int retryCount = 1;
                 while (!src.renameTo(dest)) {
-					makeSpaceForGC();
+					doGCBeforeRetry(retryCount++, src);
                     if (src.renameTo(dest)) {
                         break;
                     }
@@ -56,8 +57,9 @@ public class FileIOUtility {
         if (!f.exists()) {
             throw new IOException("File does not exist.");
         }
+        int retryCount = 1;
         while (!f.delete()) {
-			makeSpaceForGC();
+			doGCBeforeRetry(retryCount++, f);
         }
     }
 
@@ -90,8 +92,9 @@ public class FileIOUtility {
         if (!f.getParentFile().canWrite()) {
             throw new IOException("Parent directory not writable.");
         }
+        int retryCount = 1;
         while (!f.createNewFile()) {
-			makeSpaceForGC();
+			doGCBeforeRetry(retryCount++, f);
         }
     }
 
@@ -105,8 +108,9 @@ public class FileIOUtility {
         if (!dir.getParentFile().canWrite()) {
             throw new IOException("Parent directory not writable.");
         }
+        int retryCount = 1;
         while (!dir.mkdir()) {
-			makeSpaceForGC();
+			doGCBeforeRetry(retryCount++, dir);
         }
     }
 
@@ -126,20 +130,21 @@ public class FileIOUtility {
             throw new IOException("The directory is not readable.");
         }
         String children[] = dir.list();
+        int retryCount = 1;
         while (children == null) {
-			makeSpaceForGC();
+			doGCBeforeRetry(retryCount++, dir);
             children = dir.list();
         }
         return children;
     }
 
-    private static void makeSpaceForGC() throws IOException {
-        /**
-         * I know that this mechanism of doing gc when file operations fail is weird. But I had no other option than to use
-         * this workaround which would get triggered very very rarely (when that jvm bug gets triggered). Things like
-         * not closing channel/stream are ususally the cause for file delete/rename failure, but a check over the
-         * complete xadisk code confirms that the cause here is something else (a jvm bug).
-        **/
+    private static void doGCBeforeRetry(int retryCount, File f) throws IOException {
+        if(retryCount == 5) {
+            throw new IOException("The i/o operation could not be completed for "
+                + "the file/directory with path [" + f.getAbsolutePath() + "] due "
+                + "to an unknown reason.");
+        }
+        
         System.gc();
         System.gc();
         System.gc();

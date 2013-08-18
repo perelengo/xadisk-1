@@ -83,4 +83,8 @@ public interface XAFileSystem {
      * @throws IOException
      */
     public void shutdown() throws IOException;
+
+    public byte[][] getIdentifiersForFailedTransactions();
+    
+    public void declareTransactionAsComplete(byte[] transactionIdentifier);
 }

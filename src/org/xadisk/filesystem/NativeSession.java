@@ -33,9 +33,11 @@ import org.xadisk.filesystem.exceptions.FileUnderUseException;
 import org.xadisk.filesystem.exceptions.InsufficientPermissionOnFileException;
 import org.xadisk.filesystem.exceptions.LockingFailedException;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
+import org.xadisk.filesystem.exceptions.XASystemIOException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.utilities.MiscUtils;
@@ -126,6 +128,7 @@ public class NativeSession implements SessionCommonness {
             this.rollbackCause = rollbackCause;
         } catch (TransactionRolledbackException trbe) {
         } catch (NoTransactionAssociatedException note) {
+        } catch (TransactionFailedException tfe) {
         }
     }
 
@@ -607,7 +610,8 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void commit(boolean onePhase) throws NoTransactionAssociatedException {
+    public void commit(boolean onePhase) throws NoTransactionAssociatedException,
+        TransactionFailedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -666,71 +670,80 @@ public class NativeSession implements SessionCommonness {
                     logReaderChannel.position(localPosition);
                     logEntry = TransactionLogEntry.getNextTransactionLogEntry(logReaderChannel, localPosition, false);
                 }
-                if (logEntry.getOperationType() == TransactionLogEntry.FILE_APPEND) {
-                    File f = new File(logEntry.getFileName());
-                    if (filesDirectlyWrittenToDisk.contains(f)) {
-                        continue;
-                    }
-                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
-                    commitFileAppend(logEntry, temp, logReaderChannel, logFileIndex, localPosition);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_DELETE) {
-                    String fileName = logEntry.getFileName();
-                    File f = new File(fileName);
-                    if (filesDirectlyWrittenToDisk.contains(f)) {
-                        continue;
-                    }
-                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
-                    commitDeleteFile(fileName);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_CREATE) {
-                    String fileName = logEntry.getFileName();
-                    File f = new File(fileName);
-                    if (filesDirectlyWrittenToDisk.contains(f)) {
-                        continue;
-                    }
-                    checkPointDuringCreationAgainstMove(i - 2, f, srcFilesCopied, srcFilesMoved);
-                    commitCreateFile(fileName);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.DIR_CREATE) {
-                    String dirName = logEntry.getFileName();
-                    checkPointDuringCreationAgainstMove(i - 2, new File(dirName), srcFilesCopied, srcFilesMoved);
-                    commitCreateDir(dirName);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_COPY) {
-                    File dest = new File(logEntry.getDestFileName());
-                    if (filesDirectlyWrittenToDisk.contains(dest)) {
-                        continue;
-                    }
-                    checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
-                    commitFileCopy(logEntry, srcFilesCopied);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_MOVE) {
-                    File src = new File(logEntry.getFileName());
-                    File dest = new File(logEntry.getDestFileName());
-                    if (filesDirectlyWrittenToDisk.contains(dest)) {
-                        continue;
-                    }
-                    boolean isDirectoryMove = src.isDirectory();
-                    if(isDirectoryMove) {
-                        declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
-                        commitMove(logEntry);
-                        declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
-                    } else {
+                try {
+                    if (logEntry.getOperationType() == TransactionLogEntry.FILE_APPEND) {
+                        File f = new File(logEntry.getFileName());
+                        if (filesDirectlyWrittenToDisk.contains(f)) {
+                            continue;
+                        }
+                        checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
+                        commitFileAppend(logEntry, temp, logReaderChannel, logFileIndex, localPosition);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_DELETE) {
+                        String fileName = logEntry.getFileName();
+                        File f = new File(fileName);
+                        if (filesDirectlyWrittenToDisk.contains(f)) {
+                            continue;
+                        }
+                        checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
+                        commitDeleteFile(fileName);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_CREATE) {
+                        String fileName = logEntry.getFileName();
+                        File f = new File(fileName);
+                        if (filesDirectlyWrittenToDisk.contains(f)) {
+                            continue;
+                        }
+                        checkPointDuringCreationAgainstMove(i - 2, f, srcFilesCopied, srcFilesMoved);
+                        commitCreateFile(fileName);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.DIR_CREATE) {
+                        String dirName = logEntry.getFileName();
+                        checkPointDuringCreationAgainstMove(i - 2, new File(dirName), srcFilesCopied, srcFilesMoved);
+                        commitCreateDir(dirName);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_COPY) {
+                        File dest = new File(logEntry.getDestFileName());
+                        if (filesDirectlyWrittenToDisk.contains(dest)) {
+                            continue;
+                        }
+                        checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
+                        commitFileCopy(logEntry, srcFilesCopied);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_MOVE) {
+                        File src = new File(logEntry.getFileName());
+                        File dest = new File(logEntry.getDestFileName());
+                        if (filesDirectlyWrittenToDisk.contains(dest)) {
+                            continue;
+                        }
+                        boolean isDirectoryMove = src.isDirectory();
+                        if(isDirectoryMove) {
+                            declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
+                            commitMove(logEntry);
+                            declareCheckPoint(i - 2, srcFilesCopied, srcFilesMoved);
+                        } else {
+                            if(!checkPointDuringModificationAgainstCopy(i - 2, src, srcFilesCopied, srcFilesMoved)) {
+                                checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
+                            }
+                            commitFileMove(logEntry, srcFilesMoved);
+                        }
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_TRUNCATE) {
+                        File f = new File(logEntry.getFileName());
+                        if (filesDirectlyWrittenToDisk.contains(f)) {
+                            continue;
+                        }
+                        checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
+                        commitFileTruncate(logEntry);
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_SPECIAL_MOVE) {
+                        File src = new File(logEntry.getFileName());
+                        File dest = new File(logEntry.getDestFileName());
                         if(!checkPointDuringModificationAgainstCopy(i - 2, src, srcFilesCopied, srcFilesMoved)) {
                             checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
                         }
-                        commitFileMove(logEntry, srcFilesMoved);
+                        commitFileSpecialMove(logEntry, srcFilesMoved);
                     }
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_TRUNCATE) {
-                    File f = new File(logEntry.getFileName());
-                    if (filesDirectlyWrittenToDisk.contains(f)) {
-                        continue;
-                    }
-                    checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
-                    commitFileTruncate(logEntry);
-                } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_SPECIAL_MOVE) {
-                    File src = new File(logEntry.getFileName());
-                    File dest = new File(logEntry.getDestFileName());
-                    if(!checkPointDuringModificationAgainstCopy(i - 2, src, srcFilesCopied, srcFilesMoved)) {
-                        checkPointDuringCreationAgainstMove(i - 2, dest, srcFilesCopied, srcFilesMoved);
-                    }
-                    commitFileSpecialMove(logEntry, srcFilesMoved);
+                } catch(XASystemIOException xasioe) {
+                    throw (IOException) xasioe.getCause();
+                } catch(IOException ioe) {
+                    //all these ioexceptions will be transaction specific (file_append just
+                    //reads from the txn-log) and so would not affect the system.
+                    xaFileSystem.notifyTransactionFailure(xid);
+                    throw new TransactionFailedException(ioe, xid);
                 }
             }
             diskSession.forceToDisk();
@@ -767,8 +780,12 @@ public class NativeSession implements SessionCommonness {
 
     private void declareCheckPoint(int currentLogPosition, HashSet<File> srcFilesCopied, HashSet<File> srcFilesMoved) throws IOException {
         diskSession.forceToDisk();
-        ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, currentLogPosition));
-        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        try {
+            ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, currentLogPosition));
+            xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        } catch(IOException ioe) {
+            throw new XASystemIOException(ioe);
+        }
         srcFilesMoved.clear();
         srcFilesCopied.clear();
     }
@@ -790,6 +807,17 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
+    void completeTheTransaction() {
+        try {
+            asynchronousRollbackLock.lock();
+            cleanup();
+        } catch(IOException ioe) {
+            xaFileSystem.notifySystemFailure(ioe);
+        } finally {
+            asynchronousRollbackLock.unlock();
+        }
+    }
+    
     private void commitFileAppend(TransactionLogEntry logEntry, ByteBuffer inMemoryLogEntry,
             FileChannel logReaderChannel, int logFileIndex, long localPosition)
             throws IOException {
@@ -907,7 +935,7 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void rollback() throws NoTransactionAssociatedException {
+    public void rollback() throws NoTransactionAssociatedException, TransactionFailedException {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -959,39 +987,44 @@ public class NativeSession implements SessionCommonness {
                 }
 
                 FileOutputStream fos;
-                if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_TRUNCATE) {
-                    String fileName = logEntry.getFileName();
-                    fos = new FileOutputStream(fileName, true);
-                    long contentLength = logEntry.getFileContentLength();
-                    FileChannel fc = fos.getChannel();
-                    if (logFileIndex == -1) {
-                    } else {
-                        logReaderChannel.position(localPosition + logEntry.getHeaderLength());
-                        long num = 0;
-                        if (logEntry.getFilePosition() <= fc.size()) {
-                            while (num < contentLength) {
-                                num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
-                                        NativeXAFileSystem.maxTransferToChannel(contentLength - num));
+                try {
+                    if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_TRUNCATE) {
+                        String fileName = logEntry.getFileName();
+                        fos = new FileOutputStream(fileName, true);
+                        long contentLength = logEntry.getFileContentLength();
+                        FileChannel fc = fos.getChannel();
+                        if (logFileIndex == -1) {
+                        } else {
+                            logReaderChannel.position(localPosition + logEntry.getHeaderLength());
+                            long num = 0;
+                            if (logEntry.getFilePosition() <= fc.size()) {
+                                while (num < contentLength) {
+                                    num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
+                                            NativeXAFileSystem.maxTransferToChannel(contentLength - num));
+                                }
                             }
                         }
+                        fc.force(false);//improve this. force for every piece of content? (same in commit method).
+                        fc.close();
+                    } else if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_APPEND) {
+                        String fileName = logEntry.getFileName();
+                        fos = new FileOutputStream(fileName, true);
+                        FileChannel fc = fos.getChannel();
+                        fc.truncate(logEntry.getNewLength());
+                        fc.force(false);//the file length may be part of meta-data (not sure). Make "true"?
+                        fc.close();
                     }
-                    fc.force(false);//improve this. force for every piece of content? (same in commit method).
-                    fc.close();
-                } else if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_APPEND) {
-                    String fileName = logEntry.getFileName();
-                    fos = new FileOutputStream(fileName, true);
-                    FileChannel fc = fos.getChannel();
-                    fc.truncate(logEntry.getNewLength());
-                    fc.force(false);//the file length may be part of meta-data (not sure). Make "true"?
-                    fc.close();
+                } catch(IOException ioe) {
+                    //all these ioexceptions will be transaction specific (file_append just
+                    //reads from the txn-log) and so would not affect the system.
+                    xaFileSystem.notifyTransactionFailure(xid);
+                    throw new TransactionFailedException(ioe, xid);
                 }
-
             }
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, false);
             for (FileChannel logChannel : logReaderChannels.values()) {
                 logChannel.close();
             }
-
             cleanup();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
@@ -1261,7 +1294,7 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void commit() throws NoTransactionAssociatedException {
+    public void commit() throws NoTransactionAssociatedException, TransactionFailedException {
         this.commit(true);
     }
 

@@ -12,6 +12,7 @@ import javax.resource.ResourceException;
 import javax.resource.spi.LocalTransaction;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 
 public class XADiskLocalTransaction implements LocalTransaction {
 
@@ -33,7 +34,7 @@ public class XADiskLocalTransaction implements LocalTransaction {
         _begin();
     }
 
-    void _rollback() throws NoTransactionAssociatedException {
+    void _rollback() throws NoTransactionAssociatedException, TransactionFailedException {
         mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().rollback();
     }
@@ -43,10 +44,12 @@ public class XADiskLocalTransaction implements LocalTransaction {
             _rollback();
         } catch (NoTransactionAssociatedException note) {
             throw new ResourceException(note);
+        } catch (TransactionFailedException tfe) {
+            throw new ResourceException(tfe);
         }
     }
 
-    void _commit() throws NoTransactionAssociatedException {
+    void _commit() throws NoTransactionAssociatedException, TransactionFailedException {
         mc.setTypeOfCurrentTransaction(XADiskManagedConnection.NO_TRANSACTION);
         mc.getSessionOfLocalTransaction().commit();
     }
@@ -56,6 +59,8 @@ public class XADiskLocalTransaction implements LocalTransaction {
             _commit();
         } catch (NoTransactionAssociatedException note) {
             throw new ResourceException(note);
+        } catch (TransactionFailedException tfe) {
+            throw new ResourceException(tfe);
         }
     }
 

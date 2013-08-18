@@ -88,7 +88,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt((int) fileContentLength);
         buffer.put(appendOrUndoTruncate);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -110,7 +110,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(createFileOrDirOrDeleteOrUndoCreate);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -131,7 +131,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(truncateOrUndoAppend);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
 
         buffer.putInt(filePathLength);
         buffer.put(filePathBytes);
@@ -156,7 +156,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(moveOrCopyOrUndoDelete);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
         buffer.putInt(srcFilePathLength);
         buffer.put(sourceFilePathBytes);
 
@@ -176,7 +176,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(commitStatus);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
 
         buffer.putInt(0, buffer.position());
 
@@ -191,7 +191,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(CHECKPOINT_AVOIDING_COPY_OR_MOVE_REDO);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
         buffer.putInt(checkPointPosition);
 
         buffer.putInt(0, buffer.position());
@@ -218,7 +218,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(FILES_ALREADY_ONDISK);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
         buffer.putInt(files.size());
         for (i = 0; i < filePathsBytes.length; i++) {
             buffer.putInt(filePathsBytes[i].length);
@@ -244,7 +244,7 @@ public class TransactionLogEntry {
         buffer.putInt(0);
         buffer.putInt(0);
         buffer.put(enQ_deQ_prepareDequeue);
-        buffer.put(serializeXid(xid));
+        buffer.put(xid.getBytes());
         buffer.putInt(events.size());
         for (int i = 0; i < eventsBytes.length; i++) {
             buffer.put(eventsBytes[i]);
@@ -321,7 +321,7 @@ public class TransactionLogEntry {
         temp.operationType = buffer.get();
         if (temp.operationType != REMOTE_ENDPOINT_ACTIVATES
                 && temp.operationType != REMOTE_ENDPOINT_DEACTIVATES) {
-            temp.xid = deSerializeXid(buffer);
+            temp.xid = new TransactionInformation(buffer);
         }
 
         if (temp.operationType == FILE_APPEND || temp.operationType == UNDOABLE_FILE_TRUNCATE) {
@@ -372,7 +372,7 @@ public class TransactionLogEntry {
     private static byte[] getBytesFromEvent(FileSystemStateChangeEvent event) {
         byte fileNameBytes[] = getUTF8Bytes(event.getFile().getAbsolutePath());
         ByteBuffer buffer = ByteBuffer.allocate(fileNameBytes.length + 200);
-        buffer.put(serializeXid(event.getEnqueuingTransaction()));
+        buffer.put(event.getEnqueuingTransaction().getBytes());
         buffer.put(event.getEventType().getByteValue());
         buffer.putInt(fileNameBytes.length);
         buffer.put(fileNameBytes);
@@ -384,7 +384,7 @@ public class TransactionLogEntry {
     }
 
     private static FileSystemStateChangeEvent readEvent(ByteBuffer buffer) {
-        TransactionInformation enqueuingTransaction = deSerializeXid(buffer);
+        TransactionInformation enqueuingTransaction = new TransactionInformation(buffer);
         byte eventType = buffer.get();
         int fileNameLength = buffer.getInt();
         byte fileNameBytes[] = new byte[fileNameLength];
@@ -463,25 +463,6 @@ public class TransactionLogEntry {
         return checkPointPosition;
     }
 
-    static byte[] serializeXid(TransactionInformation xid) {
-        byte[] gid = xid.getGlobalTransactionId();
-        byte[] bqual = xid.getBranchQualifier();
-        ByteBuffer temp = ByteBuffer.allocate(1 + 1 + 4 + gid.length + bqual.length);
-        temp.put((byte) gid.length);
-        temp.put((byte) bqual.length);
-        temp.putInt(xid.getFormatId());
-        temp.put(gid);
-        temp.put(bqual);
-        byte bytes[] = new byte[temp.capacity()];
-        temp.flip();
-        temp.get(bytes);
-        return bytes;
-    }
-
-    static TransactionInformation deSerializeXid(ByteBuffer buffer) {
-        return new TransactionInformation(buffer);
-    }
-
     public static void updateContentLength(ByteBuffer buffer, int contentLength) {
         buffer.putInt(4, contentLength);
     }
@@ -506,7 +487,7 @@ public class TransactionLogEntry {
             TransactionLogEntry logEntry = new TransactionLogEntry();
             logEntry.headerLength = header.getInt();
             logEntry.fileContentLength = header.getInt();
-            logEntry.xid = deSerializeXid(header);
+            logEntry.xid = new TransactionInformation(header);
             logEntry.operationType = header.get();
 
             logChannel.position(position + logEntry.headerLength + logEntry.fileContentLength);

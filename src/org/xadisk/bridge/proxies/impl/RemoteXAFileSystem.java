@@ -115,6 +115,22 @@ public class RemoteXAFileSystem extends RemoteObjectProxy implements XAFileSyste
         }
     }
 
+    public byte[][] getIdentifiersForFailedTransactions() {
+        try {
+            return (byte[][]) invokeRemoteMethod("getIdentifiersForFailedTransactions");
+        } catch (Throwable th) {
+            throw assertExceptionHandling(th);
+        }
+    }
+
+    public void declareTransactionAsComplete(byte[] transactionIdentifier) {
+        try {
+            invokeRemoteMethod("declareTransactionAsComplete", transactionIdentifier);
+        } catch (Throwable th) {
+            throw assertExceptionHandling(th);
+        }
+    }
+
     public void shutdown() {
         disconnect();
     }

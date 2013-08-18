@@ -29,6 +29,7 @@ import org.xadisk.filesystem.NativeXAFileSystem;
 import org.xadisk.filesystem.TransactionLogEntry;
 import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 import org.xadisk.filesystem.utilities.TransactionLogsUtility;
 
 public class CrashRecoveryWorker implements Work {
@@ -343,6 +344,7 @@ public class CrashRecoveryWorker implements Work {
                     session.rollback();
                 }
             } catch (NoTransactionAssociatedException note) {
+            } catch (TransactionFailedException tfe) {
             }
         }
     }
