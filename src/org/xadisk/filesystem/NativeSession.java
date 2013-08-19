@@ -612,6 +612,7 @@ public class NativeSession implements SessionCommonness {
 
     public void commit(boolean onePhase) throws NoTransactionAssociatedException,
         TransactionFailedException {
+        ArrayList<FileInputStream> logInputStreams = new ArrayList<FileInputStream>();
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -664,7 +665,9 @@ public class NativeSession implements SessionCommonness {
                     logEntry = TransactionLogEntry.parseLogEntry(temp);
                 } else {
                     if (logReaderChannels.get(logFileIndex) == null) {
-                        logReaderChannels.put(logFileIndex, new FileInputStream(transactionLogBaseName + "_" + logFileIndex).getChannel());
+                        FileInputStream fis = new FileInputStream(transactionLogBaseName + "_" + logFileIndex);
+                        logReaderChannels.put(logFileIndex, fis.getChannel());
+                        logInputStreams.add(fis);
                     }
                     logReaderChannel = logReaderChannels.get(logFileIndex);
                     logReaderChannel.position(localPosition);
@@ -748,14 +751,14 @@ public class NativeSession implements SessionCommonness {
             }
             diskSession.forceToDisk();
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, true);
-            for (FileChannel logChannel : logReaderChannels.values()) {
-                logChannel.close();
-            }
             cleanup();
             raiseFileStateChangeEvents();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
+            for(FileInputStream logInputStream: logInputStreams) {
+                MiscUtils.closeAll(logInputStream);
+            }
             asynchronousRollbackLock.unlock();
         }
     }
@@ -826,28 +829,32 @@ public class NativeSession implements SessionCommonness {
             return;
         }
 
-        FileOutputStream fos = new FileOutputStream(fileName, true);
-        long contentLength = logEntry.getFileContentLength();
-        FileChannel fc = fos.getChannel();
-        if (logFileIndex == -1) {
-            long num = 0;
-            inMemoryLogEntry.position(logEntry.getHeaderLength());
-            while (num < contentLength) {
-                num += fc.write(inMemoryLogEntry, logEntry.getFilePosition());
-            }
-
-        } else {
-            logReaderChannel.position(localPosition + logEntry.getHeaderLength());
-            long num = 0;
-            if (logEntry.getFilePosition() <= fc.size()) {
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(fileName, true);
+            long contentLength = logEntry.getFileContentLength();
+            FileChannel fc = fos.getChannel();
+            if (logFileIndex == -1) {
+                long num = 0;
+                inMemoryLogEntry.position(logEntry.getHeaderLength());
                 while (num < contentLength) {
-                    num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
-                            NativeXAFileSystem.maxTransferToChannel(contentLength - num));
+                    num += fc.write(inMemoryLogEntry, logEntry.getFilePosition());
+                }
+
+            } else {
+                logReaderChannel.position(localPosition + logEntry.getHeaderLength());
+                long num = 0;
+                if (logEntry.getFilePosition() <= fc.size()) {
+                    while (num < contentLength) {
+                        num += fc.transferFrom(logReaderChannel, num + logEntry.getFilePosition(),
+                                NativeXAFileSystem.maxTransferToChannel(contentLength - num));
+                    }
                 }
             }
+            fc.force(false);
+        } finally {
+            MiscUtils.closeAll(fos);
         }
-        fc.force(false);
-        fc.close();
     }
 
     private void commitDeleteFile(String fileName) throws IOException {
@@ -909,11 +916,15 @@ public class NativeSession implements SessionCommonness {
             return;
         }
 
-        FileOutputStream fos = new FileOutputStream(fileName, true);
-        FileChannel fc = fos.getChannel();
-        fc.truncate(logEntry.getNewLength());
-        fc.force(false);
-        fc.close();
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(fileName, true);
+            FileChannel fc = fos.getChannel();
+            fc.truncate(logEntry.getNewLength());
+            fc.force(false);
+        } finally {
+            MiscUtils.closeAll(fos);
+        }
     }
 
     private void commitFileSpecialMove(TransactionLogEntry logEntry, HashSet<File> srcFilesMoved) throws IOException {
@@ -936,6 +947,7 @@ public class NativeSession implements SessionCommonness {
     }
 
     public void rollback() throws NoTransactionAssociatedException, TransactionFailedException {
+        ArrayList<FileInputStream> logInputStreams = new ArrayList<FileInputStream>();
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
@@ -977,7 +989,9 @@ public class NativeSession implements SessionCommonness {
                             TransactionLogEntry.parseLogEntry(temp);
                 } else {
                     if (!logReaderChannels.containsKey(logFileIndex)) {
-                        logReaderChannels.put(logFileIndex, new FileInputStream(transactionLogBaseName + "_" + logFileIndex).getChannel());
+                        FileInputStream fis = new FileInputStream(transactionLogBaseName + "_" + logFileIndex);
+                        logReaderChannels.put(logFileIndex, fis.getChannel());
+                        logInputStreams.add(fis);
                     }
 
                     logReaderChannel = logReaderChannels.get(logFileIndex);
@@ -986,7 +1000,7 @@ public class NativeSession implements SessionCommonness {
                             TransactionLogEntry.getNextTransactionLogEntry(logReaderChannel, localPosition, false);
                 }
 
-                FileOutputStream fos;
+                FileOutputStream fos = null;
                 try {
                     if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_TRUNCATE) {
                         String fileName = logEntry.getFileName();
@@ -1005,30 +1019,30 @@ public class NativeSession implements SessionCommonness {
                             }
                         }
                         fc.force(false);//improve this. force for every piece of content? (same in commit method).
-                        fc.close();
                     } else if (logEntry.getOperationType() == TransactionLogEntry.UNDOABLE_FILE_APPEND) {
                         String fileName = logEntry.getFileName();
                         fos = new FileOutputStream(fileName, true);
                         FileChannel fc = fos.getChannel();
                         fc.truncate(logEntry.getNewLength());
                         fc.force(false);//the file length may be part of meta-data (not sure). Make "true"?
-                        fc.close();
                     }
                 } catch(IOException ioe) {
                     //all these ioexceptions will be transaction specific (file_append just
                     //reads from the txn-log) and so would not affect the system.
                     xaFileSystem.notifyTransactionFailure(xid);
                     throw new TransactionFailedException(ioe, xid);
+                } finally {
+                    MiscUtils.closeAll(fos);
                 }
             }
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, false);
-            for (FileChannel logChannel : logReaderChannels.values()) {
-                logChannel.close();
-            }
             cleanup();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
         } finally {
+            for(FileInputStream logInputStream: logInputStreams) {
+                MiscUtils.closeAll(logInputStream);
+            }
             asynchronousRollbackLock.unlock();
         }
 

@@ -35,6 +35,7 @@ public class VirtualViewFile {
     private long smallestTruncationPointInOriginalFile = -1;
     private boolean usingHeavyWriteOptimization = false;
     private FileChannel fileViewChannel;
+    private RandomAccessFile fileViewStream;
     private final ArrayList<Buffer> virtualViewContentBuffers = new ArrayList<Buffer>(10);
     private final NativeXAFileSystem xaFileSystem;
     private final ArrayList<VirtualViewFile> fileCopies = new ArrayList<VirtualViewFile>(1);
@@ -153,9 +154,11 @@ public class VirtualViewFile {
         transactionView.beingUsedInHeavyWriteMode(this);
         safeSetupForPhysicalFileExistence();
         if (createdPhysicalFileInBackupDir) {
-            fileViewChannel = new RandomAccessFile(physicalFileNameInBackupDir, "rw").getChannel();
+            fileViewStream = new RandomAccessFile(physicalFileNameInBackupDir, "rw");
+            fileViewChannel = fileViewStream.getChannel();
         } else {
-            fileViewChannel = new RandomAccessFile(fileName, "rw").getChannel();
+            fileViewStream = new RandomAccessFile(fileName, "rw");
+            fileViewChannel = fileViewStream.getChannel();
         }
         usingHeavyWriteOptimization = true;
         safePhysicalTruncate(mappedToThePhysicalFileTill);
@@ -242,9 +245,11 @@ public class VirtualViewFile {
     private void takeSnapshotFromPhysicalSource(FileChannel sourceChannel) throws IOException {
         safeSetupForPhysicalFileExistence();
         if (createdPhysicalFileInBackupDir) {
-            fileViewChannel = new RandomAccessFile(physicalFileNameInBackupDir, "rw").getChannel();
+            fileViewStream = new RandomAccessFile(physicalFileNameInBackupDir, "rw");
+            fileViewChannel = fileViewStream.getChannel();
         } else {
-            fileViewChannel = new RandomAccessFile(fileName, "rw").getChannel();
+            fileViewStream = new RandomAccessFile(fileName, "rw");
+            fileViewChannel = fileViewStream.getChannel();
         }
         mappedToThePhysicalFileTill = -1;
         virtualViewContentBuffers.clear();
@@ -373,7 +378,7 @@ public class VirtualViewFile {
         try {
             if (usingHeavyWriteOptimization && !hasBeenDeleted) {
                 fileViewChannel.force(true);
-                fileViewChannel.close();
+                fileViewStream.close();
             }
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
@@ -383,7 +388,7 @@ public class VirtualViewFile {
     public void freePhysicalChannel() {
         try {
             if (usingHeavyWriteOptimization && !hasBeenDeleted) {
-                fileViewChannel.close();
+                fileViewStream.close();
             }
         } catch (IOException ioe) {
             //though, it is rollback, but such failures need to be notified and are signs of bug instead.
@@ -394,7 +399,7 @@ public class VirtualViewFile {
     public void cleanupBackup() {
         try {
             if (createdPhysicalFileInBackupDir) {
-                fileViewChannel.close();
+                fileViewStream.close();
                 diskSession.deleteFile(physicalFileNameInBackupDir);
             }
         } catch (IOException ioe) {
@@ -410,7 +415,7 @@ public class VirtualViewFile {
                 } else {
                     submitRedoLogForMove(fileName, getBackupFileName());
                 }
-                fileViewChannel.close();
+                fileViewStream.close();
             } catch (IOException ioe) {
                 xaFileSystem.notifySystemFailure(ioe);
             }
@@ -459,7 +464,7 @@ public class VirtualViewFile {
                 //TODO - remove this check. it is for debugging file deletion/renaming failure in rare cases.
                 if(fileViewChannel.isOpen()) {
                     //throw new IOException("The File Channel was left open.");
-                    fileViewChannel.close();
+                    fileViewStream.close();
                 }
             } catch (IOException ioe) {
                 xaFileSystem.notifySystemFailure(ioe);

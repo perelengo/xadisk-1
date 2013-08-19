@@ -7,7 +7,9 @@ This source code is being made available to the public under the terms specified
 
 package org.xadisk.filesystem.utilities;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import javax.transaction.xa.XAException;
 
 public class MiscUtils {
@@ -34,5 +36,16 @@ public class MiscUtils {
             }
         }
         return false;
+    }
+
+    public static void closeAll(Closeable... closeables) {
+        for(Closeable closeable: closeables) {
+            if(closeable != null) {
+                try {
+                    closeable.close();
+                } catch(IOException ioe) {
+                }
+            }
+        }
     }
 }

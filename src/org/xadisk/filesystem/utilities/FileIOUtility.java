@@ -144,7 +144,7 @@ public class FileIOUtility {
                 + "the file/directory with path [" + f.getAbsolutePath() + "] due "
                 + "to an unknown reason.");
         }
-        
+
         System.gc();
         System.gc();
         System.gc();
@@ -175,33 +175,42 @@ public class FileIOUtility {
     }
 
     public static void copyFile(File src, File dest, boolean append) throws IOException {
-        FileChannel srcChannel = new FileInputStream(src).getChannel();
-        FileChannel destChannel = new FileOutputStream(dest, append).getChannel();
-        long contentLength = srcChannel.size();
-        long num = 0;
-        while (num < contentLength) {
-            num += srcChannel.transferTo(num, NativeXAFileSystem.maxTransferToChannel(contentLength - num), destChannel);
-        }
+        FileInputStream srcFileInputStream = null;
+        FileOutputStream destFileOutputStream = null;
+        try {
+            srcFileInputStream = new FileInputStream(src);
+            destFileOutputStream = new FileOutputStream(dest, append);
+            FileChannel srcChannel = srcFileInputStream.getChannel();
+            FileChannel destChannel = destFileOutputStream.getChannel();
+            long contentLength = srcChannel.size();
+            long num = 0;
+            while (num < contentLength) {
+                num += srcChannel.transferTo(num, NativeXAFileSystem.maxTransferToChannel(contentLength - num), destChannel);
+            }
 
-        destChannel.force(false);
-        srcChannel.close();
-        destChannel.close();
+            destChannel.force(false);
+        } finally {
+            MiscUtils.closeAll(srcFileInputStream, destFileOutputStream);
+        }
     }
 
     public static void copyFile(InputStream srcStream, File dest, boolean append) throws IOException {
-        FileOutputStream destStream = new FileOutputStream(dest, append);
-        byte[] b = new byte[1000];
-        int numRead = 0;
-        while (true) {
-            numRead = srcStream.read(b);
-            if (numRead == -1) {
-                break;
+        FileOutputStream destStream = null;
+        try {
+            destStream = new FileOutputStream(dest, append);
+            byte[] b = new byte[1000];
+            int numRead = 0;
+            while (true) {
+                numRead = srcStream.read(b);
+                if (numRead == -1) {
+                    break;
+                }
+                destStream.write(b, 0, numRead);
             }
-            destStream.write(b, 0, numRead);
-        }
 
-        destStream.flush();
-        destStream.close();
-        srcStream.close();
+            destStream.flush();
+        } finally {
+            MiscUtils.closeAll(srcStream, destStream);
+        }
     }
 }

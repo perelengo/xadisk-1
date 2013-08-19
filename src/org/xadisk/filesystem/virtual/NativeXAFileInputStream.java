@@ -28,6 +28,7 @@ import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
 public class NativeXAFileInputStream implements XAFileInputStream {
 
     private FileChannel physicalFileChannel;
+    private FileInputStream physicalFileInputStream;
     private ByteBuffer byteBuffer;
     private final NativeXAFileSystem xaFileSystem;
     private boolean filledAtleastOnce = false;
@@ -60,7 +61,8 @@ public class NativeXAFileInputStream implements XAFileInputStream {
         this.asynchronousRollbackLock = owningSession.getAsynchronousRollbackLock();
         if (vvf.isMappedToAPhysicalFile()) {
             try {
-                this.physicalFileChannel = new FileInputStream(vvf.getMappedToPhysicalFile()).getChannel();
+                this.physicalFileInputStream = new FileInputStream(vvf.getMappedToPhysicalFile());
+                this.physicalFileChannel = physicalFileInputStream.getChannel();
             } catch (FileNotFoundException fnfe) {
                 throw new FileNotExistsException(vvf.getFileName().getAbsolutePath());
             }
@@ -89,7 +91,7 @@ public class NativeXAFileInputStream implements XAFileInputStream {
             owningSession.checkIfCanContinue();
             if (physicalFileChannel != null) {
                 try {
-                    physicalFileChannel.close();
+                    physicalFileInputStream.close();//will close the channel too.
                 } catch (IOException ioe) {
                     xaFileSystem.notifySystemFailure(ioe);
                 }
