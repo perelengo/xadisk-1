@@ -688,7 +688,7 @@ public class NativeSession implements SessionCommonness {
                             continue;
                         }
                         checkPointDuringModificationAgainstCopy(i - 2, f, srcFilesCopied, srcFilesMoved);
-                        commitDeleteFile(fileName);
+                        commitDeleteFile(fileName, filesDirectlyWrittenToDisk);
                     } else if (logEntry.getOperationType() == TransactionLogEntry.FILE_CREATE) {
                         String fileName = logEntry.getFileName();
                         File f = new File(fileName);
@@ -857,10 +857,29 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    private void commitDeleteFile(String fileName) throws IOException {
+    private void commitDeleteFile(String fileName, HashSet<File> filesDirectlyWrittenToDisk)
+            throws IOException {
         File f = new File(fileName);
         if (f.exists()) {
-            diskSession.deleteFile(f);
+            try {
+                diskSession.deleteFile(f);
+            } catch(IOException ioe) {
+                if(f.isDirectory()) {
+                    if(f.list().length!=0) {
+                        for(File file: filesDirectlyWrittenToDisk) {
+                            if(file.getParentFile().equals(f)) {
+                                return;
+                                //bug#132 (see testcase there). For a file written in heavyWrite mode,
+                                //we ignore general io-operations for that file. though such a management
+                                //of one file does not affect any other entity - no file or no directory
+                                //except the parent directory for the delete operation (as delete-dir
+                                //is dependent upon presence of no child objects).
+                            }
+                        }
+                    }
+                }
+                throw ioe;
+            }
         }
     }
 
