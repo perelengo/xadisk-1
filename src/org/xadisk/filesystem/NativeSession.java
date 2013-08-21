@@ -128,7 +128,6 @@ public class NativeSession implements SessionCommonness {
             this.rollbackCause = rollbackCause;
         } catch (TransactionRolledbackException trbe) {
         } catch (NoTransactionAssociatedException note) {
-        } catch (TransactionFailedException tfe) {
         }
     }
 
@@ -610,8 +609,7 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void commit(boolean onePhase) throws NoTransactionAssociatedException,
-        TransactionFailedException {
+    public void commit(boolean onePhase) throws NoTransactionAssociatedException {
         ArrayList<FileInputStream> logInputStreams = new ArrayList<FileInputStream>();
         try {
             asynchronousRollbackLock.lock();
@@ -965,7 +963,7 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void rollback() throws NoTransactionAssociatedException, TransactionFailedException {
+    public void rollback() throws NoTransactionAssociatedException {
         ArrayList<FileInputStream> logInputStreams = new ArrayList<FileInputStream>();
         try {
             asynchronousRollbackLock.lock();
@@ -1327,7 +1325,7 @@ public class NativeSession implements SessionCommonness {
         }
     }
 
-    public void commit() throws NoTransactionAssociatedException, TransactionFailedException {
+    public void commit() throws NoTransactionAssociatedException {
         this.commit(true);
     }
 

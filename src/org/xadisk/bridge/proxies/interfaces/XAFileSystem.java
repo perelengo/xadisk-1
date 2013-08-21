@@ -11,6 +11,7 @@ package org.xadisk.bridge.proxies.interfaces;
 import java.io.IOException;
 import javax.transaction.xa.XAResource;
 import org.xadisk.filesystem.exceptions.RecoveryInProgressException;
+import org.xadisk.filesystem.exceptions.TransactionFailedException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 
 /**
@@ -84,7 +85,21 @@ public interface XAFileSystem {
      */
     public void shutdown() throws IOException;
 
+    /**
+     * Returns a two-dimensional array <i>arr</i> of bytes where each of <i>arr[0], arr[1], arr[2]...</i>
+     * represents a transaction identifier in the byte[] form. These transactions have failed
+     * during normal operations or during the recovery phase of XADisk.
+     * <p> See {@link TransactionFailedException}.
+     * @return a two-dimensional byte array containing the transaction identifiers.
+     * @since 1.2.2
+     */
     public byte[][] getIdentifiersForFailedTransactions();
-    
+
+    /**
+     * Mark the transaction specified by the input <i>transactionIdentifier</i> as complete.
+     * <p> See {@link TransactionFailedException}.
+     * @param transactionIdentifier the identifier for the transaction to be marked as complete.
+     * @since 1.2.2
+     */
     public void declareTransactionAsComplete(byte[] transactionIdentifier);
 }

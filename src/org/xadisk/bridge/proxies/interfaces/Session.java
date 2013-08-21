@@ -11,7 +11,6 @@ package org.xadisk.bridge.proxies.interfaces;
 import org.xadisk.connector.outbound.XADiskConnection;
 import org.xadisk.filesystem.FileSystemConfiguration;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
-import org.xadisk.filesystem.exceptions.TransactionFailedException;
 
 /**
  * This interface is used to invoke i/o operations on XADisk and to control the transaction 
@@ -51,11 +50,11 @@ public interface Session extends XADiskBasicIOOperations {
      * Rolls back the transaction associated with this Session.
      * @throws NoTransactionAssociatedException
      */
-    public void rollback() throws NoTransactionAssociatedException, TransactionFailedException;
+    public void rollback() throws NoTransactionAssociatedException;
 
     /**
      * Commits the transaction associated with this Session.
      * @throws NoTransactionAssociatedException
      */
-    public void commit() throws NoTransactionAssociatedException, TransactionFailedException;
+    public void commit() throws NoTransactionAssociatedException;
 }

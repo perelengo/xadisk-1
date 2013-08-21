@@ -18,7 +18,6 @@ import org.xadisk.filesystem.SessionCommonness;
 import org.xadisk.filesystem.XAFileSystemCommonness;
 import org.xadisk.filesystem.TransactionInformation;
 import org.xadisk.filesystem.exceptions.NoTransactionAssociatedException;
-import org.xadisk.filesystem.exceptions.TransactionFailedException;
 import org.xadisk.filesystem.exceptions.XASystemException;
 import org.xadisk.filesystem.utilities.MiscUtils;
 
@@ -112,8 +111,6 @@ public class XAResourceImpl implements XAResource {
         }
         try {
             sessionOfTransaction.rollback();
-        } catch(TransactionFailedException tfe) {
-            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMERR, tfe);
         } catch (NoTransactionAssociatedException note) {
             throw MiscUtils.createXAExceptionWithCause(XAException.XAER_OUTSIDE, note);
         } catch (XASystemException xase) {
@@ -132,8 +129,6 @@ public class XAResourceImpl implements XAResource {
         }
         try {
             ((SessionCommonness)sessionOfTransaction).commit(onePhase);
-        } catch(TransactionFailedException tfe) {
-            throw MiscUtils.createXAExceptionWithCause(XAException.XAER_RMERR, tfe);
         } catch (NoTransactionAssociatedException note) {
             throw MiscUtils.createXAExceptionWithCause(XAException.XAER_OUTSIDE, note);
         } catch (XASystemException xase) {
