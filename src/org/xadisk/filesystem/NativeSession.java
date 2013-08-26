@@ -749,6 +749,11 @@ public class NativeSession implements SessionCommonness {
             }
             diskSession.forceToDisk();
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, true);
+            for(FileInputStream logInputStream: logInputStreams) {
+                MiscUtils.closeAll(logInputStream);
+                //need to close logs here to allow cleanup of logs in crashRecoveryWorker.
+            }
+            logInputStreams.clear();//to avoid the loop in finally block.
             cleanup();
             raiseFileStateChangeEvents();
         } catch (IOException ioe) {
@@ -1053,6 +1058,11 @@ public class NativeSession implements SessionCommonness {
                 }
             }
             xaFileSystem.getTheGatheringDiskWriter().transactionCompletes(xid, false);
+            for(FileInputStream logInputStream: logInputStreams) {
+                MiscUtils.closeAll(logInputStream);
+                //need to close logs here to allow cleanup of logs in crashRecoveryWorker.
+            }
+            logInputStreams.clear();//to avoid the loop in finally block.
             cleanup();
         } catch (IOException ioe) {
             xaFileSystem.notifySystemFailure(ioe);
