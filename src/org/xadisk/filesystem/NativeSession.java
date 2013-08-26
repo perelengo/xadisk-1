@@ -37,7 +37,7 @@ import org.xadisk.filesystem.exceptions.TransactionFailedException;
 import org.xadisk.filesystem.exceptions.TransactionRolledbackException;
 import org.xadisk.filesystem.exceptions.TransactionTimeoutException;
 import org.xadisk.filesystem.exceptions.XASystemException;
-import org.xadisk.filesystem.exceptions.XASystemIOException;
+import org.xadisk.filesystem.exceptions.internal.XASystemIOException;
 import org.xadisk.filesystem.exceptions.XASystemNoMoreAvailableException;
 import org.xadisk.filesystem.utilities.FileIOUtility;
 import org.xadisk.filesystem.utilities.MiscUtils;
