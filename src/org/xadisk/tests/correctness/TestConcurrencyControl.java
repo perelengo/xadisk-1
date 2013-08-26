@@ -90,6 +90,7 @@ public class TestConcurrencyControl {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        System.out.println("Done");
     }
 
     private static void testTransactionTimeout(XAFileSystem xafs) {

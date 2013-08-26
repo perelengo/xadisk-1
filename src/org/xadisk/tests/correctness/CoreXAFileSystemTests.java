@@ -485,6 +485,10 @@ public class CoreXAFileSystemTests {
         }
 
         System.out.println("Inbound Messaging Test Successful.");
+        //we should allow some time here as the connections opened in this thread
+        //will still be required for calls like afterDelivery, and the termination
+        //of this thread will lead to closing of such connections/sockets.
+        Thread.sleep(10000);
     }
 
     public void testFileSystemEventingPostCrash(String testDirectory) throws Exception {
