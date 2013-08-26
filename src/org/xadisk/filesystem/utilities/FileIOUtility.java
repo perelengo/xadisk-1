@@ -149,7 +149,7 @@ public class FileIOUtility {
         System.gc();
         System.gc();
 		try {
-			Thread.sleep(100);
+			Thread.sleep(1000);
 		} catch(InterruptedException ie) {
 			Thread.currentThread().interrupt();
 			throw (IOException) new IOException().initCause(ie);
