@@ -13,9 +13,9 @@ import org.xadisk.filesystem.TransactionInformation;
  * transaction will keep holding the locks (in-memory) over files/directories until
  * it is marked complete.
  *
- * <p> If a transaction fails during recovery, or there are failed incomplete transactions
- * from the time prior to the reboot, the recovery process will wait until all these
- * failed transactions are marked complete.
+ * <p> If a transaction fails during recovery (when xadisk is committing or rolling-back
+ * the transactions running prior to the reboot), the recovery process will wait until
+ * all these failed transactions are marked complete.
  *
  * <p> A failed transaction can be marked complete using
  * {@link XAFileSystem#declareTransactionAsComplete(byte[])}. The identifier for such
