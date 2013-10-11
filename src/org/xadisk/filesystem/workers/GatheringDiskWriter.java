@@ -328,6 +328,7 @@ public class GatheringDiskWriter extends EventWorker {
             transactionLogLock.lock();
             TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions, currentLogIndex, transactionLogBaseName,
                     xaFileSystem.createDurableDiskSession());
+            transactionSubmittedBuffers.remove(xid);//in rollback, this entry remains.
             transactionsAndLogsOccupied.remove(xid);
         } finally {
             transactionLogLock.unlock();
