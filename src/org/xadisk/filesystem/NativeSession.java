@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
+import org.xadisk.bridge.proxies.impl.RemoteConcurrencyControl;
 import org.xadisk.bridge.proxies.interfaces.XAFileInputStream;
 import org.xadisk.filesystem.exceptions.DeadLockVictimizedException;
 import org.xadisk.filesystem.exceptions.DirectoryNotEmptyException;
@@ -1094,6 +1095,9 @@ public class NativeSession implements SessionCommonness {
             }
             concurrencyControl.releaseRenamePinOnDirectories(directoriesPinnedInThisSession);
         }
+
+        if(concurrencyControl instanceof RemoteConcurrencyControl)
+            concurrencyControl.shutdown();
 
         for (Buffer buffer : transactionInMemoryBuffers) {
             if (buffer instanceof PooledBuffer) {
