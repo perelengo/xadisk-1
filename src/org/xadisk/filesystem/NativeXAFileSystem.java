@@ -457,7 +457,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
         gatheringDiskWriter.deInitialize();
         fileSystemEventDelegator.release();
         transactionTimeoutDetector.release();
-        if(configuration.getEnableRemoteInvocations()) {
+        if(getHandleGeneralRemoteInvocations() || getHandleClusterRemoteInvocations()) {
             pointOfContact.release();
         }
         deadLetter.release();
