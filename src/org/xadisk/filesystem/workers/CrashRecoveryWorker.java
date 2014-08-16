@@ -1,5 +1,5 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -238,7 +238,6 @@ public class CrashRecoveryWorker implements Work {
     }
 
     private void recoverOnePhaseTransactions() throws Exception {
-        WorkManager workManager = xaFileSystem.getWorkManager();
         for (TransactionInformation xid : onePhaseCommittingTransactions) {
             if (released) {
                 return;
@@ -248,19 +247,18 @@ public class CrashRecoveryWorker implements Work {
             recoverySession = xaFileSystem.createRecoverySession(xid, events);
 
             TransactionCompleter commitWork = new TransactionCompleter(recoverySession, true);
-            workManager.startWork(commitWork);
+            xaFileSystem.startWork(commitWork);
         }
     }
 
     private void recoverHeavyWriteTransactionsForRollback() throws Exception {
-        WorkManager workManager = xaFileSystem.getWorkManager();
         for (TransactionInformation xid : heavyWriteTransactionsForRollback) {
             if (released) {
                 return;
             }
             NativeSession recoverySession = xaFileSystem.createRecoverySession(xid, null);
             TransactionCompleter rollbackWork = new TransactionCompleter(recoverySession, false);
-            workManager.startWork(rollbackWork);
+            xaFileSystem.startWork(rollbackWork);
         }
     }
 

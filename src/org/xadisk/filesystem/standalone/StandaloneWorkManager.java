@@ -1,5 +1,5 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -27,7 +27,7 @@ public class StandaloneWorkManager implements WorkManager {
     }
 
     public long startWork(Work work) throws WorkException {
-        return startWork(work, 0, null, null);
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public long startWork(Work work, long timeout, ExecutionContext execCtxt, WorkListener workListener)
