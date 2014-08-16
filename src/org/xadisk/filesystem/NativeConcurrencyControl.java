@@ -1,5 +1,5 @@
 /*
- Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+ Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
  This source code is being made available to the public under the terms specified in the license
  "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -9,9 +9,10 @@ package org.xadisk.filesystem;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.resource.spi.work.WorkException;
 import javax.resource.spi.work.WorkListener;
 import javax.resource.spi.work.WorkManager;
@@ -31,6 +32,8 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     private final WorkManager workManager;
     private final DeadLockDetector deadLockDetector;
     private final LockTreeNode rootNode;
+    private final ConcurrentHashMap<File, LockTreeNode> pinnedDirectories =
+            new ConcurrentHashMap<File, LockTreeNode>();
 
     public NativeConcurrencyControl(FileSystemConfiguration configuration, WorkManager workManager,
             WorkListener workListener, NativeXAFileSystem nativeXAFileSystem) throws WorkException {
@@ -38,7 +41,7 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
         deadLockDetector = new DeadLockDetector(configuration.getDeadLockDetectorInterval(), resourceDependencyGraph,
                 nativeXAFileSystem, this);
         this.workManager = workManager;
-        this.rootNode = new LockTreeNode(null, false);
+        this.rootNode = new LockTreeNode(null, false, null);
         this.workManager.startWork(deadLockDetector, WorkManager.INDEFINITE, null, workListener);
     }
 
@@ -214,17 +217,13 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
     }
 
     public void releaseRenamePinOnDirectory(File dir) {
-        try {
-            LockTreeNode dirNode = traverseDownToFileNode(dir, false, null);
-            unpinDirectoryTree(dirNode);
-        } catch (AncestorPinnedException ape) {
-            //will never arise due to "false" flag above.
-        }
+        LockTreeNode dirNode = pinnedDirectories.remove(dir);
+        unpinDirectoryTree(dirNode);
     }
 
     private void unpinDirectoryTree(LockTreeNode dirNode) {
         dirNode.releasePin();
-        LockTreeNode children[] = dirNode.getAllChildren();
+        Collection<LockTreeNode> children = dirNode.getAllChildren();
         for (LockTreeNode child : children) {
             child.releasePin();
             unpinDirectoryTree(child);
@@ -235,12 +234,13 @@ public class NativeConcurrencyControl implements ConcurrencyControl {
             throws DirectoryPinningFailedException, AncestorPinnedException {
         LockTreeNode dirNode = traverseDownToFileNode(dir, true, requestor);
         pinDirectoryTree(dirNode, requestor, dir.getAbsolutePath());
+        pinnedDirectories.put(dir, dirNode);//to keep a "strong" ref to this dirNode.
     }
 
     private void pinDirectoryTree(LockTreeNode dirNode, TransactionInformation requestor, String dirToRename)
             throws DirectoryPinningFailedException {
         pinLockTreeNode(dirNode, requestor, dirToRename);
-        LockTreeNode children[] = dirNode.getAllChildren();
+        Collection<LockTreeNode> children = dirNode.getAllChildren();
         try {
             for (LockTreeNode child : children) {
                 try {

@@ -1,5 +1,5 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -8,38 +8,67 @@ This source code is being made available to the public under the terms specified
 package org.xadisk.filesystem;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class LockTreeNode {
-
+    
     private final File path;
     private NativeLock lock;
-    private final ConcurrentHashMap<String, LockTreeNode> children = new ConcurrentHashMap<String, LockTreeNode>();
+    
+    private final ConcurrentHashMap<String, WeakReference<LockTreeNode>> children = 
+            new ConcurrentHashMap<String, WeakReference<LockTreeNode>>();
+    
     private final AtomicReference<TransactionInformation> pinHolder = new AtomicReference<TransactionInformation>(null);
+    private final LockTreeNode parentNode;//to keep a "strong" ref to all the ancestors to protect them from gc.
 
-    LockTreeNode(File path, boolean withExclusiveLock) {
+    LockTreeNode(File path, boolean withExclusiveLock, LockTreeNode parentNode) {
         this.path = path;
-        this.lock = new NativeLock(withExclusiveLock, path);
+        this.lock = new NativeLock(withExclusiveLock, path, this);
+        this.parentNode = parentNode;
     }
 
     LockTreeNode getChild(String name) {
-        LockTreeNode node = children.get(name);
-        if (node != null) {
+        WeakReference<LockTreeNode> nodeWR = children.get(name);
+        LockTreeNode node;
+        if (nodeWR != null) {
+            node = nodeWR.get();
+            if(node != null) {
+                return node;
+            }
+        }
+        node = new LockTreeNode(new File(path, name), false, this);
+        WeakReference<LockTreeNode> newNodeWR =
+                new WeakReference<LockTreeNode>(node);
+        boolean success;
+        if(nodeWR == null) {
+            success = children.putIfAbsent(name, newNodeWR) == null;
+        } else {
+            success = children.replace(name, nodeWR, newNodeWR);
+            //replace wont work with args null, so needed if-else.
+        }
+        if(success) {
             return node;
         } else {
-            node = new LockTreeNode(new File(path, name), false);
-            LockTreeNode olderValue = children.putIfAbsent(name, node);
-            if(olderValue == null) {
-                return node;
-            } else {
-                return olderValue;
-            }
+            return getChild(name);
         }
     }
 
-    LockTreeNode[] getAllChildren() {
-        return children.values().toArray(new LockTreeNode[0]);
+    Collection<LockTreeNode> getAllChildren() {
+        Collection<WeakReference<LockTreeNode>> childrenRef =
+                children.values();
+        ArrayList<LockTreeNode> childrenList = 
+                new ArrayList<LockTreeNode>(childrenRef.size());
+        for(WeakReference<LockTreeNode> childRef: childrenRef) {
+            LockTreeNode child = childRef.get();
+            if(child != null) {
+                childrenList.add(child);
+            }
+        }
+        return childrenList;
     }
     
     boolean isPinnedByOtherTransaction(TransactionInformation thisTransaction) {

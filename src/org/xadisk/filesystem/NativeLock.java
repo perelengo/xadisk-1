@@ -1,5 +1,5 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -26,10 +26,12 @@ public class NativeLock implements Lock {
     private final ReentrantLock synchLock = new ReentrantLock(false);
     private final Condition mayBeReadable = synchLock.newCondition();
     private final Condition mayBeWritable = synchLock.newCondition();
+    private final LockTreeNode node;//to keep a "strong" ref to this node, session->allAcquiredLocks->node.
 
-    NativeLock(boolean exclusive, File resource) {
+    NativeLock(boolean exclusive, File resource, LockTreeNode node) {
         this.exclusive = exclusive;
         this.resource = resource;
+        this.node = node;
     }
 
     int getNumHolders() {
