@@ -1,5 +1,5 @@
 /*
-Copyright © 2010-2011, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
+Copyright © 2010-2014, Nitin Verma (project owner for XADisk https://xadisk.dev.java.net/). All rights reserved.
 
 This source code is being made available to the public under the terms specified in the license
 "Eclipse Public License 1.0" located at http://www.opensource.org/licenses/eclipse-1.0.php.
@@ -789,7 +789,7 @@ public class NativeSession implements SessionCommonness {
         diskSession.forceToDisk();
         try {
             ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid, currentLogPosition));
-            xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+            xaFileSystem.getTheGatheringDiskWriter().forceLog(xid, logEntryBytes);
         } catch(IOException ioe) {
             throw new XASystemIOException(ioe);
         }
@@ -1246,7 +1246,7 @@ public class NativeSession implements SessionCommonness {
     public void declareTransactionUsingUndoLogs() throws IOException {
         ByteBuffer logEntryBytes = ByteBuffer.wrap(TransactionLogEntry.getLogEntry(xid,
                 TransactionLogEntry.TXN_USES_UNDO_LOGS));
-        xaFileSystem.getTheGatheringDiskWriter().forceLog(logEntryBytes);
+        xaFileSystem.getTheGatheringDiskWriter().forceLog(xid, logEntryBytes);
     }
 
     public long getTimeOfEntryToTransaction() {
