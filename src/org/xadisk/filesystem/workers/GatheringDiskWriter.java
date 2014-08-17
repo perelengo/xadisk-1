@@ -325,7 +325,6 @@ public class GatheringDiskWriter extends EventWorker {
             transactionLogLock.lock();
             TransactionLogsUtility.deleteLogsIfPossible(xid, transactionsAndLogsOccupied, transactionLogsAndOpenTransactions,
                     currentLogIndex, transactionLogBaseName, xaFileSystem.createDurableDiskSession());
-            transactionSubmittedBuffers.remove(xid);//in rollback, this entry remains.
             transactionsAndLogsOccupied.remove(xid);
         } finally {
             transactionLogLock.unlock();
@@ -354,6 +353,20 @@ public class GatheringDiskWriter extends EventWorker {
             if (nextTransactionLog == null) {
                 throw new IOException("Transaction logs seems to be over...cannot proceed.");
             }
+        }
+    }
+    
+    public void transactionRollbackBegins(TransactionInformation xid) {
+        try {
+            transactionLogLock.lock();
+            //we take the lock to ensure that existing processEvent is complete before we begin iterating over
+            //the log-positions in the session.rollback (because a processEvent going in parallel may give us
+            //log-positions which are yet to be written to the log).
+            //we also remove all the buffers now to save unnecessary processing by next processEvent; all "urgent"
+            //buffers were anyway persisted immediately, and don't belong to this list.
+            transactionSubmittedBuffers.remove(xid);
+        } finally {
+            transactionLogLock.unlock();
         }
     }
 

@@ -999,6 +999,8 @@ public class NativeSession implements SessionCommonness {
                 }
                 logPositions = this.transactionLogPositions;
             }
+            
+            xaFileSystem.getTheGatheringDiskWriter().transactionRollbackBegins(xid);
 
             Buffer inMemoryLog;
             for (int i = logPositions.size() - 2; i >= 0; i -= 2) {
