@@ -1196,7 +1196,7 @@ public class NativeSession implements SessionCommonness {
 
     private void checkValidParent(File f) throws FileNotExistsException {
         if (f.getParentFile() == null) {
-            throw new FileNotExistsException(f.getParentFile().getAbsolutePath());
+            throw new FileNotExistsException("{Parent directory of (" + f.getAbsolutePath() + ")}");
         }
     }
 
