@@ -486,8 +486,12 @@ public class NativeSession implements SessionCommonness {
         try {
             asynchronousRollbackLock.lock();
             checkIfCanContinue();
-            checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
-            return view.listFiles(f);
+            if(!MiscUtils.isRootPath(f)) {
+                checkPermission(PermissionType.READ_DIRECTORY, f.getParentFile());
+                return view.listFiles(f);
+            } else {
+                return f.list();
+            }
         } catch (XASystemException xase) {
             xaFileSystem.notifySystemFailure(xase);
             throw xase;
