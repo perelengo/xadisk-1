@@ -261,21 +261,7 @@ public class GatheringDiskWriter extends EventWorker {
     }
 
     public void forceLog(TransactionInformation xid, ByteBuffer logEntryHeader) throws IOException {
-        try {
-            transactionLogLock.lock();
-            long n = 0;
-            long sizeToWrite = logEntryHeader.remaining();
-            ensureLogFileCapacity(sizeToWrite);
-            while (n < sizeToWrite) {
-                n += transactionLogChannel.write(logEntryHeader);
-            }
-            transactionLogChannel.force(false);
-            TransactionLogsUtility.trackTransactionLogsUsage(xid, transactionsAndLogsOccupied,
-                    transactionLogsAndOpenTransactions, currentLogIndex);
-
-        } finally {
-            transactionLogLock.unlock();
-        }
+        forceWrite(xid, logEntryHeader);
     }
 
     public long[] forceUndoLogAndData(TransactionInformation xid, ByteBuffer logEntryHeader, FileChannel contents, long contentPosition,
@@ -355,6 +341,7 @@ public class GatheringDiskWriter extends EventWorker {
                     continue;
                 }
                 nextTransactionLog = f;
+                transactionLogChannel.force(false);
                 transactionLogChannel.close();
                 transactionLogChannel =
                         new FileOutputStream(nextTransactionLog, true).getChannel();
