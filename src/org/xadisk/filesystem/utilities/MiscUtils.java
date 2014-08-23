@@ -10,6 +10,7 @@ package org.xadisk.filesystem.utilities;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import javax.transaction.xa.XAException;
 
 public class MiscUtils {
@@ -47,5 +48,19 @@ public class MiscUtils {
                 }
             }
         }
+    }
+    
+    public static ArrayList<String> isDescedantOf(File a, File b) {
+        File parentA = a.getParentFile();
+        ArrayList<String> stepsToDescend = new ArrayList<String>(10);
+        stepsToDescend.add(a.getName());
+        while (parentA != null) {
+            if (parentA.equals(b)) {
+                return stepsToDescend;
+            }
+            stepsToDescend.add(parentA.getName());
+            parentA = parentA.getParentFile();
+        }
+        return null;
     }
 }

@@ -247,8 +247,9 @@ public class TransactionVirtualView {
     }
 
     private void updateDescendantVVDsWithPrefix(File ancestorOldName, File ancestorNewName) {
-        for (File dirName : virtualViewDirs.keySet()) {
-            ArrayList<String> stepsToDescendToVVD = isDescedantOf(dirName, ancestorOldName);
+        File dirs[] = virtualViewDirs.keySet().toArray(new File[0]);
+        for (File dirName : dirs) {
+            ArrayList<String> stepsToDescendToVVD = MiscUtils.isDescedantOf(dirName, ancestorOldName);
             if (stepsToDescendToVVD != null) {
                 StringBuilder newPathForVVD = new StringBuilder(ancestorNewName.getAbsolutePath());
                 for (int j = stepsToDescendToVVD.size() - 1; j >= 0; j--) {
@@ -257,20 +258,6 @@ public class TransactionVirtualView {
                 updateVVDWithPath(dirName, new File(newPathForVVD.toString()));
             }
         }
-    }
-
-    private static ArrayList<String> isDescedantOf(File a, File b) {
-        File parentA = a.getParentFile();
-        ArrayList<String> stepsToDescend = new ArrayList<String>(10);
-        stepsToDescend.add(a.getName());
-        while (parentA != null) {
-            if (parentA.equals(b)) {
-                return stepsToDescend;
-            }
-            stepsToDescend.add(parentA.getName());
-            parentA = parentA.getParentFile();
-        }
-        return null;
     }
 
     private VirtualViewDirectory getVirtualViewDirectory(File f) throws FileNotExistsException {

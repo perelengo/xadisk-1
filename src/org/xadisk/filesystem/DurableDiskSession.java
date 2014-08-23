@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.xadisk.filesystem.utilities.FileIOUtility;
+import org.xadisk.filesystem.utilities.MiscUtils;
 
 public class DurableDiskSession {
 
@@ -138,8 +139,26 @@ public class DurableDiskSession {
     public void renameTo(File src, File dest) throws IOException {
         directoriesToForce.add(src.getParentFile());
         directoriesToForce.add(dest.getParentFile());
-        directoriesToForce.remove(src);
+        if(directoriesToForce.remove(src)) {
+            directoriesToForce.add(dest);
+        }
+        updatePathsForDescendantDirectories(src, dest);
         FileIOUtility.renameTo(src, dest);
+    }
+    
+    private void updatePathsForDescendantDirectories(File ancestorOldPath, File ancestorNewPath) {
+        File dirs[] = directoriesToForce.toArray(new File[0]);
+        for (File dirName : dirs) {
+            ArrayList<String> stepsToDescendToDir = MiscUtils.isDescedantOf(dirName, ancestorOldPath);
+            if (stepsToDescendToDir != null) {
+                StringBuilder newPathForDir = new StringBuilder(ancestorNewPath.getAbsolutePath());
+                for (int j = stepsToDescendToDir.size() - 1; j >= 0; j--) {
+                    newPathForDir.append(File.separator).append(stepsToDescendToDir.get(j));
+                }
+                directoriesToForce.remove(dirName);
+                directoriesToForce.add(new File(newPathForDir.toString()));
+            }
+        }
     }
 
     public void deleteFile(File f) throws IOException {
