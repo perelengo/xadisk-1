@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.resource.spi.work.Work;
 import javax.resource.spi.work.WorkException;
@@ -82,10 +83,10 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     private volatile Throwable systemFailureCause = null;
     private volatile boolean systemShuttingDown = false;
     private final CriticalWorkersListener workListener;
-    private final File topLevelBackupDir;
+    private final File backupDirRoot;
+    private final int[] backupDirPathNumbers = new int[BACKUP_DIR_PATH_MAX_DEPTH];
     private File currentBackupDirPath;
-    private AtomicLong backupFileNameCounter = new AtomicLong(0);
-    private final int maxFilesInBackupDirectory = 100000;
+    private final AtomicInteger currentBackupFileName = new AtomicInteger(0);
     private final GlobalHostedContext globalCallbackContext = new GlobalHostedContext();
     private final AtomicLong totalNonPooledBufferSize = new AtomicLong(0);
     private final ConcurrencyControl concurrencyControl;
@@ -96,6 +97,9 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     
     //fix for bug XADISK-85 and potentially similar ones.
     public static final int FILE_CHANNEL_MAX_TRANSFER = 1024 * 1024 * 8;
+    private static final int BACKUP_DIR_PATH_MAX_DEPTH = 5;
+    private static final int BACKUP_DIR_PATH_MAX_BREADTH = 65000;
+    private static final int BACKUP_DIR_MAX_FILES = BACKUP_DIR_PATH_MAX_BREADTH;
 
     private NativeXAFileSystem(FileSystemConfiguration configuration,
             WorkManager workManager) {
@@ -105,7 +109,7 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
             File xaDiskHome = new File(configuration.getXaDiskHome()).getAbsoluteFile();
             String xaDiskHomePath = xaDiskHome.getPath();
             FileIOUtility.createDirectoriesIfRequired(xaDiskHome);
-            topLevelBackupDir = new File(xaDiskHome, "backupDir");
+            backupDirRoot = new File(xaDiskHome, "backupDir");
             logger = new Logger(new File(xaDiskHome, "xadisk.log"), (byte) 3);
 
             if(configuration.getSynchronizeDirectoryChanges()) {
@@ -124,8 +128,8 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
             DurableDiskSession diskSession = createDurableDiskSession();
             
-            if (!topLevelBackupDir.isDirectory()) {
-                diskSession.createDirectory(topLevelBackupDir);
+            if (!backupDirRoot.isDirectory()) {
+                diskSession.createDirectory(backupDirRoot);
             }
             transactionLogsDir = xaDiskHomePath + File.separator + "txnlogs";
             diskSession.createDirectoriesIfRequired(new File(transactionLogsDir));
@@ -256,13 +260,38 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
     public void notifyRecoveryComplete() throws IOException {
         fileSystemEventQueue.addAll(recoveryWorker.getEventsEnqueueCommittedNotDequeued());
         DurableDiskSession diskSession = createDurableDiskSession();
-        diskSession.deleteDirectoryRecursively(topLevelBackupDir);
-        diskSession.createDirectory(topLevelBackupDir);
-        backupFileNameCounter.set(0);
-        currentBackupDirPath = new File(topLevelBackupDir.getAbsolutePath(), "deeper");
-        diskSession.createDirectory(currentBackupDirPath);
+        diskSession.deleteDirectoryRecursively(backupDirRoot);
+        diskSession.createDirectory(backupDirRoot);
+        for(int i = 0; i < BACKUP_DIR_PATH_MAX_DEPTH; i++) {
+            backupDirPathNumbers[i] = 0;
+        }
+        currentBackupFileName.set(0);
+        setBackupDirPath();
+        diskSession.createDirectoriesIfRequired(currentBackupDirPath);
         diskSession.forceToDisk();
         recoveryComplete = true;
+    }
+    
+    private void setBackupDirPath() {
+        StringBuilder dirPath = new StringBuilder(backupDirRoot.getAbsolutePath());
+        for(int i = 0; i < BACKUP_DIR_PATH_MAX_DEPTH; i++) {
+            dirPath.append(File.separator).append(backupDirPathNumbers[i]);
+        }
+        currentBackupDirPath = new File(dirPath.toString());
+    }
+    
+    private void createNextBackupDirPath() throws IOException {
+        for(int i = BACKUP_DIR_PATH_MAX_DEPTH - 1; i >= 0; i--){
+            if(++backupDirPathNumbers[i] == BACKUP_DIR_PATH_MAX_BREADTH) {
+                backupDirPathNumbers[i] = 0;
+            } else {
+                break;
+            }
+        }
+        setBackupDirPath();
+        DurableDiskSession durableDiskSession = createDurableDiskSession();
+        durableDiskSession.createDirectoriesIfRequired(currentBackupDirPath);
+        durableDiskSession.forceToDisk();
     }
 
     public NativeSession createSessionForLocalTransaction() {
@@ -475,15 +504,17 @@ public class NativeXAFileSystem implements XAFileSystemCommonness {
 
     public File getNextBackupFileName() throws IOException {
         File savedCurrentBackupDir = this.currentBackupDirPath;
-        long nextBackupFileName = backupFileNameCounter.getAndIncrement();
-        if (nextBackupFileName >= maxFilesInBackupDirectory) {
-            if (nextBackupFileName == maxFilesInBackupDirectory) {
-                currentBackupDirPath = new File(currentBackupDirPath, "deeper");
-                createDurableDiskSession().createDirectoryDurably(currentBackupDirPath);
-                backupFileNameCounter.set(0);
+        
+        int nextBackupFileName = currentBackupFileName.getAndIncrement();
+        if (nextBackupFileName >= BACKUP_DIR_MAX_FILES - 1) {
+            if (nextBackupFileName == BACKUP_DIR_MAX_FILES - 1) {
+                createNextBackupDirPath();
+                currentBackupFileName.set(0);
             } else {
-                while (backupFileNameCounter.get() >= maxFilesInBackupDirectory) {
+                while (currentBackupFileName.get() >= BACKUP_DIR_MAX_FILES - 1) {
+                    Thread.yield();
                 }
+                return getNextBackupFileName();
             }
         }
         return new File(savedCurrentBackupDir, nextBackupFileName + "");
